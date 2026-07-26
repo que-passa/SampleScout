@@ -171,8 +171,7 @@
 					selectedIds = next;
 				} else {
 					batchStatus = null;
-					batchError =
-						result.errors.map((error) => error.message).join(' ') || 'Discard failed.';
+					batchError = result.errors.map((error) => error.message).join(' ') || 'Discard failed.';
 				}
 			}
 			discardConfirm = null;
@@ -342,7 +341,9 @@
 				<div class="select-bar">
 					<p class="select-count">{selectedCount} selected</p>
 					<div class="select-actions">
-						<button type="button" class="text-button" onclick={selectAllVisible}> Select all </button>
+						<button type="button" class="text-button" onclick={selectAllVisible}>
+							Select all
+						</button>
 						<button type="button" class="text-button" onclick={clearSelection}>Clear</button>
 						{#if selectedCount > 0}
 							<button
@@ -422,16 +423,12 @@
 										selected={Boolean(selectedIds[take.id])}
 										onselect={(selected) => setSelected(take.id, selected)}
 										onrename={(name) => onRename(take.id, name)}
-										ondiscard={
-											selectMode
-												? undefined
-												: () => requestDiscard(take.id, take.metadata.displayName)
-										}
-										onretry={
-											!selectMode && take.uploadState === 'failed'
-												? () => void onRetryUpload(take.id)
-												: undefined
-										}
+										ondiscard={selectMode
+											? undefined
+											: () => requestDiscard(take.id, take.metadata.displayName)}
+										onretry={!selectMode && take.uploadState === 'failed'
+											? () => void onRetryUpload(take.id)
+											: undefined}
 										retryBusy={retryingTakeId === take.id}
 									/>
 								{/each}

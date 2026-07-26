@@ -23,6 +23,8 @@ import { notifyTakeInventoryChanged } from './take-actions';
 import { acquirePreventUnload } from './prevent-unload';
 
 type JobListener = () => void | Promise<void>;
+// Module-level registries — not component reactive state.
+// eslint-disable-next-line svelte/prefer-svelte-reactivity -- listener fan-out
 const listeners = new Set<JobListener>();
 
 /** Reactive snapshot of the in-session upload queue (persisted jobs + live progress). */
@@ -36,6 +38,7 @@ export const uploadQueue = $state({
 });
 
 let processing = false;
+// eslint-disable-next-line svelte/prefer-svelte-reactivity -- in-flight abort controllers
 const abortByJobId = new Map<string, AbortController>();
 
 export function onUploadQueueChanged(listener: JobListener): () => void {

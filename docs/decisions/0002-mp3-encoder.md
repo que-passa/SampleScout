@@ -10,11 +10,11 @@ Phase 6 requires browser-only WAV and MP3 export. WAV is a small in-house PCM en
 
 Candidates considered:
 
-| Option | Notes |
-| ------ | ----- |
-| `wasm-media-encoders` | Focused LAME WASM (~66 KiB gzipped MP3), MIT wrapper, CBR bitrates, encode/finalize API suitable for chunked Worker progress |
-| `@mediabunny/mp3-encoder` | Strong WASM LAME build, but peer-depends on the larger Mediabunny muxing stack |
-| Classic `lamejs` forks | Heavier JS, weaker Worker/WASM story |
+| Option                    | Notes                                                                                                                        |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `wasm-media-encoders`     | Focused LAME WASM (~66 KiB gzipped MP3), MIT wrapper, CBR bitrates, encode/finalize API suitable for chunked Worker progress |
+| `@mediabunny/mp3-encoder` | Strong WASM LAME build, but peer-depends on the larger Mediabunny muxing stack                                               |
+| Classic `lamejs` forks    | Heavier JS, weaker Worker/WASM story                                                                                         |
 
 ## Decision
 

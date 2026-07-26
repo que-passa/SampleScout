@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-	estimateEncodedByteLength,
-	estimateMp3ByteLength,
-	formatByteEstimate
-} from './estimate';
+import { estimateEncodedByteLength, estimateMp3ByteLength, formatByteEstimate } from './estimate';
 import { wavByteLength } from './wav';
 
 describe('encode estimates', () => {

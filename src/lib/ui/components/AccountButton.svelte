@@ -92,7 +92,8 @@
 		/* Soft recessed pad — inset only, no floating drop-shadow. */
 		box-shadow:
 			inset 0 var(--space-1) var(--space-2) color-mix(in srgb, var(--ink) 14%, transparent),
-			inset 0 calc(var(--space-1) * -1) var(--space-1) color-mix(in srgb, var(--paper) 70%, transparent);
+			inset 0 calc(var(--space-1) * -1) var(--space-1)
+				color-mix(in srgb, var(--paper) 70%, transparent);
 	}
 
 	.face {
@@ -126,7 +127,8 @@
 		.account-button:hover .well {
 			box-shadow:
 				inset 0 var(--space-1) var(--space-2) color-mix(in srgb, var(--ink) 10%, transparent),
-				inset 0 calc(var(--space-1) * -1) var(--space-1) color-mix(in srgb, var(--paper) 78%, transparent);
+				inset 0 calc(var(--space-1) * -1) var(--space-1)
+					color-mix(in srgb, var(--paper) 78%, transparent);
 		}
 
 		.account-button:hover .face {
@@ -138,7 +140,8 @@
 	.account-button:active .well {
 		box-shadow:
 			inset 0 var(--space-1) var(--space-2) color-mix(in srgb, var(--ink) 30%, transparent),
-			inset 0 calc(var(--space-1) * -1) var(--space-1) color-mix(in srgb, var(--paper) 48%, transparent);
+			inset 0 calc(var(--space-1) * -1) var(--space-1)
+				color-mix(in srgb, var(--paper) 48%, transparent);
 	}
 
 	.account-button:active .face {

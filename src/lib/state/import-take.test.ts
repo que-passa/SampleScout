@@ -2,10 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { RECORDING_MAX_SECONDS } from '$lib/config/recording';
 import { createSession } from '$lib/domain/metadata';
 import { isTakeSavedLocally } from '$lib/domain/metadata';
-import {
-	assertImportDurationAllowed,
-	buildImportTakeDraft
-} from '$lib/state/import-take';
+import { assertImportDurationAllowed, buildImportTakeDraft } from '$lib/state/import-take';
 
 describe('import take helpers', () => {
 	it('rejects audio longer than the shared capture limit', () => {

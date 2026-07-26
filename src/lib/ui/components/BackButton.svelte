@@ -1,13 +1,10 @@
 <script lang="ts">
+	/** Callers must pass a base-aware href from `resolve(...)`. */
 	let { href, label }: { href: string; label: string } = $props();
 </script>
 
-<a
-	class="back-button"
-	{href}
-	aria-label={`Back to ${label}`}
-	title={label}
->
+<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- href is pre-resolved by callers -->
+<a class="back-button" {href} aria-label={`Back to ${label}`} title={label}>
 	<svg
 		class="back-icon"
 		viewBox="0 0 24 24"

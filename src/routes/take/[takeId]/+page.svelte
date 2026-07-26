@@ -123,9 +123,7 @@
 	);
 
 	/** Always pass ranges (including identity 0→duration) so trim grips stay visible. */
-	const retainedRanges = $derived(
-		currentRecipe ? retainedSourceRanges(currentRecipe) : undefined
-	);
+	const retainedRanges = $derived(currentRecipe ? retainedSourceRanges(currentRecipe) : undefined);
 
 	const hasUsableSelection = $derived(
 		selectionStart != null &&
@@ -247,13 +245,7 @@
 		seconds: number;
 	}) {
 		await applyRecipeMutation((recipe) =>
-			adjustRetainedBoundary(
-				recipe,
-				detail.rangeIndex,
-				detail.edge,
-				detail.seconds,
-				sourceDuration
-			)
+			adjustRetainedBoundary(recipe, detail.rangeIndex, detail.edge, detail.seconds, sourceDuration)
 		);
 	}
 
@@ -297,10 +289,7 @@
 	}
 
 	async function onNormalize() {
-		await applyRecipeMutation(
-			(recipe) => enablePeakNormalization(recipe),
-			'Normalize applied'
-		);
+		await applyRecipeMutation((recipe) => enablePeakNormalization(recipe), 'Normalize applied');
 	}
 
 	async function onUndo() {
@@ -417,9 +406,7 @@
 	function syncPlayheadFromHandle(handle: PlaybackHandle) {
 		if (!currentRecipe) return;
 		currentTime = handle.getCurrentTime();
-		displayPlayhead = identity
-			? currentTime
-			: editedTimeToSourceTime(currentRecipe, currentTime);
+		displayPlayhead = identity ? currentTime : editedTimeToSourceTime(currentRecipe, currentTime);
 	}
 
 	async function wrapLoopPlayback(handle: PlaybackHandle) {
@@ -620,8 +607,7 @@
 			if (loopPreview) {
 				const bounds = getLoopBoundsEdited();
 				if (bounds) {
-					const outside =
-						currentTime < bounds.start - 0.001 || currentTime >= bounds.end - 0.002;
+					const outside = currentTime < bounds.start - 0.001 || currentTime >= bounds.end - 0.002;
 					if (hasUsableSelection || outside) {
 						handle.seek(bounds.start);
 						syncPlayheadFromHandle(handle);
@@ -804,11 +790,7 @@
 						}}
 					>
 						{#snippet chromeActions()}
-							<button
-								type="button"
-								class="chrome-action"
-								onclick={() => void onNormalize()}
-							>
+							<button type="button" class="chrome-action" onclick={() => void onNormalize()}>
 								Normalize
 							</button>
 							<button
@@ -873,9 +855,7 @@
 										focusable="false"
 										fill="currentColor"
 									>
-										<path
-											d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"
-										/>
+										<path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z" />
 									</svg>
 								</button>
 							</div>
@@ -1035,9 +1015,7 @@
 
 							<div class="metadata-item">
 								<span class="metadata-label">Size</span>
-								<span class="metadata-value"
-									>{Math.round(take.source.byteLength / 1024)} KB</span
-								>
+								<span class="metadata-value">{Math.round(take.source.byteLength / 1024)} KB</span>
 							</div>
 
 							<div class="metadata-item">

@@ -160,8 +160,7 @@
 				importError = result.errors.map((error) => error.message).join(' ');
 			} else {
 				importStatus = null;
-				importError =
-					result.errors.map((error) => error.message).join(' ') || 'Import failed.';
+				importError = result.errors.map((error) => error.message).join(' ') || 'Import failed.';
 			}
 		} catch (cause) {
 			importStatus = null;
@@ -347,8 +346,7 @@
 
 					{#if capabilities && !capabilities.canPersistDrafts}
 						<div class="warning-banner">
-							Local storage is not available. Takes cannot be saved as Local Drafts on this
-							device.
+							Local storage is not available. Takes cannot be saved as Local Drafts on this device.
 						</div>
 					{/if}
 				</div>

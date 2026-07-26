@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createSession, createTakeDraft } from './metadata';
-import {
-	buildExtractTakeDraft,
-	formatExtractClock,
-	formatExtractDisplayName
-} from './extract';
+import { buildExtractTakeDraft, formatExtractClock, formatExtractDisplayName } from './extract';
 
 describe('formatExtractClock', () => {
 	it('formats mm:ss.mmm', () => {

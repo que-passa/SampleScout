@@ -24,11 +24,10 @@ export async function encodeMp3Planar(
 ): Promise<Uint8Array> {
 	const channelCount = planar.channelCount;
 	if (channelCount !== 1 && channelCount !== 2) {
-		throw createAppError(
-			'ENCODE_CHANNEL_LIMIT',
-			'MP3 export supports mono or stereo only.',
-			{ recoverable: true, context: { channelCount } }
-		);
+		throw createAppError('ENCODE_CHANNEL_LIMIT', 'MP3 export supports mono or stereo only.', {
+			recoverable: true,
+			context: { channelCount }
+		});
 	}
 	if (planar.frameCount <= 0 || planar.channels.length === 0) {
 		throw createAppError('ENCODE_EMPTY', 'No PCM samples to encode as MP3.', {
@@ -56,9 +55,9 @@ export async function encodeMp3Planar(
 			throw abortError();
 		}
 		const end = Math.min(totalFrames, start + chunkFrames);
-		const slices = planar.channels.slice(0, channelCount).map((channel) =>
-			channel.subarray(start, end)
-		);
+		const slices = planar.channels
+			.slice(0, channelCount)
+			.map((channel) => channel.subarray(start, end));
 		const encoded = encoder.encode(slices);
 		if (encoded.length > 0) {
 			const copy = encoded.slice();

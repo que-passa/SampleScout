@@ -24,7 +24,10 @@ export const MIN_FRAMES_PER_PEAK = 1;
 /**
  * Choose frames-per-peak so overview stays near {@link TARGET_OVERVIEW_PEAKS}.
  */
-export function framesPerPeakForLength(frameCount: number, targetPeaks = TARGET_OVERVIEW_PEAKS): number {
+export function framesPerPeakForLength(
+	frameCount: number,
+	targetPeaks = TARGET_OVERVIEW_PEAKS
+): number {
 	if (frameCount <= 0) return MIN_FRAMES_PER_PEAK;
 	const target = Math.max(1, targetPeaks);
 	return Math.max(MIN_FRAMES_PER_PEAK, Math.ceil(frameCount / target));
@@ -140,11 +143,7 @@ export function resamplePeaksWindow(
  * True when the overview peak array is coarser than one peak per draw column
  * for the current view span — zoom has stretched buckets into blocky stairs.
  */
-export function needsDetailPeaks(
-	peakCount: number,
-	viewSpan: number,
-	columns: number
-): boolean {
+export function needsDetailPeaks(peakCount: number, viewSpan: number, columns: number): boolean {
 	if (!(peakCount > 0) || !(columns > 0)) return false;
 	const span = Math.min(1, Math.max(0, viewSpan));
 	const visiblePeaks = peakCount * span;

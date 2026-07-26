@@ -9,7 +9,8 @@ export type Visibility = 'unlisted' | 'public';
 export type MetadataOrigin =
 	'application-default' | 'user-preference' | 'session-default' | 'generated' | 'manual';
 
-export type TakeLifecycleState = 'recording' | 'finalizing' | 'saved' | 'pending-delete' | 'deleted';
+export type TakeLifecycleState =
+	'recording' | 'finalizing' | 'saved' | 'pending-delete' | 'deleted';
 
 export type TakeReviewState = 'unreviewed' | 'edited' | 'ready';
 

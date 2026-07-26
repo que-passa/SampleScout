@@ -50,12 +50,7 @@
 
 <svelte:window onkeydown={onKeydown} />
 
-<div
-	class="backdrop"
-	role="presentation"
-	transition:fade={{ duration }}
-	onclick={onBackdropClick}
->
+<div class="backdrop" role="presentation" transition:fade={{ duration }} onclick={onBackdropClick}>
 	<div
 		class="panel"
 		role="alertdialog"

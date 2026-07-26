@@ -15,9 +15,7 @@ export function cloneEditRecipe(recipe: EditRecipe): EditRecipe {
 	return {
 		version: 1,
 		segments: recipe.segments.map((segment) => ({ ...segment })),
-		peakNormalization: recipe.peakNormalization
-			? { ...recipe.peakNormalization }
-			: undefined
+		peakNormalization: recipe.peakNormalization ? { ...recipe.peakNormalization } : undefined
 	};
 }
 
@@ -63,11 +61,7 @@ export function isIdentityRecipe(recipe: EditRecipe, sourceDurationSeconds: numb
 	);
 }
 
-function clampFade(
-	seconds: number,
-	segmentLength: number,
-	otherFadeSeconds = 0
-): number {
+function clampFade(seconds: number, segmentLength: number, otherFadeSeconds = 0): number {
 	if (seconds <= 0 || segmentLength <= 0) return 0;
 	const other = Math.max(0, otherFadeSeconds);
 	const max = Math.max(0, segmentLength - other);
@@ -156,8 +150,7 @@ export function adjustRetainedBoundary(
 	sourceDurationSeconds: number
 ): EditRecipe {
 	const ordered = [...recipe.segments].sort(
-		(a, b) =>
-			a.sourceStartSeconds - b.sourceStartSeconds || a.sourceEndSeconds - b.sourceEndSeconds
+		(a, b) => a.sourceStartSeconds - b.sourceStartSeconds || a.sourceEndSeconds - b.sourceEndSeconds
 	);
 	const segment = ordered[rangeIndex];
 	if (!segment) {
@@ -201,7 +194,11 @@ export function adjustRetainedBoundary(
 /**
  * Cut: remove the selected source range from all retained segments.
  */
-export function cutSelection(recipe: EditRecipe, startSeconds: number, endSeconds: number): EditRecipe {
+export function cutSelection(
+	recipe: EditRecipe,
+	startSeconds: number,
+	endSeconds: number
+): EditRecipe {
 	const { start, end } = normalizeSelection(startSeconds, endSeconds);
 	const next: RetainedSegment[] = [];
 
@@ -240,9 +237,7 @@ export function applyFadeIn(
 	fadeSeconds: number = DEFAULT_FADE_SECONDS
 ): EditRecipe {
 	if (recipe.segments.length === 0) return cloneEditRecipe(recipe);
-	const ordered = [...recipe.segments].sort(
-		(a, b) => a.sourceStartSeconds - b.sourceStartSeconds
-	);
+	const ordered = [...recipe.segments].sort((a, b) => a.sourceStartSeconds - b.sourceStartSeconds);
 	const firstId = ordered[0]?.id;
 	return {
 		version: 1,
@@ -251,16 +246,10 @@ export function applyFadeIn(
 			const length = segmentDurationSeconds(segment);
 			return {
 				...segment,
-				fadeInSeconds: clampFade(
-					Math.max(0, fadeSeconds),
-					length,
-					segment.fadeOutSeconds
-				)
+				fadeInSeconds: clampFade(Math.max(0, fadeSeconds), length, segment.fadeOutSeconds)
 			};
 		}),
-		peakNormalization: recipe.peakNormalization
-			? { ...recipe.peakNormalization }
-			: undefined
+		peakNormalization: recipe.peakNormalization ? { ...recipe.peakNormalization } : undefined
 	};
 }
 
@@ -270,9 +259,7 @@ export function applyFadeOut(
 	fadeSeconds: number = DEFAULT_FADE_SECONDS
 ): EditRecipe {
 	if (recipe.segments.length === 0) return cloneEditRecipe(recipe);
-	const ordered = [...recipe.segments].sort(
-		(a, b) => a.sourceStartSeconds - b.sourceStartSeconds
-	);
+	const ordered = [...recipe.segments].sort((a, b) => a.sourceStartSeconds - b.sourceStartSeconds);
 	const lastId = ordered[ordered.length - 1]?.id;
 	return {
 		version: 1,
@@ -281,16 +268,10 @@ export function applyFadeOut(
 			const length = segmentDurationSeconds(segment);
 			return {
 				...segment,
-				fadeOutSeconds: clampFade(
-					Math.max(0, fadeSeconds),
-					length,
-					segment.fadeInSeconds
-				)
+				fadeOutSeconds: clampFade(Math.max(0, fadeSeconds), length, segment.fadeInSeconds)
 			};
 		}),
-		peakNormalization: recipe.peakNormalization
-			? { ...recipe.peakNormalization }
-			: undefined
+		peakNormalization: recipe.peakNormalization ? { ...recipe.peakNormalization } : undefined
 	};
 }
 

@@ -85,8 +85,7 @@ export async function checkStorageForRecording(): Promise<StorageGateResult> {
 export async function checkStorageForImport(byteLength: number): Promise<StorageGateResult> {
 	const requiredBytes = Math.max(0, byteLength) + STORAGE_SAFETY_MARGIN_BYTES;
 	return checkStorageForBytes(requiredBytes, {
-		unavailable:
-			'Storage estimate is unavailable; import will proceed without a quota pre-check.',
+		unavailable: 'Storage estimate is unavailable; import will proceed without a quota pre-check.',
 		insufficient:
 			'Not enough local storage for this import. Free space or delete Local Drafts from Collection, then try again.',
 		failed: 'Could not verify local storage before import.'

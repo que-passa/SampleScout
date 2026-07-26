@@ -132,9 +132,7 @@ export function withCalculatedNormalization(recipe: EditRecipe, peak: number): E
 		return {
 			version: 1,
 			segments: recipe.segments.map((segment) => ({ ...segment })),
-			peakNormalization: recipe.peakNormalization
-				? { ...recipe.peakNormalization }
-				: undefined
+			peakNormalization: recipe.peakNormalization ? { ...recipe.peakNormalization } : undefined
 		};
 	}
 	const targetLinear = dbToLinear(recipe.peakNormalization.targetDbfs);
@@ -167,11 +165,7 @@ export function planarToAudioBuffer(planar: DecodedPlanarAudio): AudioBuffer {
 	}
 	const context = new AudioContextCtor({ sampleRate: planar.sampleRate });
 	try {
-		const buffer = context.createBuffer(
-			planar.channelCount,
-			planar.frameCount,
-			planar.sampleRate
-		);
+		const buffer = context.createBuffer(planar.channelCount, planar.frameCount, planar.sampleRate);
 		for (let ch = 0; ch < planar.channelCount; ch += 1) {
 			const channel = planar.channels[ch] ?? new Float32Array(planar.frameCount);
 			buffer.copyToChannel(channel as Float32Array<ArrayBuffer>, ch);

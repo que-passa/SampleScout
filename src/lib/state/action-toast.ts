@@ -57,12 +57,15 @@ class ActionToastController {
 		this.current = next;
 		this.#notify();
 
-		this.#timer = setTimeout(() => {
-			if (this.current?.id === next.id) {
-				this.current = null;
-				this.#notify();
-			}
-		}, Math.max(0, expiresAt - Date.now()));
+		this.#timer = setTimeout(
+			() => {
+				if (this.current?.id === next.id) {
+					this.current = null;
+					this.#notify();
+				}
+			},
+			Math.max(0, expiresAt - Date.now())
+		);
 	}
 
 	async runAction(): Promise<void> {

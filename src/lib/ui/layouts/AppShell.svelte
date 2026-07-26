@@ -22,9 +22,7 @@
 	const showTopBar = $derived(captureChrome || collectionChrome || debugChrome);
 	const accountOpen = $derived(Boolean(page.state.accountOpen) || accountRoute);
 
-	const pageTitle = $derived(
-		collectionChrome ? 'Collection' : debugChrome ? 'Debug' : undefined
-	);
+	const pageTitle = $derived(collectionChrome ? 'Collection' : debugChrome ? 'Debug' : undefined);
 </script>
 
 <div class={['shell', editorChrome && 'editor-chrome', pinnedPageChrome && 'instrument-chrome']}>
@@ -87,7 +85,10 @@
 
 	.top-bar {
 		display: grid;
-		grid-template-columns: minmax(var(--touch-min), 1fr) minmax(0, 2.5fr) minmax(var(--touch-min), 1fr);
+		grid-template-columns: minmax(var(--touch-min), 1fr) minmax(0, 2.5fr) minmax(
+				var(--touch-min),
+				1fr
+			);
 		align-items: center;
 		column-gap: var(--space-2);
 		min-height: var(--touch-min);

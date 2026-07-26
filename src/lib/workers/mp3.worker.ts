@@ -23,9 +23,7 @@ worker.onmessage = (event: MessageEvent<Mp3WorkerRequest>) => {
 	void runEncode(message);
 };
 
-async function runEncode(
-	message: Extract<Mp3WorkerRequest, { type: 'encode' }>
-): Promise<void> {
+async function runEncode(message: Extract<Mp3WorkerRequest, { type: 'encode' }>): Promise<void> {
 	if (activeAbort) {
 		activeAbort.abort();
 	}

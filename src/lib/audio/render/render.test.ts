@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { applyFadeIn, applyFadeOut, cutSelection, enablePeakNormalization, trimToSelection } from '$lib/domain/edit-recipe';
+import {
+	applyFadeIn,
+	applyFadeOut,
+	cutSelection,
+	enablePeakNormalization,
+	trimToSelection
+} from '$lib/domain/edit-recipe';
 import { createInitialEditRecipe } from '$lib/domain/metadata';
 import type { DecodedPlanarAudio } from '$lib/audio/decode';
 import { measureRecipePeak, renderRecipePlanar } from './index';

@@ -4,19 +4,19 @@ Read [`DESIGN.md`](../../../DESIGN.md) before adding or restyling UI.
 
 ## Prefer existing components
 
-| Component                 | Use for                               |
-| ------------------------- | ------------------------------------- |
-| `AppShell` / `AccountOverlay` | Brand bar (Capture) + Account sheet/modal; no tab bar |
+| Component                        | Use for                                               |
+| -------------------------------- | ----------------------------------------------------- |
+| `AppShell` / `AccountOverlay`    | Brand bar (Capture) + Account sheet/modal; no tab bar |
 | `SheetOverlay` / `ConfirmDialog` | Shared sheet-modal chrome; destructive confirm dialog |
-| `RecordControl`           | Record / stop                         |
-| `CaptureTimer`            | Elapsed / remaining / warnings        |
-| `LiveWaveform`            | Live scrolling capture wave (min/max) |
-| `InputMeter`              | Input level + clip                    |
-| `StatusLabel`             | Compact state chips (text + tone)     |
-| `EmptyState`              | Empty lists / unloaded editor         |
-| `TakeRow`                 | Take list records                     |
-| `ActionToast`             | Compact ephemeral action feedback     |
-| `AuthSplash`              | Unsigned-in gate (logo + Connect)     |
+| `RecordControl`                  | Record / stop                                         |
+| `CaptureTimer`                   | Elapsed / remaining / warnings                        |
+| `LiveWaveform`                   | Live scrolling capture wave (min/max)                 |
+| `InputMeter`                     | Input level + clip                                    |
+| `StatusLabel`                    | Compact state chips (text + tone)                     |
+| `EmptyState`                     | Empty lists / unloaded editor                         |
+| `TakeRow`                        | Take list records                                     |
+| `ActionToast`                    | Compact ephemeral action feedback                     |
+| `AuthSplash`                     | Unsigned-in gate (logo + Connect)                     |
 
 Put audio/persistence logic in `$lib/audio`, `$lib/persistence`, `$lib/state` — keep these components presentational.
 

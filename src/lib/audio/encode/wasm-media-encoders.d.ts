@@ -1,21 +1,6 @@
 declare module 'wasm-media-encoders' {
 	type Mp3CbrValues =
-		| 8
-		| 16
-		| 24
-		| 32
-		| 40
-		| 48
-		| 64
-		| 80
-		| 96
-		| 112
-		| 128
-		| 160
-		| 192
-		| 224
-		| 256
-		| 320;
+		8 | 16 | 24 | 32 | 40 | 48 | 64 | 80 | 96 | 112 | 128 | 160 | 192 | 224 | 256 | 320;
 
 	interface WasmMediaEncoder {
 		configure(params: {

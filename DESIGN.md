@@ -21,18 +21,18 @@ Not a dark DAW, generic SaaS dashboard, cyberpunk UI, colorful consumer recorder
 
 Use CSS variables from `tokens.css`. Do not invent new hex colors, spacing steps, or font stacks.
 
-| Role   | Token                                                                                                  |
-| ------ | ------------------------------------------------------------------------------------------------------ |
-| Page   | `--paper`                                                                                              |
-| Panels | `--surface`, `--surface-subtle`                                                                        |
-| Text   | `--ink`, `--ink-muted`, `--disabled`                                                                   |
-| Rules  | `--line`, `--line-strong`                                                                              |
+| Role   | Token                                                                                                                       |
+| ------ | --------------------------------------------------------------------------------------------------------------------------- |
+| Page   | `--paper`                                                                                                                   |
+| Panels | `--surface`, `--surface-subtle`                                                                                             |
+| Text   | `--ink`, `--ink-muted`, `--disabled`                                                                                        |
+| Rules  | `--line`, `--line-strong`                                                                                                   |
 | Signal | `--signal` — active record, clipping, destructive confirm, critical failure, **and trim boundary markers** (not fade grips) |
-| Brand  | `--brand` / `--brand-soft` — neon blue-green; action-toast border/fill only (not record/destructive) |
-| Space  | `--space-1`…`--space-7` (4px base)                                                                     |
-| Radius | `--radius-control` (buttons/inputs), `--radius-panel` (panels), `--radius-round` (status/tags/toggles) |
-| Type   | `--font-mono`, `--text-*` roles                                                                        |
-| Touch  | `--touch-min` (44px)                                                                                   |
+| Brand  | `--brand` / `--brand-soft` — neon blue-green; action-toast border/fill only (not record/destructive)                        |
+| Space  | `--space-1`…`--space-7` (4px base)                                                                                          |
+| Radius | `--radius-control` (buttons/inputs), `--radius-panel` (panels), `--radius-round` (status/tags/toggles)                      |
+| Type   | `--font-mono`, `--text-*` roles                                                                                             |
+| Touch  | `--touch-min` (44px)                                                                                                        |
 
 `--radius` is an alias of `--radius-control` for older styles — prefer the named tokens in new code.
 
@@ -53,11 +53,11 @@ Use CSS variables from `tokens.css`. Do not invent new hex colors, spacing steps
 
 ## Controls
 
-| Kind        | Treatment                                                                                                   |
-| ----------- | ----------------------------------------------------------------------------------------------------------- |
-| Primary     | `--ink` fill, `--surface` text, 1px ink border, min-height `--touch-min`                                    |
-| Secondary   | surface/transparent fill, ink border + text                                                                 |
-| Destructive | surface fill, `--signal` border/text; filled signal only on confirm / active destructive                    |
+| Kind        | Treatment                                                                                                                                              |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Primary     | `--ink` fill, `--surface` text, 1px ink border, min-height `--touch-min`                                                                               |
+| Secondary   | surface/transparent fill, ink border + text                                                                                                            |
+| Destructive | surface fill, `--signal` border/text; filled signal only on confirm / active destructive                                                               |
 | Record      | solid `--signal` circle in recessed well (idle) + `Record`; recording: dark `--ink` face + `--signal` stop square + `Stop`; timer visible while active |
 
 Reuse `$lib/ui` components (`RecordControl`, `StatusLabel`, `EmptyState`, `TakeRow`, `CaptureTimer`, `InputMeter`, `ActionToast`) before inventing new chrome.

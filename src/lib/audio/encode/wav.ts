@@ -9,10 +9,7 @@ const WAV_HEADER_BYTES = 44;
  * Encode planar float PCM (−1…1) to a little-endian PCM WAV ArrayBuffer.
  * Default 16-bit; optional 24-bit for higher fidelity exports.
  */
-export function encodeWav(
-	planar: DecodedPlanarAudio,
-	bitDepth: WavBitDepth = 16
-): ArrayBuffer {
+export function encodeWav(planar: DecodedPlanarAudio, bitDepth: WavBitDepth = 16): ArrayBuffer {
 	const { channels, frameCount, channelCount, sampleRate } = planar;
 	if (frameCount <= 0 || channelCount <= 0 || channels.length === 0) {
 		throw createAppError('ENCODE_EMPTY', 'No PCM samples to encode as WAV.', {
@@ -20,11 +17,10 @@ export function encodeWav(
 		});
 	}
 	if (channelCount > 2) {
-		throw createAppError(
-			'ENCODE_CHANNEL_LIMIT',
-			'WAV export supports mono or stereo only.',
-			{ recoverable: true, context: { channelCount } }
-		);
+		throw createAppError('ENCODE_CHANNEL_LIMIT', 'WAV export supports mono or stereo only.', {
+			recoverable: true,
+			context: { channelCount }
+		});
 	}
 	if (sampleRate <= 0 || !Number.isFinite(sampleRate)) {
 		throw createAppError('ENCODE_BAD_RATE', 'Invalid sample rate for WAV encode.', {

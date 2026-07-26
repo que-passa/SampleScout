@@ -173,10 +173,7 @@ async function scheduleRenderedCleanup(fileRef: string | undefined): Promise<voi
 }
 
 /** Persist export format settings. Clears a stale rendered asset when settings change. */
-export async function updateTakeOutput(
-	takeId: TakeId,
-	output: Take['output']
-): Promise<Take> {
+export async function updateTakeOutput(takeId: TakeId, output: Take['output']): Promise<Take> {
 	const take = await getTake(takeId);
 	if (!take || take.lifecycleState !== 'saved') {
 		throw createAppError('TAKE_NOT_FOUND', 'Take is not available to update export settings.', {

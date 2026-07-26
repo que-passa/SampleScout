@@ -138,9 +138,7 @@ describe('discard + cleanup', () => {
 		takes.set(extract.id, extract);
 
 		const discarded = await discardTake(extract.id);
-		expect(
-			[...cleanupJobs.values()].some((job) => job.fileRefs.includes(sharedRef))
-		).toBe(false);
+		expect([...cleanupJobs.values()].some((job) => job.fileRefs.includes(sharedRef))).toBe(false);
 		expect(discarded.lifecycleState).toBe('deleted');
 
 		await processDueCleanups(Date.now());

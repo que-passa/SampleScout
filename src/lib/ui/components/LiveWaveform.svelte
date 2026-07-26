@@ -112,11 +112,11 @@
 	}
 
 	$effect(() => {
-		peakCount;
-		clipping;
-		active;
-		cssWidth;
-		cssHeight;
+		void peakCount;
+		void clipping;
+		void active;
+		void cssWidth;
+		void cssHeight;
 		draw();
 	});
 </script>

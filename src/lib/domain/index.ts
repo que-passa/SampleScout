@@ -26,11 +26,7 @@ export {
 	parseTagList
 } from './metadata';
 export type { TakeMetadataPatch } from './metadata';
-export {
-	buildExtractTakeDraft,
-	formatExtractClock,
-	formatExtractDisplayName
-} from './extract';
+export { buildExtractTakeDraft, formatExtractClock, formatExtractDisplayName } from './extract';
 export {
 	formatUploadStateLabel,
 	isActiveTakeUploadState,

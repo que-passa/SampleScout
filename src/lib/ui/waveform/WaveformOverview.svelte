@@ -703,14 +703,11 @@
 		const ink = readCssVar('--ink', '#111111');
 		const line = readCssVar('--line', '#c9c9c3');
 		const muted = readCssVar('--ink-muted', '#5c5c58');
-		const retainedForPeaks =
-			discardedPeakFill && durationSeconds > 0 ? sortedRetainedRanges() : [];
+		const retainedForPeaks = discardedPeakFill && durationSeconds > 0 ? sortedRetainedRanges() : [];
 		const colorPeaks = retainedForPeaks.length > 0 && discardedPeakFill != null;
 		const viewDurAbs = Math.max(1e-6, (vEnd - vStart) * durationSeconds);
 		const fadeRanges = sortedRetainedRanges();
-		const applyFadeViz = fadeRanges.some(
-			(r) => r.fadeInSeconds > 1e-6 || r.fadeOutSeconds > 1e-6
-		);
+		const applyFadeViz = fadeRanges.some((r) => r.fadeInSeconds > 1e-6 || r.fadeOutSeconds > 1e-6);
 
 		for (let lane = 0; lane < laneCount; lane += 1) {
 			const y0 = waveTop + lane * (laneH + laneGap);
@@ -761,9 +758,7 @@
 				const top = Math.min(y1, y2);
 				const bottom = Math.max(y1, y2);
 				if (colorPeaks) {
-					ctx.fillStyle = timeInRetained(tMid, retainedForPeaks)
-						? ink
-						: discardedPeakFill!;
+					ctx.fillStyle = timeInRetained(tMid, retainedForPeaks) ? ink : discardedPeakFill!;
 				}
 				ctx.fillRect(col, top, 1, Math.max(1, bottom - top));
 			}
@@ -795,9 +790,7 @@
 		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 		ctx.clearRect(0, 0, cssWidth, cssHeight);
 
-		const paper = isStage
-			? readCssVar('--paper', '#f7f7f3')
-			: readCssVar('--surface', '#ffffff');
+		const paper = isStage ? readCssVar('--paper', '#f7f7f3') : readCssVar('--surface', '#ffffff');
 		const line = readCssVar('--line', '#c9c9c3');
 		const ink = readCssVar('--ink', '#111111');
 		const signal = readCssVar('--signal', '#e43b2f');
@@ -926,9 +919,7 @@
 		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 		ctx.clearRect(0, 0, navWidth, navHeight);
 
-		const paper = isStage
-			? readCssVar('--paper', '#f7f7f3')
-			: readCssVar('--surface', '#ffffff');
+		const paper = isStage ? readCssVar('--paper', '#f7f7f3') : readCssVar('--surface', '#ffffff');
 		const subtle = readCssVar('--surface-subtle', '#efefeb');
 		const line = readCssVar('--line', '#c9c9c3');
 		const ink = readCssVar('--ink', '#111111');
@@ -961,7 +952,18 @@
 				disabled
 			);
 		}
-		drawPeaks(ctx, 0, navHeight, navWidth, 0, 1, false, true, false, showDiscarded ? disabled : null);
+		drawPeaks(
+			ctx,
+			0,
+			navHeight,
+			navWidth,
+			0,
+			1,
+			false,
+			true,
+			false,
+			showDiscarded ? disabled : null
+		);
 
 		const x0 = viewStart * navWidth;
 		const x1 = viewEnd * navWidth;
@@ -1105,6 +1107,8 @@
 
 	type PointerSample = { id: number; x: number; y: number };
 
+	// Pointer tracking is imperative DOM state, not reactive UI state.
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity -- gesture bookkeeping
 	const activePointers = new Map<number, PointerSample>();
 	let pinchState: { distance: number; midX: number; midAbs: number } | null = null;
 	let panDrag: { originX: number; originStart: number; originEnd: number } | null = null;
@@ -1247,20 +1251,18 @@
 		hi: number
 	): { lo: number; hi: number } {
 		if (edge === 'start') {
-			const nextLo = Math.min(
-				Math.max(0, seconds),
-				hi - MIN_SEGMENT_SECONDS
-			);
+			const nextLo = Math.min(Math.max(0, seconds), hi - MIN_SEGMENT_SECONDS);
 			return { lo: nextLo, hi };
 		}
-		const nextHi = Math.max(
-			Math.min(durationSeconds, seconds),
-			lo + MIN_SEGMENT_SECONDS
-		);
+		const nextHi = Math.max(Math.min(durationSeconds, seconds), lo + MIN_SEGMENT_SECONDS);
 		return { lo, hi: nextHi };
 	}
 
-	function clampSelectionMove(originLo: number, span: number, deltaSeconds: number): {
+	function clampSelectionMove(
+		originLo: number,
+		span: number,
+		deltaSeconds: number
+	): {
 		lo: number;
 		hi: number;
 	} {
@@ -1625,9 +1627,7 @@
 		const next = timeAtClientX(clientX);
 		if (next == null) return;
 		const fadeSeconds =
-			fadeDrag.edge === 'in'
-				? next - fadeDrag.rangeStart
-				: fadeDrag.rangeEnd - next;
+			fadeDrag.edge === 'in' ? next - fadeDrag.rangeStart : fadeDrag.rangeEnd - next;
 		const clamped = Math.max(0, Math.min(fadeSeconds, fadeDrag.maxFade));
 		if (!fadeDrag.dragged && Math.abs(clamped - fadeDrag.originFadeSeconds) < 1e-4) return;
 		fadeDrag.dragged = true;
@@ -1664,11 +1664,7 @@
 		return true;
 	}
 
-	function onTrimHandlePointerDown(
-		event: PointerEvent,
-		rangeIndex: number,
-		edge: 'start' | 'end'
-	) {
+	function onTrimHandlePointerDown(event: PointerEvent, rangeIndex: number, edge: 'start' | 'end') {
 		if (analyzing || !data) return;
 		if (event.pointerType === 'mouse' && event.button !== 0) return;
 		event.preventDefault();
@@ -2148,51 +2144,47 @@
 	});
 
 	$effect(() => {
-		data;
-		channels;
-		peakCount;
-		durationSeconds;
-		currentTime;
-		analyzing;
-		error;
-		chrome;
-		viewStart;
-		viewEnd;
-		cssWidth;
-		cssHeight;
-		selectionStart;
-		selectionEnd;
-		retainedRanges;
-		previewRetainedRanges;
-		detailPcm;
+		void data;
+		void channels;
+		void peakCount;
+		void durationSeconds;
+		void currentTime;
+		void analyzing;
+		void error;
+		void chrome;
+		void viewStart;
+		void viewEnd;
+		void cssWidth;
+		void cssHeight;
+		void selectionStart;
+		void selectionEnd;
+		void retainedRanges;
+		void previewRetainedRanges;
+		void detailPcm;
 		draw();
 	});
 
 	$effect(() => {
-		data;
-		channels;
-		peakCount;
-		durationSeconds;
-		currentTime;
-		analyzing;
-		error;
-		chrome;
-		viewStart;
-		viewEnd;
-		navWidth;
-		navHeight;
-		retainedRanges;
-		previewRetainedRanges;
+		void data;
+		void channels;
+		void peakCount;
+		void durationSeconds;
+		void currentTime;
+		void analyzing;
+		void error;
+		void chrome;
+		void viewStart;
+		void viewEnd;
+		void navWidth;
+		void navHeight;
+		void retainedRanges;
+		void previewRetainedRanges;
 		drawNavigator();
 	});
 </script>
 
 {#snippet zoomControls(compact: boolean)}
-	<div
-		class={['zoom-controls', compact && 'zoom-compact']}
-		role="group"
-		aria-label="Waveform zoom"
-	>
+	<div class={['zoom-controls', compact && 'zoom-compact']} role="group" aria-label="Waveform zoom">
 		<button
 			type="button"
 			class="zoom-btn"
@@ -2326,8 +2318,7 @@
 					aria-label={handle.label}
 					title={handle.label}
 					disabled={analyzing || !data}
-					onpointerdown={(event) =>
-						onFadeHandlePointerDown(event, handle.edge, handle.rangeIndex)}
+					onpointerdown={(event) => onFadeHandlePointerDown(event, handle.edge, handle.rangeIndex)}
 					onpointermove={onFadeHandlePointerMove}
 					onpointerup={onFadeHandlePointerUp}
 					onpointercancel={onFadeHandlePointerUp}
@@ -2339,10 +2330,7 @@
 			{#each visibleSelectionHandles as handle (handle.key)}
 				<button
 					type="button"
-					class={[
-						'selection-grip',
-						handle.edge === 'start' ? 'edge-start' : 'edge-end'
-					]}
+					class={['selection-grip', handle.edge === 'start' ? 'edge-start' : 'edge-end']}
 					class:active={selectionEdgeDrag?.edge === handle.edge}
 					style:left="{handle.x}px"
 					style:cursor={TRIM_CURSOR}
@@ -2369,8 +2357,7 @@
 					aria-label={handle.label}
 					title={handle.label}
 					disabled={analyzing || !data}
-					onpointerdown={(event) =>
-						onTrimHandlePointerDown(event, handle.rangeIndex, handle.edge)}
+					onpointerdown={(event) => onTrimHandlePointerDown(event, handle.rangeIndex, handle.edge)}
 					onpointermove={onTrimHandlePointerMove}
 					onpointerup={onTrimHandlePointerUp}
 					onpointercancel={onTrimHandlePointerUp}
@@ -2389,7 +2376,8 @@
 
 	{#if !isStage}
 		<p class="hint">
-			Pinch or Ctrl/⌘-scroll to zoom · scroll the overview to zoom · two-finger or Shift-drag to pan · drag overview to navigate
+			Pinch or Ctrl/⌘-scroll to zoom · scroll the overview to zoom · two-finger or Shift-drag to pan
+			· drag overview to navigate
 			{#if wantsDetail && !detailPcm && ensureDetailPcm}
 				· loading detail…
 			{/if}

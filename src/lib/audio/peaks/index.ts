@@ -3,11 +3,7 @@ import type { PeakAsset, Take } from '$lib/domain/types';
 import { decodeAudioPlanar } from '$lib/audio/decode';
 import { peaksPath, updateTake } from '$lib/persistence';
 import { readBinary, writeBinary } from '$lib/persistence/opfs';
-import {
-	framesPerPeakForLength,
-	TARGET_OVERVIEW_PEAKS,
-	type PeakComputeResult
-} from './compute';
+import { framesPerPeakForLength, TARGET_OVERVIEW_PEAKS, type PeakComputeResult } from './compute';
 import { decodePeaksBinary, encodePeaksBinary } from './format';
 import { computePeaksAsync } from './worker-client';
 
