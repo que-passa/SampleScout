@@ -1,0 +1,26 @@
+---
+description: SampleScout hard constraints, phase status, and doc pointers for every session
+alwaysApply: true
+---
+
+# Project constraints
+
+- **No backend:** never add `+server.ts`, serverless, or secret storage.
+- **No Audiotool PAT:** public OAuth PKCE only (`PUBLIC_AUDIOTOOL_*`).
+- **Dev host:** `http://127.0.0.1:5173` — never recommend `localhost` for OAuth.
+- **Static SPA:** adapter-static, optional `BASE_PATH`, client-only (`ssr = false`).
+- **Design:** [`DESIGN.md`](DESIGN.md) + `src/lib/styles/tokens.css`; bright mono; `--signal` for record/clip/destructive and trim boundary markers (fade grips use `--ink` wedges).
+- **Honesty:** no post-close uploads, no cross-device draft sync, no fake waveforms.
+- **Vocabulary:** Capture action; Collection at `/drafts`; Field Session UI / internal `Session`; Field Notes reuses existing metadata; Local Draft means device-only after the OPFS + IDB gate.
+- **Collection identity:** deterministic marks from persisted take/source facts only; no waveform/fingerprint/quality/rarity meaning, randomness, XP, streaks, cards, celebration, or cloud implication.
+
+## Before coding
+
+1. Read `docs/STATUS.md` — extend existing modules; do not re-scaffold.
+2. Product: `briefing/00_README.md` / `08_CURSOR_BUILD_BRIEF.md`.
+3. Eng truth: `docs/` + code wins over brief when they diverge.
+4. Chat vs `briefing/` mismatch: surface it; ask if unsure; update briefing; then implement (see `briefing-overrides`).
+
+## Next work
+
+Harden Phase 2–7 on devices as needed (upload scopes, Safari, abandoned-job Retry). Harden Phase 4b **Extract** on devices. Next polish: Phase 8 responsive / accessibility. Install `@audiotool/nexus` only for intentional upload/spike work (already present for OAuth).

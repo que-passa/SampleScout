@@ -1,0 +1,22 @@
+---
+description: Prefer project briefing; resolve chat vs briefing mismatches with confirm + update
+alwaysApply: true
+---
+
+# Briefing vs chat overrides
+
+Default product/UX intent lives in `briefing/` (start: `briefing/00_README.md`). Follow it unless the user gives a **specific** instruction in chat that conflicts.
+
+## When chat conflicts with `briefing/`
+
+1. **Surface the mismatch** — cite the briefing file/section and what the chat request changes.
+2. **If unsure** (ambiguous scope, hard-constraint clash, or unclear whether to change product intent) — **ask before implementing or editing docs**.
+3. **If clear** (user explicitly wants a product/UX change) — proceed after stating the mismatch briefly.
+4. **Update briefing** — edit the relevant `briefing/*.md` (and `DESIGN.md` / tokens if visual) so the pack stays the source of truth. Note eng impact in `docs/` or an ADR when architecture/status changes.
+5. **Implement** the requested work in the same turn/session when confirmation is given or the override is unambiguous.
+
+Do **not** silently ignore the briefing, and do **not** silently ignore the user’s specific brief.
+
+## Still wins over chat
+
+Hard constraints in `AGENTS.md` / `project-constraints` (no backend, no PAT, `127.0.0.1`, static SPA, honesty rules) are not overridden by a casual brief. If chat asks to break one, refuse or get an explicit product decision + ADR.

@@ -1,0 +1,195 @@
+export type SessionId = string;
+export type TakeId = string;
+export type UploadJobId = string;
+export type FileRef = string;
+
+export type SampleKind = 'one-shot' | 'loop';
+export type Visibility = 'unlisted' | 'public';
+
+export type MetadataOrigin =
+	'application-default' | 'user-preference' | 'session-default' | 'generated' | 'manual';
+
+export type TakeLifecycleState = 'recording' | 'finalizing' | 'saved' | 'pending-delete' | 'deleted';
+
+export type TakeReviewState = 'unreviewed' | 'edited' | 'ready';
+
+export type TakeUploadState =
+	| 'not-queued'
+	| 'queued'
+	| 'rendering'
+	| 'encoding'
+	| 'uploading'
+	| 'processing'
+	| 'uploaded'
+	| 'failed';
+
+export type UploadJobState =
+	| 'queued'
+	| 'rendering'
+	| 'encoding'
+	| 'uploading'
+	| 'processing'
+	| 'completed'
+	| 'failed'
+	| 'canceled';
+
+export type OutputSettings =
+	| {
+			format: 'wav';
+			bitDepth: 16 | 24;
+	  }
+	| {
+			format: 'mp3';
+			bitrateKbps: 96 | 128 | 192;
+	  }
+	| {
+			format: 'source';
+	  };
+
+export interface AppError {
+	code: string;
+	message: string;
+	recoverable: boolean;
+	cause?: unknown;
+	context?: Record<string, string | number | boolean>;
+	occurredAt: string;
+}
+
+export interface SessionDefaults {
+	tags: string[];
+	descriptionTemplate: string;
+	kind: SampleKind;
+	visibility: Visibility;
+	output: OutputSettings;
+	bpm?: number;
+}
+
+export interface CaptureSession {
+	id: SessionId;
+	name: string;
+	createdAt: string;
+	updatedAt: string;
+	status: 'active' | 'inactive' | 'archived';
+	defaults: SessionDefaults;
+	takeOrder: TakeId[];
+}
+
+export interface AudioSource {
+	fileRef: FileRef;
+	mimeType: string;
+	byteLength: number;
+	durationSeconds: number;
+	channelCount?: number;
+	sampleRate?: number;
+	recorderMimeType?: string;
+	sourceType: 'recording' | 'import';
+	originalFileName?: string;
+}
+
+export interface TakeMetadata {
+	displayName: string;
+	description: string;
+	tags: string[];
+	kind: SampleKind;
+	visibility: Visibility;
+	bpm?: number;
+	provenance: {
+		displayName: MetadataOrigin;
+		description: MetadataOrigin;
+		tags: MetadataOrigin;
+		kind: MetadataOrigin;
+		visibility: MetadataOrigin;
+		bpm?: MetadataOrigin;
+	};
+}
+
+export interface RetainedSegment {
+	id: string;
+	sourceStartSeconds: number;
+	sourceEndSeconds: number;
+	fadeInSeconds: number;
+	fadeOutSeconds: number;
+	gainDb: number;
+}
+
+export interface EditRecipe {
+	version: 1;
+	segments: RetainedSegment[];
+	peakNormalization?: {
+		enabled: boolean;
+		targetDbfs: number;
+		calculatedGainDb?: number;
+	};
+}
+
+export interface PeakAsset {
+	version: 1;
+	fileRef: FileRef;
+	channels: number;
+	framesPerPeak: number;
+	peakCount: number;
+	generatedAt: string;
+}
+
+export interface RenderedAsset {
+	fileRef: FileRef;
+	mimeType: string;
+	byteLength: number;
+	hash: string;
+	createdAt: string;
+}
+
+export interface Take {
+	id: TakeId;
+	sessionId: SessionId;
+	sequence: number;
+	createdAt: string;
+	updatedAt: string;
+	source: AudioSource;
+	metadata: TakeMetadata;
+	editRecipe: EditRecipe;
+	output: OutputSettings;
+	/** Set when this Local Draft was Extracted from another take’s selection. */
+	derivedFromTakeId?: TakeId;
+	lifecycleState: TakeLifecycleState;
+	reviewState: TakeReviewState;
+	uploadState: TakeUploadState;
+	peaks?: PeakAsset;
+	renderedAsset?: RenderedAsset;
+	lastError?: AppError;
+}
+
+export interface UploadJob {
+	id: UploadJobId;
+	takeId: TakeId;
+	createdAt: string;
+	updatedAt: string;
+	state: UploadJobState;
+	attempt: number;
+	renderedFileRef?: FileRef;
+	renderedByteLength?: number;
+	audiotoolSampleName?: string;
+	uploadedAt?: string;
+	readyAt?: string;
+	progress?: {
+		phase: 'rendering' | 'encoding' | 'uploading' | 'processing';
+		fraction?: number;
+	};
+	error?: AppError;
+}
+
+export interface CleanupJob {
+	id: string;
+	fileRefs: FileRef[];
+	createdAt: string;
+	deleteAfter: string;
+	attempts: number;
+	lastError?: AppError;
+}
+
+export interface AppSettings {
+	id: 'settings';
+	recentTags: string[];
+	preferredOutput: OutputSettings;
+	updatedAt: string;
+}

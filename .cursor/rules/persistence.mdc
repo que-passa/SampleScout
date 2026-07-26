@@ -1,0 +1,18 @@
+---
+description: IndexedDB + OPFS dual-write and take save honesty
+globs: "src/lib/persistence/**"
+alwaysApply: false
+---
+
+# Persistence
+
+- **IndexedDB (Dexie):** sessions, takes, recipes, upload queue, settings, cleanup jobs.
+- **OPFS:** source audio, peaks, rendered exports, trash.
+- A take is **Saved locally** only after OPFS binary write **and** metadata commit both succeed (`commitSavedTake` / equivalent).
+- UI may call that gated state **Local Draft**, meaning saved on this device only; it is not a new lifecycle state.
+- **Field Notes** is only a label for existing take metadata/details. Do not add a persisted notes field for this identity pass.
+- Specimen marks are deterministic projections of existing persisted take/source facts, not new waveform/fingerprint/score assets.
+- Do not invent a server or cloud store for drafts.
+- Clearing site data deletes user content — surface that in UX copy.
+- Extend `db.ts`, `paths.ts`, `opfs.ts`, and take/session helpers; keep schema changes documented in `docs/persistence-schema.md`.
+- Always `cloneForIdb` (or equivalent plain POJO) before Dexie `put` — Svelte `$state` proxies are not structured-cloneable (`DataCloneError`).

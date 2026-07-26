@@ -1,0 +1,15 @@
+---
+description: Capture, peaks, encode, and playback pipeline rules
+globs: "src/lib/audio/**,src/lib/workers/**,src/lib/state/capture.ts"
+alwaysApply: false
+---
+
+# Audio pipeline
+
+- MediaRecorder capture MIME is browser-dependent — do not assume native WAV/MP3 from the recorder.
+- Hard max **10 minutes**; warnings at 5 / 8 / 9 min (`src/lib/config/recording.ts`).
+- Waveform peaks must come from real PCM (worker min/max buckets). Never invent decorative waveforms.
+- Keep decode/render/encode in `$lib/audio/*`; UI only displays and dispatches.
+- Prefer extending `createCaptureSession` / `captureController` over a parallel recorder.
+- Peak overview generation lives in `$lib/audio/peaks` + `peaks.worker.ts` (PKS1 OPFS binary). Extend there; do not invent a second peak format.
+- Recipe render lives in `$lib/audio/render`. WAV/MP3 export lives in `$lib/audio/encode` (+ `mp3.worker.ts`); do not rehome encoders into UI or upload adapters.

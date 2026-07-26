@@ -1,0 +1,43 @@
+:root {
+	--paper: #f7f7f3;
+	--surface: #ffffff;
+	--surface-subtle: #efefeb;
+	--ink: #111111;
+	--ink-muted: #5c5c58;
+	--line: #c9c9c3;
+	--line-strong: #85857f;
+	--disabled: #a8a8a2;
+	--signal: #e43b2f;
+	/* Neon blue-green brand — action-toast chrome only (not record/destructive) */
+	--brand: #00f0c8;
+	--brand-soft: #c8fff2;
+
+	--space-1: 4px;
+	--space-2: 8px;
+	--space-3: 12px;
+	--space-4: 16px;
+	--space-5: 24px;
+	--space-6: 32px;
+	--space-7: 48px;
+
+	/* Brief-aligned radii (see DESIGN.md) */
+	--radius-control: 4px;
+	--radius-panel: 6px;
+	--radius-round: 999px;
+	/* Legacy alias — prefer named radius tokens in new CSS */
+	--radius: var(--radius-control);
+
+	--touch-min: 44px;
+
+	--font-mono: 'Geist Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+
+	/* Open mobile scale — prefer readable over dense instrument UI */
+	--text-title: 1.5rem; /* 24px */
+	--text-screen: 1.375rem; /* 22px */
+	--text-timer: 3rem; /* 48px */
+	--text-label: 0.8125rem; /* 13px */
+	--text-body: 1rem; /* 16px */
+	--text-meta: 0.875rem; /* 14px */
+	--text-annotation: 0.8125rem; /* 13px */
+	--text-button: 0.9375rem; /* 15px */
+}

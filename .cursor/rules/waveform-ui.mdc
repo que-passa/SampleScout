@@ -1,0 +1,30 @@
+---
+description: Accurate waveform and audio editor visuals — use when building peaks, canvas waveforms, take editor, playhead, or selection UI
+globs: "src/lib/audio/peaks/**,src/lib/workers/peaks.worker.ts,src/lib/ui/**/*waveform*,src/lib/ui/**/*Waveform*,src/routes/take/**"
+alwaysApply: false
+---
+
+# Waveform UI
+
+Waveforms are measured data, not decoration.
+
+Collection specimen marks are separate deterministic catalog identities derived from persisted take/source facts. They are not waveforms, audio fingerprints, quality scores, or random decorative waveform and must never replace or imitate PCM-derived peaks.
+
+## Required
+
+- Peaks from real PCM (worker min/max buckets); canvas renderer with `devicePixelRatio` scaling
+- Clear zero axis and accurate time ruler; selection/edit boundaries aligned to time
+- Preserve transients — no averaging away spikes; no exaggerated smoothing
+- Mono: centered lane. Stereo: labeled L/R or explicit combined mode — never silent mono downmix
+- Interactive handles may be DOM/SVG; waveform body stays canvas
+- Trim grips hang below the wave frame (`--signal` block tabs); fade grips sit on the bottom edge of the time ruler (`--ink` wedge tabs) and stay anchored to retained start/end
+- Fade visualization scales peaks by linear fade gain and draws a dashed `--ink` envelope diagonal (not signal)
+
+## Forbidden
+
+- Placeholder / random / asset waveforms after audio has loaded
+- Uniform mirrored “blobs”, EQ bars, or stylized fake paths
+- Animating the waveform shape unrelated to playback or input levels
+- WebGL for MVP (not required)
+
+Full spec: `briefing/04_WAVEFORM_AND_AUDIO_EDITOR.md`. Visual contract: `DESIGN.md`.

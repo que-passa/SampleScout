@@ -1,0 +1,14 @@
+---
+description: Svelte 5 runes, $lib layout, and formatting conventions
+globs: "**/*.{svelte,ts,js}"
+alwaysApply: false
+---
+
+# Svelte / TypeScript conventions
+
+- Svelte **5 runes** only (`$state`, `$derived`, `$props`, `$effect`). Runes mode is forced in Vite.
+- Prefer logic in `$lib/audio`, `$lib/persistence`, `$lib/audiotool`, `$lib/state` — keep route `.svelte` files thin.
+- Import with `$lib/...` and `$app/...` (use `resolve()` for `paths.base`).
+- Prettier: **tabs**, single quotes, no trailing commas, printWidth 100.
+- After editing `.svelte`, run `npm run check` when behavior or types change.
+- Do not add SvelteKit server hooks or endpoints for “API convenience.”

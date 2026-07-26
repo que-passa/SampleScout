@@ -1,0 +1,33 @@
+---
+description: SampleScout visual system — tokens, panels, controls, anti-patterns for UI/CSS work
+globs: "src/lib/ui/**,src/lib/styles/**,src/routes/**/*.svelte,DESIGN.md"
+alwaysApply: false
+---
+
+# Design system
+
+Before UI edits, read [`DESIGN.md`](DESIGN.md). Tokens live in `src/lib/styles/tokens.css` — do not invent colors, spacing, or fonts.
+
+## Must
+
+- Background `--paper`; panels `--surface` + `1px solid var(--line)` + `--radius-panel`
+- Controls/buttons `--radius-control`; status/tags/toggles `--radius-round`
+- Spacing only `--space-1`…`--space-7`; touch targets `--touch-min`
+- Type via `--font-mono` and `--text-*`; labels uppercase + `--text-label`
+- `--signal` only for record / clip / destructive / critical failure / trim boundary markers (fade grips use `--ink` wedges)
+- `--brand` / `--brand-soft` only for action-toast border/fill (neon blue-green; no leading accent bar)
+- Discarded (outside-trim) waveform regions use `--disabled` wash + peaks; retained peaks stay `--ink`
+- Reuse `$lib/ui` components; keep state as text + color
+- Label `/drafts` as Collection, groups as Field Sessions, and existing take metadata/details as Field Notes
+- Collection may use catalog rhythm, indexing, and compact deterministic marks derived from persisted take/source facts
+
+## Must not
+
+- Dark-first, purple gradients, glow, glass, pill clusters, card dashboards
+- Hardcoded `#hex` / arbitrary px spacing / second typefaces (Inter, Roboto, etc.)
+- Decorative or fake waveforms
+- Drop shadows by default; floating marketing cards instead of structural panels
+- Rarity, XP, streaks, collectible cards, celebratory Collection motion, or cloud implications
+- Specimen marks that resemble waveforms or imply fingerprints/quality scores
+
+Product depth: `briefing/03_VISUAL_DESIGN_SYSTEM.md`. Waveforms: `.cursor/rules/waveform-ui.mdc`.

@@ -1,0 +1,15 @@
+---
+description: Audiotool OAuth PKCE and upload adapter boundaries
+globs: "src/lib/audiotool/**,src/routes/account/**"
+alwaysApply: false
+---
+
+# Audiotool
+
+- Browser OAuth2 **PKCE** only. Never a personal access token or secret client credential.
+- Keep integration behind `$lib/audiotool` adapter; UI calls the adapter, not Nexus directly.
+- `@audiotool/nexus` is **not** installed until an intentional Phase 0 spike.
+- Stub `connectAudiotool` / `uploadSample` must keep failing clearly until wired.
+- Local audio stays on-device until upload reports ready; do not claim background upload after tab close.
+- Redirect URL must match dashboard exactly — local uses `http://127.0.0.1:5173/...`.
+- Details: `docs/audiotool-integration.md`.

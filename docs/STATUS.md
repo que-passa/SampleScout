@@ -1,0 +1,74 @@
+# Implementation status
+
+Last updated: 2026-07-26
+
+Use this map before scaffolding. Prefer extending existing modules over recreating them.
+
+## Done / real
+
+| Area                      | Location                                                                                        | Notes                                                                                                                                                                                                                                                                                 |
+| ------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Static SvelteKit app      | `vite.config.ts`, `src/routes/`                                                                 | adapter-static, `404.html`, `BASE_PATH`, `ssr = false`                                                                                                                                                                                                                                |
+| Design tokens + shell     | `src/lib/styles/`, `AppShell`, `SheetOverlay` / `AccountOverlay`, `ActionToast` | Bright mono, Geist Mono; shared top bar (Capture brand / Collection+Debug title+back + Account); viewport-locked chrome on Capture + Take + Collection (`100dvh`, overflow hidden); Take pins header + bottom bar (wave zoom/nav row + transport); Collection pins Select/Import bottom bar; compact brand-tinted action toasts; no primary tab bar |
+| Routes                    | `/` → capture, `/capture`, `/drafts`, `/take/[takeId]`, `/account`, `/debug`                    | Capture is root; Collection/Take are stack pages with back; Account is sheet/modal (`/account` OAuth host); debug is capability-only                                                                                                                                                  |
+| Domain model              | `src/lib/domain/`                                                                               | Types, IDs, metadata defaults, unit tests                                                                                                                                                                                                                                             |
+| Recording policy          | `src/lib/config/recording.ts`                                                                   | 10 min max; warnings at 5 / 8 / 9 min                                                                                                                                                                                                                                                 |
+| Capability detection      | `src/lib/capabilities/`                                                                         | Secure context, mic, MediaRecorder, OPFS, etc.                                                                                                                                                                                                                                        |
+| Dexie + OPFS              | `src/lib/persistence/`                                                                          | Schema, paths, session/take repos, storage gate, commitSavedTake                                                                                                                                                                                                                      |
+| Capture MediaRecorder     | `src/lib/audio/capture/`                                                                        | MIME pick, timeslice chunks, monotonic timer, meter levels                                                                                                                                                                                                                            |
+| Capture application state | `src/lib/state/capture.ts`                                                                      | Hydrate, record → OPFS + IDB, auto-stop, cancel; post-save action toast with Open → take                                                                                                                                                                                                                                       |
+| Capture UI                | `src/routes/capture/+page.svelte` + timer/LiveWaveform/RecordControl                            | Viewport-locked stage; record/stop/cancel; live analyser waveform; click-to-edit session title; always-on Collection shortcut                                                                                                                                                         |
+| Take management           | `src/lib/persistence/takes.ts`, `cleanup.ts`, `src/lib/state/take-actions.ts`, `ActionToast` | Rename; immediate discard (no undo); deferred OPFS cleanup. No Retake / replace — capture a new take instead |
+| File import               | `src/lib/state/import-take.ts`, Collection `/drafts`, Capture fallback                          | `accept=audio/*` multi-select; decode + 10 min gate; OPFS + IDB commit as Local Draft (`sourceType: 'import'`); active Field Session                                                                                                                                                  |
+| Decode / playback         | `src/lib/audio/decode`, `playback`                                                              | Duration summary + full buffer decode; HTMLAudio from OPFS; Web Audio buffer preview for edited recipes                                                                                                                                                                               |
+| Peak generation           | `src/lib/audio/peaks/`, `src/lib/workers/peaks.worker.ts`                                       | Worker min/max buckets, PKS1 OPFS binary, ensure-on-open for take view; ~4096 overview peaks + on-demand PCM detail when zoomed past overview density                                                                                                                                 |
+| Waveform overview UI      | `$lib/ui/waveform/WaveformOverview.svelte`, `view-window.ts`, `/take/[takeId]`                  | Stage chrome (flush on `--paper`, no status-line clutter) + panel chrome; DPR canvas, time ruler, playhead + click-seek, drag selection with **ink start/end grips** + body-drag move; retained-range dimming + draggable 2px `--signal` trim boundary markers (main + navigator draw; drag on main); **fade grips above** the wave (anchored to trim start/end) with peak-scaled fade viz + envelope; pinch / Ctrl-wheel zoom (up to ~256× with sample-accurate detail); overview navigator; ± zoom buttons; auto-fit + nav double-click for Fit/Sel/Trim; mono / stereo; take stage docks zoom+nav into bottom bar (zoom above nav) |
+| Editor tools (Phase 4 + 4b) | `$lib/domain/edit-recipe.ts`, `$lib/domain/extract.ts`, `$lib/audio/render/`, `/take/[takeId]`, `SheetOverlay` | Non-destructive trim/cut/normalize; fade via waveform grips (not Edit sheet); **Extract** → new Local Draft (shared `fileRef`, `derivedFromTakeId`); undo/redo/reset in Edit sheet; recipe persists; PCM render; edited preview + Loop; source unchanged; take Discard uses ConfirmDialog |
+| Field Notes (Phase 5)     | `$lib/domain/metadata.ts`, `FieldNotesEditor`, `BatchFieldNotesPanel`, `/take`, `/drafts`       | Editable description/tags/kind/visibility/BPM with provenance; take editor hosts Field Notes inside the Edit sheet; Collection multi-select batch apply + batch Discard; take metadata holds duration/channel/selection clocks; no separate notes field                                                                                                    |
+| Encode WAV/MP3 (Phase 6)  | `src/lib/audio/encode/`, `mp3.worker.ts`, `UploadSettingsPanel`                                 | 16/24-bit WAV; MP3 CBR 96/128/192 via `wasm-media-encoders` in Worker; progress/cancel; OPFS `renderedAsset`; take Upload via SheetOverlay; `beforeunload` during encode |
+| Upload queue (Phase 7)    | `src/lib/state/upload-queue.ts`, `persistence/upload-jobs.ts`, `domain/upload.ts`, Upload panel | Persistent Dexie queue; encode → upload bytes → processing → ready; Retry / Cancel (take Upload + Collection failed rows); abandoned in-flight jobs fail honestly on reload; Nexus `preventTabClose` + app `beforeunload` during encode/upload |
+| Account / Debug           | `AccountOverlay` + `/account`, `/debug`                                                         | Account: sheet/modal (identity + disconnect + local wipe); `/account` OAuth host; Debug: capabilities only (no OAuth config UI)                                                                                                                                                       |
+| Audiotool OAuth spike     | `src/lib/audiotool/` + `@audiotool/nexus`                                                       | Account Connect/Disconnect; profile avatar for nav; upload helper for spike                                                                                                                                                                                                           |
+| Auth splash gate          | `audiotool-auth.svelte.ts`, `AuthSplash`, `+layout.svelte`                                      | Must connect before Capture/Drafts/Account; Disconnect → splash                                                                                                                                                                                                                       |
+| PWA shell                 | `static/manifest.webmanifest`, `src/service-worker.ts`                                          | Shell cache only                                                                                                                                                                                                                                                                      |
+| Unit tests                | `*.test.ts` under config / domain / persistence / capture / peaks / render / encode / state     | Vitest                                                                                                                                                                                                                                                                                |
+| E2E smoke                 | `tests/smoke.e2e.ts`                                                                            | Unauthenticated splash gate (OAuth shells need real session)                                                                                                                                                                                                                          |
+
+## Accepted visible vocabulary (not yet necessarily implemented everywhere)
+
+- Capture = action; Collection = visible destination while route stays `/drafts`
+- Field Session = UI grouping; engineering remains `Session` / `CaptureSession`
+- Field Notes = existing take metadata/details label; no new persisted notes field
+- Local Draft = saved on this device only, after the OPFS + IndexedDB commit gate
+- Extract = selection → new Local Draft (shared source; parent intact); Phase 4b / ADR 0003 — **landed**
+- Deterministic specimen marks may derive from persisted take/source facts; they are not waveforms, fingerprints, quality scores, rarity, or random decoration
+
+## Stub / placeholder
+
+| Area | Location | Next phase                                 |
+| ---- | -------- | ------------------------------------------ |
+| —    | —        | Phase 8 responsive / a11y polish as needed; harden Extract / upload on devices |
+
+## Roadmap (brief)
+
+Aligned with `briefing/07_MVP_ACCEPTANCE_CRITERIA.md`:
+
+1. **Phase 0** — Register Audiotool app + confirm redirect/scopes (see `docs/audiotool-integration.md`)
+2. **Phase 1** — capture → local save → take stack (**landed**; harden on real devices)
+3. **Phase 2** — discard (**landed**; immediate discard + cleanup; no undo / no retake)
+4. **Phase 3** — accurate waveform + playback (**landed** overview + zoom/pan/navigator + selection edge grips / body-drag)
+5. **Phase 4** — editor tools (**landed** trim/cut/fade/normalize + undo; harden on devices)
+6. **Phase 4b** — Extract selection → new Local Draft (**landed**; shared source + refcounted OPFS cleanup; ADR 0003)
+7. **File import** — (**landed**) Collection Import + Capture fallback when recording unavailable
+8. **Phase 5** — Field Notes metadata (**landed** take editor + Collection batch apply / batch Discard; provenance cues)
+9. **Phase 6** — WAV/MP3 encode (**landed**; Worker MP3 + take Upload SheetOverlay; beforeunload during encode)
+10. **Phase 7** — Audiotool upload queue (**landed**; take Upload sheet + Dexie jobs + Collection Retry; harden on devices / scopes)
+11. Later — Phase 8 responsive / accessible polish
+
+## Do not
+
+- Re-create Dexie schema, capture recorder, or domain types from scratch
+- Add a backend “to finish upload”
+- Treat stub `export {}` modules as finished features
+- Mark takes “Saved locally” before both OPFS and IndexedDB succeed
+- Show fake / decorative waveforms after audio has loaded

@@ -1,0 +1,165 @@
+import { deriveCatalogReference } from '$lib/domain/catalog';
+import type { TakeMetadataPatch } from '$lib/domain/metadata';
+import type { EditRecipe, Take, TakeId } from '$lib/domain/types';
+import {
+	discardTake,
+	extractTakeFromSelection,
+	processDueCleanups,
+	renameTake,
+	updateTakeEditRecipe,
+	updateTakeMetadata,
+	updateTakeOutput
+} from '$lib/persistence';
+import { actionToast } from './action-toast';
+import { goto } from '$app/navigation';
+import { resolve } from '$app/paths';
+
+type InventoryListener = () => void | Promise<void>;
+const inventoryListeners = new Set<InventoryListener>();
+
+/** Notify UI when visible takes change (discard / rename / extract). */
+export function onTakeInventoryChanged(listener: InventoryListener): () => void {
+	inventoryListeners.add(listener);
+	return () => inventoryListeners.delete(listener);
+}
+
+export async function notifyTakeInventoryChanged(): Promise<void> {
+	for (const listener of inventoryListeners) {
+		await listener();
+	}
+}
+
+/**
+ * Extract a selection into a new Local Draft (shared source). Parent stays intact.
+ */
+export async function extractSelectionAsLocalDraft(input: {
+	parentTakeId: TakeId;
+	startSeconds: number;
+	endSeconds: number;
+}): Promise<Take> {
+	const take = await extractTakeFromSelection(input);
+	await notifyTakeInventoryChanged();
+
+	const label = take.metadata.displayName || deriveCatalogReference(take);
+	actionToast.show(`Extracted · ${label}`, {
+		actionLabel: 'Open',
+		onAction: async () => {
+			await goto(resolve(`/take/${take.id}`));
+		}
+	});
+
+	return take;
+}
+
+/**
+ * Discard a take immediately. Binary cleanup is scheduled in IndexedDB.
+ */
+export async function discardLocalDraft(
+	takeId: TakeId,
+	options?: { silent?: boolean }
+): Promise<void> {
+	const take = await discardTake(takeId);
+	await notifyTakeInventoryChanged();
+	await processDueCleanups();
+
+	if (!options?.silent) {
+		const label = take.metadata.displayName || deriveCatalogReference(take);
+		actionToast.show(`${label} discarded`);
+	}
+}
+
+/**
+ * Discard many takes sequentially. One summary toast; partial failures do not roll back.
+ */
+export async function discardLocalDrafts(
+	takeIds: TakeId[]
+): Promise<{ discarded: TakeId[]; errors: { takeId: TakeId; message: string }[] }> {
+	const discarded: TakeId[] = [];
+	const errors: { takeId: TakeId; message: string }[] = [];
+
+	for (const takeId of takeIds) {
+		try {
+			await discardTake(takeId);
+			discarded.push(takeId);
+		} catch (cause) {
+			const message =
+				cause && typeof cause === 'object' && 'message' in cause
+					? String((cause as { message: string }).message)
+					: 'Could not discard Local Draft.';
+			errors.push({ takeId, message });
+		}
+	}
+
+	if (discarded.length > 0) {
+		await notifyTakeInventoryChanged();
+		await processDueCleanups();
+		actionToast.show(
+			discarded.length === 1
+				? '1 Local Draft discarded'
+				: `${discarded.length} Local Drafts discarded`
+		);
+	}
+
+	return { discarded, errors };
+}
+
+export async function renameTakeDisplayName(takeId: TakeId, name: string): Promise<Take> {
+	const take = await renameTake(takeId, name);
+	await notifyTakeInventoryChanged();
+	return take;
+}
+
+/** Persist Field Notes; source binary stays unchanged. */
+export async function saveTakeMetadata(takeId: TakeId, patch: TakeMetadataPatch): Promise<Take> {
+	const take = await updateTakeMetadata(takeId, patch);
+	await notifyTakeInventoryChanged();
+	return take;
+}
+
+/**
+ * Apply the same Field Notes patch to many takes. Failures do not roll back earlier successes.
+ */
+export async function batchSaveTakeMetadata(
+	takeIds: TakeId[],
+	patch: TakeMetadataPatch
+): Promise<{ updated: Take[]; errors: { takeId: TakeId; message: string }[] }> {
+	const updated: Take[] = [];
+	const errors: { takeId: TakeId; message: string }[] = [];
+
+	for (const takeId of takeIds) {
+		try {
+			updated.push(await updateTakeMetadata(takeId, patch));
+		} catch (cause) {
+			const message =
+				cause && typeof cause === 'object' && 'message' in cause
+					? String((cause as { message: string }).message)
+					: 'Could not update Field Notes.';
+			errors.push({ takeId, message });
+		}
+	}
+
+	if (updated.length > 0) {
+		await notifyTakeInventoryChanged();
+	}
+
+	return { updated, errors };
+}
+
+/** Persist edit recipe; source binary stays unchanged. */
+export async function saveTakeEditRecipe(takeId: TakeId, editRecipe: EditRecipe): Promise<Take> {
+	const take = await updateTakeEditRecipe(takeId, editRecipe);
+	await notifyTakeInventoryChanged();
+	return take;
+}
+
+/** Persist export format settings for a take. */
+export async function saveTakeOutput(takeId: TakeId, output: Take['output']): Promise<Take> {
+	const take = await updateTakeOutput(takeId, output);
+	await notifyTakeInventoryChanged();
+	return take;
+}
+
+/** Drain due cleanup jobs (safe to call on hydrate / visibility). */
+export async function runDeferredCleanup(): Promise<void> {
+	await processDueCleanups();
+}
