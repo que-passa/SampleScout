@@ -41,11 +41,11 @@ CI and deploy workflows live under [`.github/workflows/`](.github/workflows/). P
 2. **Settings → Pages → Build and deployment → Source:** GitHub Actions.
 3. **Settings → Secrets and variables → Actions → Variables** — add (public OAuth client values only):
    - `PUBLIC_AUDIOTOOL_CLIENT_ID`
-   - `PUBLIC_AUDIOTOOL_REDIRECT_URL` = `https://que-passa.github.io/SampleScout/account`
+   - `PUBLIC_AUDIOTOOL_REDIRECT_URL` = `https://que-passa.github.io/SampleScout/capture`
    - `PUBLIC_AUDIOTOOL_SCOPES` = `project:write,sample:write,sample:read` (confirm in the Audiotool dashboard)
 4. In the [Audiotool developer dashboard](https://developer.audiotool.com/applications), register both redirect URIs:
-   - Local: `http://127.0.0.1:5173/account`
-   - Pages: `https://que-passa.github.io/SampleScout/account`
+   - Local: `http://127.0.0.1:5173/capture`
+   - Pages: `https://que-passa.github.io/SampleScout/capture`
 5. After the first green **Deploy to GitHub Pages** run, open `https://que-passa.github.io/SampleScout/`.
 
 Manual production build (same as CI):
@@ -64,7 +64,7 @@ Public env vars only (never a personal access token):
 - `PUBLIC_AUDIOTOOL_REDIRECT_URL` (exact match to the Audiotool developer dashboard)
 - `PUBLIC_AUDIOTOOL_SCOPES`
 
-OAuth PKCE is wired via `@audiotool/nexus`. Account opens as a sheet/modal; `/account` remains the OAuth redirect host. Register a developer app and set env vars — see [Audiotool integration](docs/audiotool-integration.md).
+OAuth PKCE is wired via `@audiotool/nexus`. Account opens as a sheet/modal; OAuth redirect host is **`/capture`** (must match the Audiotool app). Register a developer app and set env vars — see [Audiotool integration](docs/audiotool-integration.md).
 
 ## Documentation
 

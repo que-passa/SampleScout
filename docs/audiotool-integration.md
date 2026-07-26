@@ -2,7 +2,7 @@
 
 ## Status
 
-`@audiotool/nexus` is installed. Browser OAuth PKCE is wired on `/account` via `initAudiotoolClient()` / `connectAudiotool()` / `disconnectAudiotool()`.
+`@audiotool/nexus` is installed. Browser OAuth PKCE is wired via `initAudiotoolClient()` / `connectAudiotool()` / `disconnectAudiotool()`. The redirect host is **`/capture`** (must match the Audiotool developer app). Account UI remains a sheet/modal; `/account` is still a deep-link host for the overlay.
 
 Product upload queue (Phase 7): `enqueueTakeUpload` / `retryTakeUpload` in `$lib/state/upload-queue` persists jobs in Dexie `uploadJobs`, encodes when needed, then calls `uploadSample` (bytes → `uploaded` → `ready`). Take Upload sheet drives Upload / Retry / Cancel.
 
@@ -11,23 +11,23 @@ Product upload queue (Phase 7): `enqueueTakeUpload` / `retryTakeUpload` in `$lib
 1. Open [developer.audiotool.com/applications](https://developer.audiotool.com/applications).
 2. Create Application:
    - **Name:** SampleScout (or any label)
-   - **Redirect URI:** `http://127.0.0.1:5173/account` (exact match, including path; no `localhost`)
+   - **Redirect URI:** `http://127.0.0.1:5173/capture` (exact match, including path; no `localhost`)
    - **Scopes:** select every sample-related scope offered in the dashboard. Docs commonly show `project:write` for project sync; sample upload may require additional scopes — confirm in the dashboard and record them here after the spike.
 3. Copy the **Client ID** into `.env`:
 
 ```env
 PUBLIC_AUDIOTOOL_CLIENT_ID=<your-client-id>
-PUBLIC_AUDIOTOOL_REDIRECT_URL=http://127.0.0.1:5173/account
+PUBLIC_AUDIOTOOL_REDIRECT_URL=http://127.0.0.1:5173/capture
 PUBLIC_AUDIOTOOL_SCOPES=project:write
 ```
 
 4. Restart `npm run dev` (binds to `127.0.0.1:5173`).
-5. Open Account (shell top-bar avatar / sheet) → **Connect Audiotool** → allow → return to `/account` (Account overlay).
+5. Open Account (shell top-bar avatar / sheet) or Auth splash → **Connect Audiotool** → allow → return to `/capture`.
 
 For production GitHub Pages, add the full site URL (including `BASE_PATH` if any) as another redirect URI and set `PUBLIC_AUDIOTOOL_REDIRECT_URL` / the matching GitHub Actions **variable** to that exact value. Example project site:
 
 ```env
-PUBLIC_AUDIOTOOL_REDIRECT_URL=https://que-passa.github.io/SampleScout/account
+PUBLIC_AUDIOTOOL_REDIRECT_URL=https://que-passa.github.io/SampleScout/capture
 ```
 
 Local and Pages redirect URIs can both be registered on the same Audiotool application. CI injects production vars at build time (see `.github/workflows/deploy-pages.yml`); do not commit `.env`.

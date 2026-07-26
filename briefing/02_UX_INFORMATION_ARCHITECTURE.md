@@ -10,7 +10,7 @@ Deeper surfaces are a stack with an explicit back control:
 
 1. **Collection** (`/drafts`) — back → Capture
 2. **Take detail / editor** (`/take/[takeId]`) — back → Collection
-3. **Account** — bottom sheet on mobile, centered modal on desktop (not a primary tab). Open from the shell top-bar Account control (Capture, Collection, Debug) or the Take editor header. Keep `/account` as the OAuth redirect / deep-link host; UI is the overlay, dismissible with close, backdrop, Escape, or history back.
+3. **Account** — bottom sheet on mobile, centered modal on desktop (not a primary tab). Open from the shell top-bar Account control (Capture, Collection, Debug) or the Take editor header. OAuth redirect host is `/capture` (matches the Audiotool developer app); `/account` remains an Account overlay deep-link. UI is the overlay, dismissible with close, backdrop, Escape, or history back.
 4. **Debug** (`/debug`) — quiet link from Account; back → Capture
 
 Stack navigations use a short directional page transition when the browser supports the View Transitions API: forward (deeper) slides the new page in from the right with a fade; back (shallower) reverses. Same-depth moves fade only. Account overlay keeps its own sheet/modal motion and does not use the stack page transition. Honor `prefers-reduced-motion`.
@@ -284,7 +284,7 @@ User-facing content only:
 - Honest local-data copy (no cloud backup, no cross-device sync)
 - Delete all local data
 
-Open from the shell top bar on Capture / Collection / Debug (Audiotool avatar when available, accessible “Account” label) or the Take editor header. Route `/account` remains the OAuth redirect host and shows the same overlay.
+Open from the shell top bar on Capture / Collection / Debug (Audiotool avatar when available, accessible “Account” label) or the Take editor header. OAuth returns to `/capture`; route `/account` is an overlay deep-link and shows the same Account UI.
 
 Developer diagnostics (full capability report, MIME support) live on a separate **Debug** screen (`/debug`), linked quietly from Account — not on the Account surface itself. OAuth client ID, redirect URI, scopes, and app-registration copy are not shown in the UI; they stay in `.env` / docs only.
 
