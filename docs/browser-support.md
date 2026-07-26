@@ -6,10 +6,14 @@ SampleScout targets modern mobile and desktop browsers with:
 - `navigator.mediaDevices.getUserMedia`
 - `MediaRecorder`
 - Web Audio API
-- Origin Private File System (OPFS)
+- Origin Private File System (OPFS) **with a working write path**
+  - Prefer `FileSystemFileHandle.createWritable()` (Chrome / modern Edge)
+  - Fall back to a dedicated worker + `createSyncAccessHandle()` (Safari / engines without async writers)
 - IndexedDB
 - Web Workers
 - Canvas
+
+Capability detection probes a real OPFS write (not only `getDirectory()`), so Capture can warn before recording when Local Drafts cannot be saved.
 
 ## Validation targets
 

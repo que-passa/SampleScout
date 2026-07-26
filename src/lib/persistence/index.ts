@@ -1,5 +1,5 @@
 import { clearAllMetadata, getDatabase, runMigrations } from './db';
-import { clearAllBinaries, writeBinary } from './opfs';
+import { clearAllBinaries, probeOpfsWritable, writeBinary } from './opfs';
 import {
 	peaksPath,
 	renderedMp3Path,
@@ -73,6 +73,7 @@ export {
 	getDatabase,
 	runMigrations,
 	clearAllBinaries,
+	probeOpfsWritable,
 	writeBinary,
 	peaksPath,
 	renderedMp3Path,

@@ -57,8 +57,8 @@ function probeMediaRecorderMimes(): MimeSupport[] {
 async function probeOpfs(): Promise<boolean> {
 	try {
 		if (!navigator.storage?.getDirectory) return false;
-		await navigator.storage.getDirectory();
-		return true;
+		const { probeOpfsWritable } = await import('$lib/persistence/opfs');
+		return await probeOpfsWritable();
 	} catch {
 		return false;
 	}

@@ -273,9 +273,17 @@ class CaptureController {
 				});
 			}
 		} catch (cause) {
+			const detail =
+				cause && typeof cause === 'object' && 'message' in cause
+					? String((cause as { message: unknown }).message)
+					: cause instanceof Error
+						? cause.message
+						: '';
 			const error = createAppError(
 				'SOURCE_SAVE_FAILED',
-				'Capture finished but could not be saved on this device.',
+				detail
+					? `Capture finished but could not be saved on this device. ${detail}`
+					: 'Capture finished but could not be saved on this device.',
 				{ cause, recoverable: true }
 			);
 			const takes = this.session ? await listTakesForSession(this.session.id) : this.takes;
