@@ -7,9 +7,9 @@ Read [`DESIGN.md`](../../../DESIGN.md) before adding or restyling UI.
 | Component                        | Use for                                                                                                                                                  |
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `AppShell` / `AccountOverlay`    | Brand bar (Capture) + Account sheet/modal; no tab bar                                                                                                    |
-| `SheetOverlay` / `ConfirmDialog` | Shared sheet-modal chrome; destructive confirm dialog; `elevated` stacks above another sheet |
-| `InstallAppSheet`                | iOS / iPadOS Add to Home Screen steps (Share → Add); Chromium uses native BIP from Account   |
-| `BatchUploadPanel`               | Collection upload confirm→progress (sheet body)                                              |
+| `SheetOverlay` / `ConfirmDialog` | Shared sheet-modal chrome; destructive confirm dialog; `elevated` stacks above another sheet                                                             |
+| `InstallAppSheet`                | iOS / iPadOS Add to Home Screen steps (Share → Add); Chromium uses native BIP from Account                                                               |
+| `BatchUploadPanel`               | Collection upload confirm→progress (sheet body)                                                                                                          |
 | `PrimaryButton`                  | Brand-well primary CTAs (Collect, Collection Upload)                                                                                                     |
 | `GhostButton` / `BackButton`     | Flat ghost actions (BackButton look = Ghost chrome); `BackButton` = GhostButton link wrapper; `compact` for toolbar; `danger` for destructive label/icon |
 | `RecordControl`                  | Record / stop                                                                                                                                            |

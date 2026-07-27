@@ -153,21 +153,20 @@ async function tryShowSoftTip(): Promise<void> {
 		return;
 	}
 
-	let total = 0;
 	try {
-		({ total } = await countCollectionFiles());
+		const { total } = await countCollectionFiles();
+		if (total < 1) return;
+
+		markSoftTipShown();
+		const guide = getInstallGuide();
+		actionToast.show('Add to Home Screen for quicker Capture', {
+			durationMs: SOFT_TIP_TOAST_MS,
+			actionLabel: guide === 'ios' ? 'How' : 'Install',
+			onAction: () => void openInstallFlow()
+		});
 	} catch {
 		return;
 	}
-	if (total < 1) return;
-
-	markSoftTipShown();
-	const guide = getInstallGuide();
-	actionToast.show('Add to Home Screen for quicker Capture', {
-		durationMs: SOFT_TIP_TOAST_MS,
-		actionLabel: guide === 'ios' ? 'How' : 'Install',
-		onAction: () => void openInstallFlow()
-	});
 }
 
 export function scheduleSoftTip(): void {

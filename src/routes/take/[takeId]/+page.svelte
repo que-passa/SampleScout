@@ -1017,7 +1017,7 @@
 						retainedRanges={waveRetainedRanges}
 						scoutedRegions={scoutedRegionsForWave}
 						peakNormalization={wavePeakNormalization}
-						showTrimGrips={showTrimGrips}
+						{showTrimGrips}
 						{onSeek}
 						{onSelectionChange}
 						{onSelectionGestureEnd}
