@@ -3,42 +3,65 @@
 
 	interface Props {
 		mark: SpecimenMark;
+		size?: 'default' | 'compact';
 	}
 
-	let { mark }: Props = $props();
+	let { mark, size = 'default' }: Props = $props();
+
+	const colorVar = $derived(`var(--specimen-neon-${mark.colorIndex})`);
 </script>
 
-<svg
-	class="specimen-mark"
-	viewBox="0 0 {mark.width} {mark.height}"
-	aria-hidden="true"
-	focusable="false"
-	shape-rendering="crispEdges"
+<span
+	class={['specimen-mark-frame', size === 'compact' && 'specimen-mark-frame--compact']}
+	style:color={colorVar}
 >
-	{#each mark.cells as row, rowIndex (rowIndex)}
-		{#each row as active, columnIndex (`${rowIndex}-${columnIndex}`)}
-			<rect class:active x={columnIndex + 0.1} y={rowIndex + 0.1} width="0.8" height="0.8" />
+	<svg
+		class="specimen-mark"
+		viewBox="0 0 {mark.width} {mark.height}"
+		aria-hidden="true"
+		focusable="false"
+		shape-rendering="crispEdges"
+	>
+		{#each mark.cells as row, rowIndex (rowIndex)}
+			{#each row as active, columnIndex (`${rowIndex}-${columnIndex}`)}
+				{#if active}
+					<rect x={columnIndex + 0.1} y={rowIndex + 0.1} width="0.8" height="0.8" />
+				{/if}
+			{/each}
 		{/each}
-	{/each}
-</svg>
+	</svg>
+</span>
 
 <style>
+	.specimen-mark-frame {
+		display: flex;
+		flex: none;
+		align-items: center;
+		justify-content: center;
+		padding: var(--space-2);
+		background: var(--ink);
+		border-radius: var(--radius-control);
+		color: var(--ink);
+		pointer-events: none;
+	}
+
 	.specimen-mark {
 		display: block;
 		width: calc(var(--space-6) + var(--space-2));
 		height: calc(var(--space-6) + var(--space-2));
-		flex: none;
-		color: var(--ink);
+	}
+
+	.specimen-mark-frame--compact {
+		padding: var(--space-1);
+	}
+
+	.specimen-mark-frame--compact .specimen-mark {
+		width: var(--space-5);
+		height: var(--space-5);
 	}
 
 	rect {
-		fill: transparent;
-		stroke: var(--line);
-		stroke-width: 0.1;
-	}
-
-	rect.active {
 		fill: currentColor;
-		stroke: currentColor;
+		stroke: none;
 	}
 </style>

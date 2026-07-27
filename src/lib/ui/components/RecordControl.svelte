@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { Icon } from '$lib/ui/icons';
+
 	let {
 		disabled = true,
 		recording = false,
@@ -21,7 +23,13 @@
 >
 	<span class="well" aria-hidden="true">
 		<span class="glyph">
-			<span class="glyph-mark"></span>
+			{#if recording}
+				<span class="glyph-mark">
+					<Icon name="stop" size={48} />
+				</span>
+			{:else}
+				<span class="glyph-mark"></span>
+			{/if}
 		</span>
 	</span>
 	<span class="label">{recording ? 'Stop' : 'Record'}</span>
@@ -70,7 +78,8 @@
 		flex-shrink: 0;
 		padding: var(--space-3);
 		box-sizing: border-box;
-		border-radius: var(--radius-round);
+		/* Concentric with glyph: face radius + well padding. */
+		border-radius: calc(var(--radius-record) + var(--space-3));
 		background: var(--surface-subtle);
 		/* Soft recessed pad — inset only, no floating drop-shadow. */
 		box-shadow:
@@ -84,7 +93,7 @@
 		place-items: center;
 		width: 100%;
 		height: 100%;
-		border-radius: var(--radius-round);
+		border-radius: var(--radius-record);
 		background: var(--signal);
 		/* Quiet face depth on the red core. */
 		box-shadow:
@@ -108,12 +117,11 @@
 		.glyph {
 			transition:
 				background-color 140ms ease,
-				box-shadow 140ms ease,
-				transform 140ms ease;
+				box-shadow 140ms ease;
 		}
 
 		.glyph-mark {
-			transition: background-color 140ms ease;
+			transition: color 140ms ease;
 		}
 	}
 
@@ -126,17 +134,15 @@
 		}
 
 		.record:not(:disabled):not(.recording):hover .glyph {
-			background: color-mix(in srgb, var(--signal) 78%, var(--paper));
-			transform: scale(1.02);
+			background: color-mix(in srgb, var(--signal) 90%, var(--paper));
 		}
 
 		.record.recording:not(:disabled):hover .glyph {
-			background: color-mix(in srgb, var(--ink) 82%, var(--paper));
-			transform: scale(1.02);
+			background: color-mix(in srgb, var(--ink) 92%, var(--paper));
 		}
 
 		.record.recording:not(:disabled):hover .glyph-mark {
-			background: color-mix(in srgb, var(--signal) 82%, var(--paper));
+			color: color-mix(in srgb, var(--signal) 90%, var(--paper));
 		}
 	}
 
@@ -149,16 +155,14 @@
 
 	.record:not(:disabled):not(.recording):active .glyph {
 		background: color-mix(in srgb, var(--signal) 72%, var(--ink));
-		transform: scale(0.95);
 	}
 
 	.record.recording:not(:disabled):active .glyph {
 		background: color-mix(in srgb, var(--ink) 92%, var(--paper));
-		transform: scale(0.95);
 	}
 
 	.record.recording:not(:disabled):active .glyph-mark {
-		background: color-mix(in srgb, var(--signal) 72%, var(--ink));
+		color: color-mix(in srgb, var(--signal) 72%, var(--ink));
 	}
 
 	.record:disabled .glyph {
@@ -169,17 +173,22 @@
 	}
 
 	.glyph-mark {
-		display: block;
+		display: grid;
+		place-items: center;
 		width: 0;
 		height: 0;
 		border-radius: var(--radius-control);
-		background: var(--surface);
+		background: transparent;
+		color: var(--signal);
+		overflow: hidden;
 	}
 
 	.recording .glyph-mark {
-		width: var(--space-6);
-		height: var(--space-6);
-		background: var(--signal);
+		width: var(--space-7);
+		height: var(--space-7);
+		background: transparent;
+		color: var(--signal);
+		overflow: visible;
 	}
 
 	.label {

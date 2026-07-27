@@ -17,7 +17,9 @@ Collection specimen marks are separate deterministic catalog identities derived 
 - Preserve transients — no averaging away spikes; no exaggerated smoothing
 - Mono: centered lane. Stereo: labeled L/R or explicit combined mode — never silent mono downmix
 - Interactive handles may be DOM/SVG; waveform body stays canvas
-- Trim grips hang below the wave frame (`--signal` block tabs); fade grips sit on the bottom edge of the time ruler (`--ink` wedge tabs) and stay anchored to retained start/end
+- Trim grips hang below the wave frame (`--signal` block tabs idle; active drag uses `--brand` on grip + canvas boundary); fade grips sit on the bottom edge of the time ruler (`--ink` wedge tabs) and stay anchored to retained start/end — soften to 40% transparent while a trim edge is dragged
+- Selection uses `--brand-soft` fill and `--brand` edges/grips (not ink wash, not signal)
+- Hit targets near half `--touch-min` on canvas edges; DOM grips at `--touch-min`. At zero fade: ruler band → fade; wave-body edge → trim
 - Fade visualization scales peaks by linear fade gain and draws a dashed `--ink` envelope diagonal (not signal)
 
 ## Forbidden

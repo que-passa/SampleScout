@@ -19,8 +19,8 @@ Do not use array indexes as identifiers.
 - `Take` remains the record term; saved takes are browsed in **Collection** at `/drafts`.
 - **Field Notes** is the UI label for the existing `TakeMetadata` / details surface. Do not add a `notes` field.
 - **Local Draft** maps to an existing take with `lifecycleState === 'saved'` after the OPFS + IndexedDB commit gate. It is not a new enum value and means this device only.
-- **Extract** creates another `Take` from a selection; it is not a separate entity type. Optional `derivedFromTakeId` records lineage for UI honesty.
-- A specimen mark is derived deterministically at presentation time from persisted take/source facts. It is not persisted audio analysis, an audio fingerprint, a quality score, or random decoration.
+- **Collect** creates another `Take` from the current retained trim; it is not a separate entity type. Optional `derivedFromTakeId` records lineage for UI honesty.
+- A specimen mark is derived deterministically at presentation time from persisted take/source facts (pattern + neon fill index). It is not persisted audio analysis, an audio fingerprint, a quality score, or random decoration.
 
 ## 2. Session model
 
@@ -64,7 +64,7 @@ interface Take {
 	editRecipe: EditRecipe;
 	output: OutputSettings;
 
-	/** Present when this take was Extracted from another take’s selection. */
+	/** Present when this take was Collected from another take’s retained trim. */
 	derivedFromTakeId?: TakeId;
 
 	lifecycleState: TakeLifecycleState;
@@ -77,7 +77,11 @@ interface Take {
 }
 ```
 
-Extracted takes normally reuse the parent `source.fileRef` (reference-counted cleanup). They do not require a duplicated OPFS binary for MVP.
+Collected takes normally reuse the parent `source.fileRef` (reference-counted cleanup). They do not require a duplicated OPFS binary for MVP.
+
+**Display names:** generated as short stem + space + two-digit number (`Rain 01`). Never use em/en dashes. Numbering continues while the stem matches the previous numbered name in the session; resets to `01` when the stem changes.
+
+**Upload pending:** a take is upload-pending when it is a saved Local Draft, `uploadState !== 'uploaded'`, and no other take has `derivedFromTakeId === this.id`. Parents with collected children are source-only for default Collection Upload.
 
 ## 4. Audio source
 

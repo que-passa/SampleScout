@@ -41,9 +41,10 @@ describe('renderRecipePlanar', () => {
 		const source = makeTone({ seconds: 4 });
 		const recipe = trimToSelection(createInitialEditRecipe(4), 1, 3);
 		const out = renderRecipePlanar(source, recipe);
+		const target = Math.pow(10, -1 / 20);
 		expect(out.durationSeconds).toBeCloseTo(2, 5);
 		expect(out.frameCount).toBe(2000);
-		expect(out.channels[0]?.[0]).toBeCloseTo(0.5);
+		expect(out.channels[0]?.[0]).toBeCloseTo(target);
 	});
 
 	it('cuts an interior region and concatenates remainders', () => {

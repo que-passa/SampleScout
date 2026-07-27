@@ -9,20 +9,31 @@
 		actionToast,
 		onTakeInventoryChanged,
 		openAccountOverlay,
-		renameTakeDisplayName,
 		retryTakeUpload,
+		enqueueTakeUpload,
+		cancelTakeUpload,
+		uploadQueue,
 		audiotoolAuth
 	} from '$lib/state';
 	import {
+		assignNumberedDisplayNames,
 		deriveCatalogReference,
 		deriveSpecimenMark,
+		isActiveTakeUploadState,
+		isUploadPendingTake,
 		isTakeSavedLocally,
+		stemFromSessionName,
+		validateTakeForUpload,
 		type TakeMetadataPatch
 	} from '$lib/domain';
 	import type { CaptureSession, Take, TakeId } from '$lib/domain/types';
 	import BatchFieldNotesPanel from '$lib/ui/components/BatchFieldNotesPanel.svelte';
+	import BatchUploadPanel from '$lib/ui/components/BatchUploadPanel.svelte';
 	import ConfirmDialog from '$lib/ui/components/ConfirmDialog.svelte';
 	import EmptyState from '$lib/ui/components/EmptyState.svelte';
+	import GhostButton from '$lib/ui/components/GhostButton.svelte';
+	import PrimaryButton from '$lib/ui/components/PrimaryButton.svelte';
+	import SheetOverlay from '$lib/ui/components/SheetOverlay.svelte';
 	import TakeRow from '$lib/ui/components/TakeRow.svelte';
 	import AppShell from '$lib/ui/layouts/AppShell.svelte';
 	import { resolve } from '$app/paths';
@@ -42,9 +53,11 @@
 	let fileInput = $state<HTMLInputElement | null>(null);
 	let selectMode = $state(false);
 	let selectedIds = $state<Record<string, true>>({});
+	let editDataOpen = $state(false);
 	let batchBusy = $state(false);
 	let batchStatus = $state<string | null>(null);
 	let batchError = $state<string | null>(null);
+	let uploading = $state(false);
 	let discardConfirm = $state<
 		| { kind: 'single'; takeId: string; displayName: string }
 		| { kind: 'batch'; takeIds: string[]; count: number }
@@ -52,9 +65,69 @@
 	>(null);
 	let discarding = $state(false);
 	let retryingTakeId = $state<string | null>(null);
+	let uploadSheetOpen = $state(false);
+	let uploadMarkedIds = $state<string[]>([]);
+	let uploadPhase = $state<'confirm' | 'progress'>('confirm');
 
 	const selectedCount = $derived(Object.keys(selectedIds).length);
-	const allTakeIds = $derived(sessions.flatMap((entry) => entry.takes.map((take) => take.id)));
+	const allTakes = $derived(sessions.flatMap((entry) => entry.takes));
+	const allTakeIds = $derived(allTakes.map((take) => take.id));
+	const pendingUploadTakes = $derived(allTakes.filter((t) => isUploadPendingTake(t, allTakes)));
+	const selectedTakes = $derived(allTakes.filter((take) => selectedIds[take.id]));
+	const selectedPendingUploadTakes = $derived(
+		selectedTakes.filter((t) => isUploadPendingTake(t, allTakes))
+	);
+	const selectionActionsEnabled = $derived(
+		selectedCount > 0 && !batchBusy && !discarding && !uploading
+	);
+
+	// Upload sheet derived values
+	const uploadTakes = $derived(allTakes.filter((take) => uploadMarkedIds.includes(take.id)));
+	const progressActive = $derived(uploadPhase === 'progress');
+
+	// Get initial values for upload form
+	const uploadInitialStem = $derived.by(() => {
+		if (uploadTakes.length === 0) return '';
+		const firstTake = uploadTakes[0];
+		const session = sessions.find((s) => s.takes.some((t) => t.id === firstTake.id))?.session;
+		return session ? stemFromSessionName(session.name) : '';
+	});
+
+	const uploadInitialDescription = $derived(
+		uploadTakes.length > 0 ? uploadTakes[0].metadata.description || '' : ''
+	);
+	const uploadInitialTags = $derived(
+		uploadTakes.length > 0 ? uploadTakes[0].metadata.tags.join(', ') : ''
+	);
+
+	// Progress tracking
+	const uploadProgress = $derived.by(() => {
+		if (uploadPhase !== 'progress') return { current: null, index: 0, total: 0, fraction: null };
+
+		let settled = 0;
+		let current: Take | null = null;
+		let currentFraction: number | null = null;
+
+		for (const takeId of uploadMarkedIds) {
+			const job = uploadQueue.byTakeId[takeId];
+			if (!job) continue;
+			if (job.state === 'completed' || job.state === 'failed' || job.state === 'canceled') {
+				settled++;
+				continue;
+			}
+			if (!current) {
+				current = allTakes.find((t) => t.id === takeId) ?? null;
+				currentFraction = job.progress?.fraction ?? null;
+			}
+		}
+
+		return {
+			current: current?.metadata.displayName ?? null,
+			index: Math.min(settled + 1, uploadMarkedIds.length),
+			total: uploadMarkedIds.length,
+			fraction: currentFraction
+		};
+	});
 
 	async function load() {
 		const allSessions = await listSessions();
@@ -85,6 +158,11 @@
 			if (visible.has(id)) nextSelected[id] = true;
 		}
 		selectedIds = nextSelected;
+		if (Object.keys(nextSelected).length === 0) editDataOpen = false;
+		if (sessionsWithTakes.length === 0) {
+			selectMode = false;
+			editDataOpen = false;
+		}
 	}
 
 	async function retryLoad() {
@@ -124,6 +202,35 @@
 		return unsubInventory;
 	});
 
+	// Track upload completion
+	$effect(() => {
+		if (uploadPhase !== 'progress' || uploadMarkedIds.length === 0) return;
+
+		const marked = [...uploadMarkedIds];
+		const allSettled = marked.every((takeId) => {
+			const job = uploadQueue.byTakeId[takeId];
+			return job?.state === 'completed' || job?.state === 'failed' || job?.state === 'canceled';
+		});
+
+		if (!allSettled) return;
+
+		const completed = marked.filter(
+			(takeId) => uploadQueue.byTakeId[takeId]?.state === 'completed'
+		).length;
+
+		actionToast.show(completed === 1 ? 'Upload completed' : `${completed} uploads completed`);
+		uploadSheetOpen = false;
+		uploadMarkedIds = [];
+		uploadPhase = 'confirm';
+
+		if (selectMode && marked.some((id) => selectedIds[id])) {
+			selectedIds = {};
+			editDataOpen = false;
+		}
+
+		void load();
+	});
+
 	function requestDiscard(takeId: string, displayName: string) {
 		discardConfirm = {
 			kind: 'single',
@@ -160,6 +267,7 @@
 				if (ok > 0 && fail === 0) {
 					batchStatus = `Discarded ${ok} Local Draft${ok === 1 ? '' : 's'}.`;
 					selectedIds = {};
+					editDataOpen = false;
 				} else if (ok > 0 && fail > 0) {
 					batchStatus = `Discarded ${ok}; ${fail} failed.`;
 					batchError = result.errors.map((error) => error.message).join(' ');
@@ -208,11 +316,6 @@
 		} finally {
 			retryingTakeId = null;
 		}
-	}
-
-	async function onRename(takeId: string, name: string) {
-		await renameTakeDisplayName(takeId, name);
-		actionToast.show('Name updated');
 	}
 
 	function bindFileInput(node: HTMLInputElement) {
@@ -266,6 +369,7 @@
 		selectMode = !selectMode;
 		if (!selectMode) {
 			selectedIds = {};
+			editDataOpen = false;
 			batchStatus = null;
 			batchError = null;
 		}
@@ -276,6 +380,7 @@
 		if (selected) next[takeId] = true;
 		else delete next[takeId];
 		selectedIds = next;
+		if (Object.keys(next).length === 0) editDataOpen = false;
 	}
 
 	function selectAllVisible() {
@@ -286,8 +391,127 @@
 
 	function clearSelection() {
 		selectedIds = {};
+		editDataOpen = false;
 		batchStatus = null;
 		batchError = null;
+	}
+
+	function openEditData() {
+		if (!selectionActionsEnabled) return;
+		batchStatus = null;
+		batchError = null;
+		editDataOpen = true;
+	}
+
+	function closeEditData() {
+		if (batchBusy) return;
+		editDataOpen = false;
+	}
+
+	function uploadAllPending() {
+		if (uploading || batchBusy || discarding) return;
+		if (pendingUploadTakes.length === 0) {
+			batchError = 'Nothing to upload — Collection has no pending Local Drafts.';
+			return;
+		}
+		uploadMarkedIds = pendingUploadTakes.map((t) => t.id);
+		uploadPhase = 'confirm';
+		uploadSheetOpen = true;
+	}
+
+	function uploadSelected() {
+		if (!selectionActionsEnabled) return;
+		if (selectedPendingUploadTakes.length === 0) {
+			batchError = 'Nothing to upload — selected takes are already uploaded or not saved locally.';
+			return;
+		}
+		uploadMarkedIds = selectedPendingUploadTakes.map((t) => t.id);
+		uploadPhase = 'confirm';
+		uploadSheetOpen = true;
+	}
+
+	async function onUploadConfirm(overlay: {
+		titleStem: string;
+		description: string;
+		tags: string[];
+	}) {
+		if (audiotoolAuth.status.state !== 'connected') {
+			openAccountOverlay();
+			return;
+		}
+
+		uploading = true;
+		batchError = null;
+
+		try {
+			const takesToUpdate = uploadTakes.filter((t) => isUploadPendingTake(t, allTakes));
+
+			if (takesToUpdate.length > 0) {
+				const numberedNames = assignNumberedDisplayNames(overlay.titleStem, takesToUpdate.length);
+
+				for (let i = 0; i < takesToUpdate.length; i++) {
+					const take = takesToUpdate[i];
+					if (!take) continue;
+					const patch: TakeMetadataPatch = {
+						displayName: numberedNames[i],
+						...(overlay.description ? { description: overlay.description } : {}),
+						...(overlay.tags.length > 0 ? { tags: overlay.tags } : {})
+					};
+
+					await batchSaveTakeMetadata([take.id], patch);
+				}
+			}
+
+			let enqueued = 0;
+			for (const takeId of uploadMarkedIds) {
+				const take = allTakes.find((t) => t.id === takeId);
+				if (!take) continue;
+				if (isActiveTakeUploadState(take.uploadState)) continue;
+				const validation = validateTakeForUpload(take);
+				if (validation) continue;
+				try {
+					await enqueueTakeUpload(takeId);
+					enqueued += 1;
+				} catch (cause) {
+					console.error('Failed to enqueue upload:', takeId, cause);
+				}
+			}
+
+			if (enqueued === 0) {
+				batchError = 'Could not queue uploads.';
+				return;
+			}
+
+			uploadPhase = 'progress';
+			void load();
+		} catch (cause) {
+			batchError =
+				cause && typeof cause === 'object' && 'message' in cause
+					? String((cause as { message: string }).message)
+					: 'Could not start upload.';
+		} finally {
+			uploading = false;
+		}
+	}
+
+	function onUploadCancel() {
+		if (uploadPhase === 'progress') {
+			// Cancel active uploads
+			for (const takeId of uploadMarkedIds) {
+				void cancelTakeUpload(takeId).catch(console.error);
+			}
+		}
+
+		uploadSheetOpen = false;
+		uploadMarkedIds = [];
+		uploadPhase = 'confirm';
+	}
+
+	function onUploadRemove(takeId: string) {
+		uploadMarkedIds = uploadMarkedIds.filter((id) => id !== takeId);
+		if (uploadMarkedIds.length === 0) {
+			uploadSheetOpen = false;
+		}
 	}
 
 	async function onBatchApply(patch: TakeMetadataPatch) {
@@ -301,7 +525,9 @@
 			const ok = result.updated.length;
 			const fail = result.errors.length;
 			if (ok > 0 && fail === 0) {
-				batchStatus = `Updated Field Notes on ${ok} take${ok === 1 ? '' : 's'}.`;
+				batchStatus = null;
+				actionToast.show(ok === 1 ? 'Field Notes updated' : `Field Notes updated on ${ok} takes`);
+				editDataOpen = false;
 			} else if (ok > 0 && fail > 0) {
 				batchStatus = `Updated ${ok}; ${fail} failed.`;
 				batchError = result.errors.map((error) => error.message).join(' ');
@@ -345,33 +571,13 @@
 							Select all
 						</button>
 						<button type="button" class="text-button" onclick={clearSelection}>Clear</button>
-						{#if selectedCount > 0}
-							<button
-								type="button"
-								class="text-button danger"
-								disabled={batchBusy || discarding}
-								onclick={requestBatchDiscard}
-							>
-								Discard
-							</button>
-						{/if}
 					</div>
 				</div>
-				{#if selectedCount > 0}
-					<BatchFieldNotesPanel
-						{selectedCount}
-						busy={batchBusy || discarding}
-						onapply={onBatchApply}
-						onclear={clearSelection}
-					/>
-				{/if}
-				{#if batchStatus}
-					<p class="status-line" role="status">{batchStatus}</p>
-				{/if}
-				{#if batchError}
-					<p class="error-line" role="alert">{batchError}</p>
-				{/if}
-			{:else if batchError}
+			{/if}
+			{#if batchStatus}
+				<p class="status-line" role="status">{batchStatus}</p>
+			{/if}
+			{#if batchError}
 				<p class="error-line" role="alert">{batchError}</p>
 			{/if}
 
@@ -411,18 +617,14 @@
 								{#each takes as take (take.id)}
 									<TakeRow
 										name={take.metadata.displayName}
-										durationSeconds={take.source.durationSeconds}
-										kind={take.metadata.kind}
 										savedLocally={isTakeSavedLocally(take)}
 										catalogReference={deriveCatalogReference(take)}
 										specimenMark={deriveSpecimenMark(take)}
 										uploadState={take.uploadState === 'not-queued' ? undefined : take.uploadState}
 										takeId={take.id}
-										editable={!selectMode}
 										selectable={selectMode}
 										selected={Boolean(selectedIds[take.id])}
 										onselect={(selected) => setSelected(take.id, selected)}
-										onrename={(name) => onRename(take.id, name)}
 										ondiscard={selectMode
 											? undefined
 											: () => requestDiscard(take.id, take.metadata.displayName)}
@@ -446,23 +648,42 @@
 
 		<footer class="actions-bar" aria-label="Collection actions">
 			{#if sessions.length > 0}
-				<button
-					type="button"
-					class="header-button"
-					class:active={selectMode}
+				<GhostButton
+					active={selectMode}
 					onclick={toggleSelectMode}
+					disabled={uploading || discarding}
 				>
 					{selectMode ? 'Done' : 'Select'}
-				</button>
+				</GhostButton>
 			{/if}
-			<button
-				type="button"
-				class="header-button import-button"
-				onclick={openImportPicker}
-				disabled={importing}
-			>
-				Import
-			</button>
+			{#if selectMode && sessions.length > 0}
+				<div class="action-group">
+					<GhostButton disabled={!selectionActionsEnabled} onclick={openEditData}>
+						Edit data
+					</GhostButton>
+					<GhostButton danger disabled={!selectionActionsEnabled} onclick={requestBatchDiscard}>
+						Discard
+					</GhostButton>
+					<PrimaryButton
+						disabled={!selectionActionsEnabled || selectedPendingUploadTakes.length === 0}
+						onclick={uploadSelected}
+					>
+						Upload
+					</PrimaryButton>
+				</div>
+			{:else}
+				<GhostButton onclick={openImportPicker} disabled={importing || uploading}>
+					Import
+				</GhostButton>
+				{#if sessions.length > 0}
+					<PrimaryButton
+						onclick={uploadAllPending}
+						disabled={uploading || importing || pendingUploadTakes.length === 0}
+					>
+						Upload
+					</PrimaryButton>
+				{/if}
+			{/if}
 			<input
 				{@attach bindFileInput}
 				type="file"
@@ -473,6 +694,54 @@
 			/>
 		</footer>
 	</section>
+
+	{#if editDataOpen}
+		<SheetOverlay title="Edit data" dismissible={!batchBusy} onclose={closeEditData}>
+			<BatchFieldNotesPanel
+				{selectedCount}
+				busy={batchBusy || discarding}
+				embedded
+				onapply={onBatchApply}
+				onclear={() => {
+					clearSelection();
+				}}
+			/>
+		</SheetOverlay>
+	{/if}
+
+	{#if uploadSheetOpen}
+		<SheetOverlay
+			title="Upload"
+			dismissible={!progressActive}
+			onclose={() => {
+				if (!progressActive) {
+					uploadSheetOpen = false;
+					uploadMarkedIds = [];
+					uploadPhase = 'confirm';
+				}
+			}}
+		>
+			<BatchUploadPanel
+				embedded
+				takes={uploadTakes}
+				busy={uploading}
+				{progressActive}
+				progressLabel={uploadProgress.current
+					? `Uploading ${uploadProgress.current}`
+					: 'Uploading...'}
+				progressFraction={uploadProgress.fraction}
+				progressCurrent={uploadProgress.current}
+				progressIndex={uploadProgress.index}
+				progressTotal={uploadProgress.total}
+				initialStem={uploadInitialStem}
+				initialDescription={uploadInitialDescription}
+				initialTags={uploadInitialTags}
+				oncancel={onUploadCancel}
+				onconfirm={onUploadConfirm}
+				onremove={onUploadRemove}
+			/>
+		</SheetOverlay>
+	{/if}
 
 	{#if discardConfirm}
 		<ConfirmDialog
@@ -518,29 +787,15 @@
 		z-index: 1;
 	}
 
-	.import-button {
+	.action-group {
 		margin-left: auto;
+		display: flex;
+		align-items: center;
+		gap: var(--space-1);
 	}
 
-	.header-button {
-		min-height: var(--touch-min);
-		padding: 0 var(--space-4);
-		border: 1px solid var(--ink);
-		border-radius: var(--radius-control);
-		background: var(--surface);
-		color: var(--ink);
-		font-size: var(--text-button);
-		font-weight: 600;
-	}
-
-	.header-button.active {
-		background: var(--ink);
-		color: var(--surface);
-	}
-
-	.header-button:disabled {
-		border-color: var(--disabled);
-		color: var(--disabled);
+	.actions-bar > :global(.ss-primary-button) {
+		margin-left: auto;
 	}
 
 	.file-input {
@@ -593,10 +848,6 @@
 		text-decoration: underline;
 		text-underline-offset: var(--space-1);
 		cursor: pointer;
-	}
-
-	.text-button.danger {
-		color: var(--signal);
 	}
 
 	.text-button:disabled {

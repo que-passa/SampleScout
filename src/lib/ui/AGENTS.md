@@ -4,27 +4,35 @@ Read [`DESIGN.md`](../../../DESIGN.md) before adding or restyling UI.
 
 ## Prefer existing components
 
-| Component                        | Use for                                               |
-| -------------------------------- | ----------------------------------------------------- |
-| `AppShell` / `AccountOverlay`    | Brand bar (Capture) + Account sheet/modal; no tab bar |
-| `SheetOverlay` / `ConfirmDialog` | Shared sheet-modal chrome; destructive confirm dialog |
-| `RecordControl`                  | Record / stop                                         |
-| `CaptureTimer`                   | Elapsed / remaining / warnings                        |
-| `LiveWaveform`                   | Live scrolling capture wave (min/max)                 |
-| `InputMeter`                     | Input level + clip                                    |
-| `StatusLabel`                    | Compact state chips (text + tone)                     |
-| `EmptyState`                     | Empty lists / unloaded editor                         |
-| `TakeRow`                        | Take list records                                     |
-| `ActionToast`                    | Compact ephemeral action feedback                     |
-| `AuthSplash`                     | Unsigned-in gate (logo + Connect)                     |
+| Component                        | Use for                                                            |
+| -------------------------------- | ------------------------------------------------------------------ |
+| `AppShell` / `AccountOverlay`    | Brand bar (Capture) + Account sheet/modal; no tab bar              |
+| `SheetOverlay` / `ConfirmDialog` | Shared sheet-modal chrome; destructive confirm dialog              |
+| `BatchUploadPanel`               | Collection upload confirm→progress (sheet body)                    |
+| `PrimaryButton`                  | Brand-well primary CTAs (Collect, Collection Upload)               |
+| `GhostButton` / `BackButton`     | Ghost actions; hover = flat well/face; sticky on = recessed chrome |
+| `RecordControl`                  | Record / stop                                                      |
+| `CaptureTimer`                   | Elapsed / remaining / warnings                                     |
+| `LiveWaveform`                   | Live scrolling capture wave (min/max)                              |
+| `StandbyPlot`                    | Idle Capture plot (axis / ticks / STANDBY / scan)                  |
+| `InputMeter`                     | Input level + clip                                                 |
+| `StatusLabel`                    | Compact state chips (text + tone)                                  |
+| `EmptyState`                     | Empty lists / unloaded editor                                      |
+| `TakeRow`                        | Take list records                                                  |
+| `ActionToast`                    | Compact ephemeral action feedback                                  |
+| `AuthSplash`                     | Unsigned-in gate (logo + Connect)                                  |
+| `Icon` (`$lib/ui/icons`)         | Shared UI glyphs (stroke set + play/pause/stop)                    |
 
 Put audio/persistence logic in `$lib/audio`, `$lib/persistence`, `$lib/state` — keep these components presentational.
 
 ## Local rules
 
 - Tokens only (`var(--…)` from `tokens.css`)
-- Panels → `--radius-panel`; buttons/inputs → `--radius-control`; status → `--radius-round`
+- Panels → `--radius-panel`; buttons/inputs → `--radius-control`; status → `--radius-round`; record face → `--radius-record`
+- Brand primary CTAs use `PrimaryButton` (recessed well + `--brand` face; Collect, Collection Upload)
+- Ghost actions use `GhostButton` / `BackButton` (hover = flat well/face; sticky on = recessed Account/Collection chrome)
 - No new color palettes, shadows, or card frameworks
 - Match bright mono instrument look; `--signal` sparingly
+- UI icons: import `{ Icon }` from `$lib/ui/icons` — do not inline one-off SVG paths in routes
 
 Waveform/editor work: also follow `.cursor/rules/waveform-ui.mdc`.

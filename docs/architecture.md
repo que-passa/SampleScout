@@ -32,7 +32,7 @@ Visible labels do not rename architecture:
 - Field Notes → existing `TakeMetadata` and details UI; no new notes field
 - Local Draft → an existing saved take after the OPFS + IndexedDB commit gate; device-local only
 
-Collection specimen marks are deterministic UI projections of persisted take/source facts. They are not stored audio fingerprints, waveform assets, quality scores, or random decoration and do not change the PCM peak pipeline.
+Collection specimen marks are deterministic UI projections of persisted take/source facts (grid pattern + neon fill index). They are not stored audio fingerprints, waveform assets, quality scores, or random decoration and do not change the PCM peak pipeline.
 
 ## Hosting constraints
 

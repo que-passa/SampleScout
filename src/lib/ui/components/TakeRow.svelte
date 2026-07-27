@@ -8,11 +8,11 @@
 	} from '$lib/domain';
 	import SpecimenMark from './SpecimenMark.svelte';
 	import StatusLabel from './StatusLabel.svelte';
+	import GhostButton from './GhostButton.svelte';
+	import { Icon } from '$lib/ui/icons';
 
 	let {
 		name,
-		durationSeconds,
-		kind,
 		savedLocally,
 		catalogReference,
 		specimenMark,
@@ -20,20 +20,15 @@
 		playing = false,
 		takeId,
 		expanded = false,
-		editable = false,
 		selectable = false,
 		selected = false,
 		retryBusy = false,
 		onplay,
-		onrename,
 		ondiscard,
 		onretry,
-		ontoggle,
 		onselect
 	}: {
 		name: string;
-		durationSeconds: number;
-		kind: string;
 		savedLocally: boolean;
 		catalogReference: string;
 		specimenMark: SpecimenMarkValue;
@@ -41,33 +36,18 @@
 		playing?: boolean;
 		takeId?: string;
 		expanded?: boolean;
-		editable?: boolean;
 		selectable?: boolean;
 		selected?: boolean;
 		retryBusy?: boolean;
 		onplay?: () => void;
-		onrename?: (name: string) => void | Promise<void>;
 		ondiscard?: () => void;
 		onretry?: () => void;
-		ontoggle?: () => void;
 		onselect?: (selected: boolean) => void;
 	} = $props();
 
-	let editing = $state(false);
-	let draftName = $state('');
-	let menuOpen = $state(false);
-
-	function formatDuration(seconds: number): string {
-		const clamped = Math.max(0, Math.floor(seconds));
-		const mins = Math.floor(clamped / 60);
-		const secs = clamped % 60;
-		return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-	}
-
-	const duration = $derived(formatDuration(durationSeconds));
 	const takeHref = $derived(takeId ? (`/take/${takeId}` as `/take/${string}`) : undefined);
-	const openable = $derived(Boolean(takeHref) && !editing);
-	const hasMenu = $derived(Boolean(editable && onrename));
+	const openable = $derived(Boolean(takeHref));
+	const hasActions = $derived(Boolean(onplay || onretry || ondiscard));
 
 	function getStatusText(): string {
 		if (uploadState && uploadState !== 'not-queued') {
@@ -81,52 +61,13 @@
 		if (uploadState && uploadState !== 'not-queued') {
 			return uploadStateTone(uploadState as TakeUploadState);
 		}
-		if (savedLocally) return 'ok';
+		if (savedLocally) return 'signal';
 		return 'muted';
 	}
 
 	const statusText = $derived(getStatusText());
 	const statusTone = $derived(getStatusTone());
-
-	function autofocus(node: HTMLInputElement) {
-		node.focus();
-		node.select();
-	}
-
-	function startEdit() {
-		if (!editable || !onrename) return;
-		draftName = name;
-		editing = true;
-		menuOpen = false;
-	}
-
-	async function commitEdit() {
-		if (!editing) return;
-		editing = false;
-		const next = draftName.trim() || name;
-		draftName = next;
-		if (next !== name && onrename) await onrename(next);
-	}
-
-	function cancelEdit() {
-		draftName = name;
-		editing = false;
-	}
-
-	function onNameKeydown(event: KeyboardEvent) {
-		if (event.key === 'Enter') {
-			event.preventDefault();
-			void commitEdit();
-		} else if (event.key === 'Escape') {
-			event.preventDefault();
-			cancelEdit();
-		}
-	}
-
-	function toggleMenu() {
-		menuOpen = !menuOpen;
-		ontoggle?.();
-	}
+	const showTrailing = $derived(Boolean(statusText || hasActions));
 </script>
 
 <div class="take-row" class:expanded class:openable class:selected>
@@ -147,7 +88,11 @@
 				onselect?.(!selected);
 			}}
 		>
-			<span class="select-mark" aria-hidden="true">{selected ? '✓' : ''}</span>
+			<span class="select-mark" aria-hidden="true">
+				{#if selected}
+					<Icon name="check" size={12} />
+				{/if}
+			</span>
 		</button>
 	{/if}
 
@@ -156,115 +101,63 @@
 	</div>
 
 	<div class="main">
-		{#if editing}
-			<input
-				{@attach autofocus}
-				type="text"
-				class="name-input"
-				bind:value={draftName}
-				onblur={() => void commitEdit()}
-				onkeydown={onNameKeydown}
-				aria-label="Take name"
-			/>
-		{:else}
+		<div class="title-row">
 			<span class="name">{name}</span>
-		{/if}
-		<div class="meta">
-			<span class="catalog-reference">{catalogReference}</span>
-			<span class="duration">{duration}</span>
-			<span class="kind">{kind}</span>
-			{#if statusText}
-				<StatusLabel tone={statusTone}>{statusText}</StatusLabel>
-			{/if}
 		</div>
+		<span class="catalog-reference">{catalogReference}</span>
 	</div>
 
-	{#if onplay}
-		<button
-			type="button"
-			class="icon-button"
-			class:playing
-			onclick={onplay}
-			aria-label={playing ? 'Stop' : 'Play'}
-		>
-			<span class="glyph" aria-hidden="true"></span>
-		</button>
-	{/if}
+	{#if showTrailing}
+		<div class="actions">
+			{#if statusText}
+				<span class="status-slot">
+					<StatusLabel tone={statusTone} density="compact">{statusText}</StatusLabel>
+				</span>
+			{/if}
 
-	{#if onretry}
-		<button
-			type="button"
-			class="retry-button"
-			aria-label="Retry upload for {name}"
-			title="Retry"
-			disabled={retryBusy}
-			onclick={(event) => {
-				event.preventDefault();
-				event.stopPropagation();
-				menuOpen = false;
-				onretry();
-			}}
-		>
-			{retryBusy ? '…' : 'Retry'}
-		</button>
-	{/if}
+			{#if onplay}
+				<button
+					type="button"
+					class="icon-button"
+					class:playing
+					onclick={onplay}
+					aria-label={playing ? 'Pause' : 'Play'}
+				>
+					<Icon name={playing ? 'pause' : 'play'} />
+				</button>
+			{/if}
 
-	{#if ondiscard}
-		<button
-			type="button"
-			class="discard-button"
-			aria-label="Discard {name}"
-			title="Discard"
-			onclick={(event) => {
-				event.preventDefault();
-				event.stopPropagation();
-				menuOpen = false;
-				ondiscard();
-			}}
-		>
-			<svg
-				class="trash-icon"
-				viewBox="0 0 24 24"
-				width="20"
-				height="20"
-				aria-hidden="true"
-				focusable="false"
-			>
-				<path
-					fill="currentColor"
-					d="M9 3h6v2h5v2H4V5h5V3zm-3 6h2v10H6V9zm4 0h2v10h-2V9zm4 0h2v10h-2V9zM5 21h14V8H5v13z"
-				/>
-			</svg>
-		</button>
-	{/if}
+			{#if onretry}
+				<button
+					type="button"
+					class="retry-button"
+					aria-label="Retry upload for {name}"
+					title="Retry"
+					disabled={retryBusy}
+					onclick={(event) => {
+						event.preventDefault();
+						event.stopPropagation();
+						onretry();
+					}}
+				>
+					{retryBusy ? '…' : 'Retry'}
+				</button>
+			{/if}
 
-	{#if hasMenu}
-		<div class="menu-wrap">
-			<button
-				type="button"
-				class="icon-button menu-button"
-				aria-label="Take actions"
-				aria-expanded={menuOpen}
-				onclick={toggleMenu}
-			>
-				⋯
-			</button>
-			{#if menuOpen}
-				<div class="menu" role="menu">
-					{#if editable && onrename}
-						<button
-							type="button"
-							class="menu-item"
-							role="menuitem"
-							onclick={() => {
-								menuOpen = false;
-								startEdit();
-							}}
-						>
-							Rename
-						</button>
-					{/if}
-				</div>
+			{#if ondiscard}
+				<GhostButton
+					icon
+					danger
+					aria-label="Discard {name}"
+					title="Discard"
+					onclick={(event) => {
+						event.preventDefault();
+						event.stopPropagation();
+						ondiscard();
+					}}
+				>
+					<Icon name="trash" />
+				</GhostButton>
 			{/if}
 		</div>
 	{/if}
@@ -273,13 +166,21 @@
 <style>
 	.take-row {
 		position: relative;
+		z-index: 0;
 		display: flex;
 		align-items: center;
-		gap: var(--space-3);
-		padding: var(--space-3);
-		border: 1px solid var(--line);
+		gap: var(--space-2);
+		padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1);
+		border: none;
 		border-radius: var(--radius-panel);
+		/* Brighter card face on paper — pure surface, lighter depth so it stays clean. */
 		background: var(--surface);
+		/* Subtle raised card — quiet face depth + soft lift (not a hard outline). */
+		box-shadow:
+			0 1px var(--space-1) color-mix(in srgb, var(--ink) 6%, transparent),
+			0 var(--space-1) var(--space-3) color-mix(in srgb, var(--ink) 8%, transparent),
+			inset 0 1px 0 color-mix(in srgb, var(--surface) 70%, transparent),
+			inset 0 -1px 0 color-mix(in srgb, var(--ink) 6%, transparent);
 		min-height: var(--touch-min);
 	}
 
@@ -287,18 +188,41 @@
 		cursor: pointer;
 	}
 
-	.take-row.openable:hover {
-		border-color: var(--line-strong);
-		background: var(--surface-subtle);
+	@media (prefers-reduced-motion: no-preference) {
+		.take-row {
+			transition:
+				background-color 140ms ease,
+				box-shadow 140ms ease,
+				transform 140ms ease;
+		}
 	}
 
-	.take-row.expanded {
-		border-color: var(--line-strong);
+	@media (hover: hover) {
+		.take-row.openable:hover {
+			background: var(--surface);
+			box-shadow:
+				0 var(--space-1) var(--space-2) color-mix(in srgb, var(--ink) 8%, transparent),
+				0 var(--space-2) var(--space-4) color-mix(in srgb, var(--ink) 10%, transparent),
+				inset 0 1px 0 var(--surface),
+				inset 0 -1px 0 color-mix(in srgb, var(--ink) 5%, transparent);
+		}
 	}
 
+	@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+		.take-row.openable:hover {
+			transform: translateY(-1px);
+		}
+	}
+
+	.take-row.expanded,
 	.take-row.selected {
-		border-color: var(--line-strong);
-		background: var(--surface-subtle);
+		background: var(--surface);
+		box-shadow:
+			0 1px var(--space-1) color-mix(in srgb, var(--ink) 8%, transparent),
+			0 var(--space-1) var(--space-2) color-mix(in srgb, var(--ink) 11%, transparent),
+			inset 0 1px 0 var(--surface),
+			inset 0 -1px 0 color-mix(in srgb, var(--ink) 8%, transparent);
+		transform: none;
 	}
 
 	.row-link {
@@ -326,18 +250,11 @@
 		width: var(--touch-min);
 		height: var(--touch-min);
 		flex-shrink: 0;
-		border: 1px solid var(--ink);
-		border-radius: var(--radius-control);
-		background: var(--surface);
+		padding: 0;
+		border: none;
+		background: transparent;
 		color: var(--ink);
 		cursor: pointer;
-		font-size: var(--text-body);
-		font-weight: 700;
-	}
-
-	.select-toggle.checked {
-		background: var(--ink);
-		color: var(--surface);
 	}
 
 	.select-toggle:focus {
@@ -350,24 +267,68 @@
 	}
 
 	.select-mark {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		box-sizing: border-box;
+		width: var(--space-4);
+		height: var(--space-4);
+		border: 1px solid var(--line-strong);
+		border-radius: var(--radius-control);
+		background: transparent;
+		color: var(--surface);
 		line-height: 1;
 	}
 
-	.main {
-		position: relative;
-		z-index: 0;
-		flex: 1;
-		display: grid;
-		gap: var(--space-1);
-		min-width: 0;
-		pointer-events: none;
+	.select-toggle.checked .select-mark {
+		border-color: var(--ink);
+		background: var(--ink);
 	}
 
 	.catalog-identity {
 		position: relative;
 		z-index: 0;
 		display: flex;
+		align-items: center;
 		flex: none;
+		pointer-events: none;
+	}
+
+	.main {
+		position: relative;
+		z-index: 0;
+		flex: 1;
+		align-self: flex-start;
+		display: grid;
+		gap: var(--space-1);
+		min-width: 0;
+		padding-top: var(--space-1);
+		pointer-events: none;
+	}
+
+	.title-row {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		min-width: 0;
+	}
+
+	.name {
+		flex: 1;
+		min-width: 0;
+		font-size: var(--text-body);
+		font-weight: 600;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		text-align: left;
+	}
+
+	.status-slot {
+		display: inline-flex;
+		align-items: center;
+		flex-shrink: 0;
+		margin-inline-end: var(--space-2);
 		pointer-events: none;
 	}
 
@@ -383,55 +344,24 @@
 		white-space: nowrap;
 	}
 
-	.name-input {
-		pointer-events: auto;
-		width: 100%;
-		padding: var(--space-1) var(--space-2);
-		border: 1px solid var(--ink);
-		border-radius: var(--radius-control);
-		background: var(--surface);
-		font-size: var(--text-body);
-		font-weight: 600;
-	}
-
-	.name {
-		font-size: var(--text-body);
-		font-weight: 600;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-		text-align: left;
-	}
-
-	.meta {
+	.actions {
+		position: relative;
+		z-index: 1;
 		display: flex;
 		align-items: center;
-		flex-wrap: wrap;
-		gap: var(--space-2);
-		font-size: var(--text-meta);
-		color: var(--ink-muted);
-	}
-
-	.duration {
-		font-family: var(--font-mono);
-		font-weight: 600;
-	}
-
-	.kind {
-		font-weight: 500;
+		flex-shrink: 0;
+		gap: var(--space-1);
 	}
 
 	.icon-button {
-		position: relative;
-		z-index: 1;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		width: var(--touch-min);
 		height: var(--touch-min);
-		border: 1px solid var(--line);
+		border: none;
 		border-radius: var(--radius-control);
-		background: var(--surface);
+		background: transparent;
 		cursor: pointer;
 		flex-shrink: 0;
 		font-size: var(--text-body);
@@ -440,7 +370,12 @@
 	}
 
 	.icon-button:hover {
-		border-color: var(--line-strong);
+		background: var(--surface-subtle);
+	}
+
+	.icon-button:active {
+		background: var(--surface-subtle);
+		color: var(--brand);
 	}
 
 	.icon-button:focus {
@@ -453,8 +388,6 @@
 	}
 
 	.retry-button {
-		position: relative;
-		z-index: 1;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
@@ -489,115 +422,5 @@
 	.retry-button:focus-visible {
 		outline: 2px solid var(--ink);
 		outline-offset: 2px;
-	}
-
-	.discard-button {
-		position: relative;
-		z-index: 1;
-		display: inline-grid;
-		place-items: center;
-		flex-shrink: 0;
-		width: var(--touch-min);
-		height: var(--touch-min);
-		padding: 0;
-		border: 1px solid var(--signal);
-		border-radius: var(--radius-control);
-		background: var(--surface);
-		color: var(--signal);
-		cursor: pointer;
-	}
-
-	.discard-button:hover {
-		background: var(--surface-subtle);
-	}
-
-	.discard-button:focus {
-		outline: none;
-	}
-
-	.discard-button:focus-visible {
-		outline: 2px solid var(--signal);
-		outline-offset: 2px;
-	}
-
-	.trash-icon {
-		display: block;
-	}
-
-	.glyph {
-		width: 0;
-		height: 0;
-		border-style: solid;
-		border-width: 6px 0 6px 10px;
-		border-color: transparent transparent transparent currentColor;
-	}
-
-	.playing .glyph {
-		width: 8px;
-		height: 12px;
-		border: none;
-		background: linear-gradient(
-			to right,
-			currentColor 2px,
-			transparent 2px,
-			transparent 4px,
-			currentColor 4px,
-			currentColor 6px,
-			transparent 6px
-		);
-	}
-
-	.menu-wrap {
-		position: relative;
-		z-index: 1;
-		flex-shrink: 0;
-	}
-
-	.menu {
-		position: absolute;
-		right: 0;
-		top: calc(100% + var(--space-1));
-		z-index: 5;
-		min-width: 9rem;
-		display: grid;
-		border: 1px solid var(--line-strong);
-		border-radius: var(--radius-panel);
-		background: var(--surface);
-		overflow: hidden;
-	}
-
-	.menu-item {
-		display: block;
-		width: 100%;
-		padding: var(--space-3);
-		border: none;
-		border-bottom: 1px solid var(--line);
-		background: transparent;
-		text-align: left;
-		font-size: var(--text-annotation);
-		font-weight: 600;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-		text-decoration: none;
-		color: var(--ink);
-		cursor: pointer;
-		min-height: var(--touch-min);
-	}
-
-	.menu-item:last-child {
-		border-bottom: none;
-	}
-
-	.menu-item:hover {
-		background: var(--surface-subtle);
-	}
-
-	.menu-item:focus {
-		outline: none;
-	}
-
-	.menu-item:focus-visible {
-		outline: 2px solid var(--ink);
-		outline-offset: -2px;
 	}
 </style>

@@ -2,7 +2,7 @@ import { createAppError, formatSequence, nowIso } from '$lib/domain/ids';
 import { buildExtractTakeDraft } from '$lib/domain/extract';
 import {
 	applyTakeMetadataPatch,
-	isPendingDraftTake,
+	isUploadPendingTake,
 	type TakeMetadataPatch
 } from '$lib/domain/metadata';
 import type { CaptureSession, Take, TakeId } from '$lib/domain/types';
@@ -33,10 +33,28 @@ export async function listSavedTakesNewestFirst(): Promise<Take[]> {
 		.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-/** Count of locally saved takes that are not yet uploaded. */
+/** Count of Local Drafts that belong in the default Collection upload set. */
 export async function countPendingDraftTakes(): Promise<number> {
+	const { pending } = await countCollectionDrafts();
+	return pending;
+}
+
+/** Saved Local Drafts: total inventory + upload-pending subset. */
+export async function countCollectionDrafts(): Promise<{ pending: number; total: number }> {
 	const takes = await listSavedTakesNewestFirst();
-	return takes.filter(isPendingDraftTake).length;
+	return {
+		total: takes.length,
+		pending: takes.filter((take) => isUploadPendingTake(take, takes)).length
+	};
+}
+
+/** Display names in session order (oldest sequence first) for Stem NN continuity. */
+export async function listDisplayNamesForSession(sessionId: string): Promise<string[]> {
+	const takes = await getDatabase().takes.where('sessionId').equals(sessionId).toArray();
+	takes.sort((a, b) => a.sequence - b.sequence);
+	return takes
+		.filter((take) => take.lifecycleState === 'saved' || take.lifecycleState === 'finalizing')
+		.map((take) => take.metadata.displayName);
 }
 
 export async function nextSequenceForSession(sessionId: string): Promise<number> {
@@ -269,18 +287,18 @@ export async function extractTakeFromSelection(input: {
 	let draft: Take;
 	try {
 		const sequence = await nextSequenceForSession(session.id);
+		const existingDisplayNames = await listDisplayNamesForSession(session.id);
 		draft = buildExtractTakeDraft({
 			parent,
 			session,
 			sequence,
 			startSeconds: input.startSeconds,
-			endSeconds: input.endSeconds
+			endSeconds: input.endSeconds,
+			existingDisplayNames
 		});
 	} catch (cause) {
 		const message =
-			cause instanceof Error && cause.message.trim()
-				? cause.message
-				: 'Could not extract selection.';
+			cause instanceof Error && cause.message.trim() ? cause.message : 'Could not collect trim.';
 		throw createAppError('EXTRACT_FAILED', message, {
 			recoverable: true,
 			cause,

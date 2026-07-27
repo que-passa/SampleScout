@@ -1,0 +1,18 @@
+export const ICON_NAMES = [
+	'back',
+	'account',
+	'collection',
+	'trash',
+	'reset',
+	'field-notes',
+	'loop',
+	'zoom-in',
+	'zoom-out',
+	'close',
+	'check',
+	'play',
+	'pause',
+	'stop'
+] as const;
+
+export type IconName = (typeof ICON_NAMES)[number];

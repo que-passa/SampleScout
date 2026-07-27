@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { MediaQuery } from 'svelte/reactivity';
 	import {
 		estimateEncodedByteLength,
 		formatByteEstimate,
@@ -14,6 +15,7 @@
 		type Take
 	} from '$lib/domain';
 	import {
+		actionToast,
 		saveTakeOutput,
 		enqueueTakeUpload,
 		retryTakeUpload,
@@ -34,7 +36,8 @@
 		disabled = false,
 		embedded = false,
 		onsaved,
-		onuploaded
+		onuploaded,
+		onactivechange
 	}: {
 		take: Take;
 		channelCount?: number;
@@ -45,6 +48,8 @@
 		embedded?: boolean;
 		onsaved: (take: Take) => void | Promise<void>;
 		onuploaded?: (take: Take) => void | Promise<void>;
+		/** Fires when local encoding or queue upload activity flips. */
+		onactivechange?: (active: boolean) => void;
 	} = $props();
 
 	const sourceKey = $derived(
@@ -80,6 +85,10 @@
 	let uploadBusy = $state(false);
 	let abortController = $state.raw<AbortController | null>(null);
 	let lastNotifiedCompletedJobId: string | null = null;
+	/** 'Preparing' vs 'Encoding' for the local prepare/re-encode action. */
+	let localEncodeLabel = $state<'Preparing' | 'Encoding'>('Encoding');
+
+	const reduceMotion = new MediaQuery('prefers-reduced-motion: reduce');
 
 	const selectedOutput = $derived(outputFromPreset(draft.preset));
 
@@ -110,19 +119,33 @@
 
 	const isFailed = $derived(take.uploadState === 'failed' || job?.state === 'failed');
 
-	const uploadPhaseLabel = $derived(formatUploadStateLabel(job?.state ?? take.uploadState));
+	const progressActive = $derived(encoding || uploadActive);
 
-	const uploadProgressFraction = $derived(job?.progress?.fraction);
+	const progressPhaseLabel = $derived(
+		encoding ? localEncodeLabel : formatUploadStateLabel(job?.state ?? take.uploadState)
+	);
+
+	const progressFraction = $derived(encoding ? encodeProgress : (job?.progress?.fraction ?? null));
+
+	const hasDeterminateProgress = $derived(
+		progressFraction != null && Number.isFinite(progressFraction)
+	);
 
 	const failedMessage = $derived(
 		job?.error?.message ?? take.lastError?.message ?? 'Upload failed.'
 	);
 
 	$effect(() => {
+		onactivechange?.(progressActive);
+	});
+
+	$effect(() => {
 		const current = job;
 		if (!current || current.state !== 'completed') return;
 		if (lastNotifiedCompletedJobId === current.id) return;
 		lastNotifiedCompletedJobId = current.id;
+		const label = current.audiotoolSampleName ?? take.metadata.displayName;
+		actionToast.show(`Uploaded · ${label}`);
 		if (onuploaded) {
 			void onuploaded(take);
 		}
@@ -136,6 +159,7 @@
 		if (disabled || encoding || uploadActive) return;
 		encodeError = null;
 		uploadError = null;
+		localEncodeLabel = hasFreshRender ? 'Encoding' : 'Preparing';
 		encoding = true;
 		encodeProgress = 0;
 		const controller = new AbortController();
@@ -238,6 +262,14 @@
 		}
 	}
 
+	function onCancelProgress(): void {
+		if (encoding) {
+			onCancelEncode();
+			return;
+		}
+		void onCancelUpload();
+	}
+
 	function errorMessage(cause: unknown, fallback: string): string {
 		if (cause && typeof cause === 'object' && 'message' in cause) {
 			const message = (cause as { message: unknown }).message;
@@ -276,46 +308,81 @@
 </script>
 
 <section class={['upload-panel', embedded && 'embedded']} aria-label="Upload to Audiotool">
-	<span class="label">Upload</span>
-	<p class="hint">
-		Upload sends the prepared file to Audiotool. Encoding runs on this device and does not continue
-		after this page closes. WAV is the default; MP3 is optional.
-	</p>
-
-	<label class="field">
-		<span class="field-label">Format</span>
-		<select
-			class="control"
-			bind:value={draft.preset}
-			disabled={disabled || encoding || uploadActive}
-			aria-label="Upload format"
-		>
-			<option value="wav-16">WAV · 16-bit PCM</option>
-			<option value="wav-24">WAV · 24-bit PCM</option>
-			<option value="mp3-96">MP3 · 96 kbps (compact)</option>
-			<option value="mp3-128">MP3 · 128 kbps</option>
-			<option value="mp3-192">MP3 · 192 kbps (high)</option>
-		</select>
-	</label>
-
-	{#if estimateBytes != null}
-		<p class="estimate" aria-live="polite">
-			Estimate {formatByteEstimate(estimateBytes)}
-			{#if hasFreshRender && take.renderedAsset}
-				· Ready {formatByteEstimate(take.renderedAsset.byteLength)}
+	{#if progressActive}
+		<div class="progress-phase" role="status" aria-live="polite">
+			<span class="progress-label">
+				{progressPhaseLabel}
+				{#if hasDeterminateProgress}
+					· {Math.round((progressFraction as number) * 100)}%
+				{/if}
+			</span>
+			{#if hasDeterminateProgress}
+				<div class="progress-track" aria-hidden="true">
+					<div
+						class="progress-fill"
+						style={`width: ${Math.round((progressFraction as number) * 100)}%`}
+					></div>
+				</div>
+			{:else if reduceMotion.current}
+				<div class="progress-track progress-track-muted" aria-hidden="true"></div>
+			{:else}
+				<div class="progress-track progress-track-indeterminate" aria-hidden="true">
+					<div class="progress-fill-indeterminate"></div>
+				</div>
+			{/if}
+			<button type="button" class="secondary-button cancel-button" onclick={onCancelProgress}>
+				Cancel
+			</button>
+		</div>
+	{:else if isUploaded}
+		<p class="upload-status" role="status">
+			Uploaded to Audiotool
+			{#if job?.audiotoolSampleName}
+				· {job.audiotoolSampleName}
 			{/if}
 		</p>
-	{/if}
-
-	{#if encoding}
-		<div class="progress" role="status" aria-live="polite">
-			<span class="progress-label">Encoding {Math.round(encodeProgress * 100)}%</span>
-			<div class="progress-track" aria-hidden="true">
-				<div class="progress-fill" style={`width: ${Math.round(encodeProgress * 100)}%`}></div>
-			</div>
-			<button type="button" class="secondary-button" onclick={onCancelEncode}>Cancel</button>
-		</div>
+	{:else if isFailed}
+		<p class="error" role="alert">{failedMessage}</p>
+		{#if uploadError}
+			<p class="error" role="alert">{uploadError}</p>
+		{/if}
+		<button
+			type="button"
+			class="primary-button"
+			disabled={disabled || uploadBusy}
+			onclick={() => void onRetryUpload()}
+		>
+			Retry
+		</button>
 	{:else}
+		<span class="label">Upload</span>
+		<p class="hint">Encodes on this device, then uploads to Audiotool.</p>
+
+		<label class="field">
+			<span class="field-label">Format</span>
+			<select
+				class="control"
+				bind:value={draft.preset}
+				disabled={disabled || encoding || uploadActive}
+				aria-label="Upload format"
+			>
+				<option value="wav-16">WAV · 16-bit PCM</option>
+				<option value="wav-24">WAV · 24-bit PCM</option>
+				<option value="mp3-96">MP3 · 96 kbps (compact)</option>
+				<option value="mp3-128">MP3 · 128 kbps</option>
+				<option value="mp3-192">MP3 · 192 kbps (high)</option>
+			</select>
+		</label>
+
+		{#if estimateBytes != null}
+			<p class="estimate" aria-live="polite">
+				Estimate {formatByteEstimate(estimateBytes)}
+				{#if hasFreshRender && take.renderedAsset}
+					· Ready {formatByteEstimate(take.renderedAsset.byteLength)}
+				{/if}
+			</p>
+		{/if}
+
 		<div class="actions">
 			{#if !authConnected}
 				<button
@@ -325,38 +392,6 @@
 					onclick={() => openAccountOverlay()}
 				>
 					Connect to upload
-				</button>
-			{:else if uploadActive}
-				<div class="progress" role="status" aria-live="polite">
-					<span class="progress-label">{uploadPhaseLabel}</span>
-					{#if uploadProgressFraction != null}
-						<div class="progress-track" aria-hidden="true">
-							<div
-								class="progress-fill"
-								style={`width: ${Math.round(uploadProgressFraction * 100)}%`}
-							></div>
-						</div>
-					{/if}
-					<button type="button" class="secondary-button" onclick={() => void onCancelUpload()}>
-						Cancel
-					</button>
-				</div>
-			{:else if isUploaded}
-				<p class="upload-status" role="status">
-					Uploaded to Audiotool
-					{#if job?.audiotoolSampleName}
-						· {job.audiotoolSampleName}
-					{/if}
-				</p>
-			{:else if isFailed}
-				<p class="error" role="alert">{failedMessage}</p>
-				<button
-					type="button"
-					class="primary-button"
-					disabled={disabled || uploadBusy}
-					onclick={() => void onRetryUpload()}
-				>
-					Retry
 				</button>
 			{:else}
 				<button
@@ -369,24 +404,22 @@
 				</button>
 			{/if}
 
-			{#if !uploadActive}
-				<button
-					type="button"
-					class="secondary-button"
-					{disabled}
-					onclick={() => void onPrepareFile()}
-				>
-					{hasFreshRender ? 'Re-encode' : 'Prepare file'}
-				</button>
-			{/if}
+			<button
+				type="button"
+				class="secondary-button"
+				{disabled}
+				onclick={() => void onPrepareFile()}
+			>
+				{hasFreshRender ? 'Re-encode' : 'Prepare file'}
+			</button>
 		</div>
-	{/if}
 
-	{#if encodeError}
-		<p class="error" role="alert">{encodeError}</p>
-	{/if}
-	{#if uploadError}
-		<p class="error" role="alert">{uploadError}</p>
+		{#if encodeError}
+			<p class="error" role="alert">{encodeError}</p>
+		{/if}
+		{#if uploadError}
+			<p class="error" role="alert">{uploadError}</p>
+		{/if}
 	{/if}
 </section>
 
@@ -457,14 +490,15 @@
 		gap: var(--space-2);
 	}
 
-	.progress {
+	.progress-phase {
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-2);
+		gap: var(--space-3);
 	}
 
 	.progress-label {
-		font-size: var(--text-meta);
+		font-size: var(--text-body);
+		font-weight: 600;
 		color: var(--ink);
 	}
 
@@ -476,21 +510,56 @@
 		overflow: hidden;
 	}
 
+	.progress-track-muted {
+		background: color-mix(in srgb, var(--ink-muted) 18%, var(--surface-subtle));
+	}
+
 	.progress-fill {
 		height: 100%;
 		background: var(--ink);
 		transition: width 80ms linear;
 	}
 
+	.progress-track-indeterminate {
+		position: relative;
+	}
+
+	.progress-fill-indeterminate {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		width: 40%;
+		background: var(--brand);
+		border-radius: var(--radius-round);
+		animation: progress-slide 1.1s ease-in-out infinite;
+	}
+
+	@keyframes progress-slide {
+		0% {
+			left: -40%;
+		}
+		100% {
+			left: 100%;
+		}
+	}
+
 	@media (prefers-reduced-motion: reduce) {
 		.progress-fill {
 			transition: none;
 		}
+
+		.progress-fill-indeterminate {
+			animation: none;
+		}
+	}
+
+	.cancel-button {
+		align-self: stretch;
 	}
 
 	.upload-status {
 		margin: 0;
-		font-size: var(--text-meta);
+		font-size: var(--text-body);
 		color: var(--ink);
 	}
 

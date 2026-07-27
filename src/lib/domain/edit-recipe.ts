@@ -124,7 +124,7 @@ function createSegment(
 
 /**
  * Trim: retain only the selected source range as a single segment.
- * Clears peak normalization (new material bounds).
+ * Enables peak normalize so gain is recalculated for the new retained bounds.
  */
 export function trimToSelection(
 	_recipe: EditRecipe,
@@ -134,7 +134,12 @@ export function trimToSelection(
 	const { start, end } = normalizeSelection(startSeconds, endSeconds);
 	return {
 		version: 1,
-		segments: [createSegment(start, end)]
+		segments: [createSegment(start, end)],
+		peakNormalization: {
+			enabled: true,
+			targetDbfs: DEFAULT_NORMALIZE_TARGET_DBFS,
+			calculatedGainDb: undefined
+		}
 	};
 }
 

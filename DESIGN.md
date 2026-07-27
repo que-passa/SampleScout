@@ -14,25 +14,27 @@ Not a dark DAW, generic SaaS dashboard, cyberpunk UI, colorful consumer recorder
 - Group records under **Field Session** headings; internal engineering remains `Session` / `Take`.
 - Label existing take details/metadata **Field Notes**; do not imply a separate notes field.
 - `Local Draft` means saved on this device only and only after the OPFS + IndexedDB commit gate.
+- **Collect** creates a new Local Draft from a selected waveform region (shared source; parent intact). Upload ships from Collection only.
 - Collection delight is bounded to catalog rhythm, indexing, and compact deterministic specimen marks derived from persisted take/source facts.
-- Specimen marks are catalog identities—not waveforms, audio fingerprints, quality scores, rarity, or random decoration. They never replace real waveform data.
+- Specimen marks are catalog identities—not waveforms, audio fingerprints, quality scores, rarity, or random decoration. They never replace real waveform data. Active cells use a deterministic neon fill from `--specimen-neon-0`…`--specimen-neon-20` (hashed from the same take/source facts as the mark pattern).
 
 ## Tokens (only these)
 
 Use CSS variables from `tokens.css`. Do not invent new hex colors, spacing steps, or font stacks.
 
-| Role   | Token                                                                                                                       |
-| ------ | --------------------------------------------------------------------------------------------------------------------------- |
-| Page   | `--paper`                                                                                                                   |
-| Panels | `--surface`, `--surface-subtle`                                                                                             |
-| Text   | `--ink`, `--ink-muted`, `--disabled`                                                                                        |
-| Rules  | `--line`, `--line-strong`                                                                                                   |
-| Signal | `--signal` — active record, clipping, destructive confirm, critical failure, **and trim boundary markers** (not fade grips) |
-| Brand  | `--brand` / `--brand-soft` — neon blue-green; action-toast border/fill only (not record/destructive)                        |
-| Space  | `--space-1`…`--space-7` (4px base)                                                                                          |
-| Radius | `--radius-control` (buttons/inputs), `--radius-panel` (panels), `--radius-round` (status/tags/toggles)                      |
-| Type   | `--font-mono`, `--text-*` roles                                                                                             |
-| Touch  | `--touch-min` (44px)                                                                                                        |
+| Role     | Token                                                                                                                                                                                                                              |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Page     | `--paper`                                                                                                                                                                                                                          |
+| Panels   | `--surface`, `--surface-subtle`                                                                                                                                                                                                    |
+| Text     | `--ink`, `--ink-muted`, `--disabled`                                                                                                                                                                                               |
+| Rules    | `--line`, `--line-strong`                                                                                                                                                                                                          |
+| Signal   | `--signal` — active record, clipping, destructive confirm, critical failure, idle trim boundary markers (not fade grips; active trim drag uses `--brand`), **and Local Draft status chips** (same record red)                      |
+| Brand    | `--brand` / `--brand-soft` — neon blue-green; primary CTA face (`PrimaryButton`), action-toast border/fill, active waveform selection fill/edges/grips, **and** active trim drag (grip + boundary stroke) (not record/destructive) |
+| Specimen | `--specimen-neon-0`…`--specimen-neon-20` — 21 neon fills for deterministic specimen marks (same family as `--brand`)                                                                                                               |
+| Space    | `--space-1`…`--space-7` (4px base)                                                                                                                                                                                                 |
+| Radius   | `--radius-control` (buttons/inputs), `--radius-panel` (panels), `--radius-round` (status/tags/toggles), `--radius-record` (record control face)                                                                                    |
+| Type     | `--font-mono`, `--text-*` roles (incl. `--text-micro` for compact chips)                                                                                                                                                           |
+| Touch    | `--touch-min` (44px)                                                                                                                                                                                                               |
 
 `--radius` is an alias of `--radius-control` for older styles — prefer the named tokens in new code.
 
@@ -47,20 +49,27 @@ Use CSS variables from `tokens.css`. Do not invent new hex colors, spacing steps
 ## Layout & surfaces
 
 - Structural panels: flat `--surface`, `1px solid var(--line)`, `--radius-panel`. Prefer pane separation by rules over floating cards.
-- Take rows = catalog data records (stable height, baseline alignment) — not marketing or collectible cards. Sequence lives in the display name, not a leading column; the whole row opens the take, with rename in the overflow menu and a visible Discard action (confirm first on Collection). Take lists belong under **Collection**; Capture shows a Collection shortcut (icon + pending count, or Collection label when empty). No three-tab bottom nav — Collection / Take / Account are stack or overlay surfaces with back / dismiss.
+- Take rows = catalog data records (stable height, baseline alignment) — not marketing or collectible cards. Sequence lives in the display name, not a leading column; the whole row opens the take, with rename in the overflow menu and a visible Discard action (confirm first on Collection). Take lists belong under **Collection**; Capture shows a Collection shortcut (icon + zero-padded **total** count, including `00` when empty, with a **signal** **pending** bubble when upload-pending drafts exist). No three-tab bottom nav — Collection / Take / Account are stack or overlay surfaces with back / dismiss.
 - Mobile outer padding `--space-4`; major section gap `--space-5`; list row gap `--space-3` (prefer air over packing).
 - Respect `env(safe-area-inset-*)`. Desktop: 1px pane rules, not drop shadows.
 
 ## Controls
 
-| Kind        | Treatment                                                                                                                                              |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Primary     | `--ink` fill, `--surface` text, 1px ink border, min-height `--touch-min`                                                                               |
-| Secondary   | surface/transparent fill, ink border + text                                                                                                            |
-| Destructive | surface fill, `--signal` border/text; filled signal only on confirm / active destructive                                                               |
-| Record      | solid `--signal` circle in recessed well (idle) + `Record`; recording: dark `--ink` face + `--signal` stop square + `Stop`; timer visible while active |
+| Kind      | Treatment                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Primary   | Recessed well + raised `--brand` face, `--ink` label (`PrimaryButton`); min-height `--touch-min`. Use for take **Collect**, Collection footer **Upload**, upload-sheet confirm **Upload**. Parallel to Record (signal face in a well).                                                                                                                                                                                                                                                                                           |
+| Secondary | Same recessed well + raised `--surface` face as Account / Collection shortcut / Loop — quieter instrument chrome (latch/status), not a flat border secondary                                                                                                                                                                                                                                                                                                                                                                     |
+| Ghost     | Idle transparent; hover is a flat `--surface-subtle` well + `--surface` face (no inset shadows). Sticky on reveals Account/Collection recessed well + `--surface` face; `:active` deepens the well and uses `--brand` for text/icon (danger keeps `--signal`). Use `GhostButton` / `BackButton`. Compact waveform chrome (zoom ±, Normalize / Trim) may keep a smaller hit size. Use for Back, Collection **Select** / **Import** / select-mode **Edit data** / **Discard**, take-editor **Reset**, **Field Notes**, sheet close |
 
-Reuse `$lib/ui` components (`RecordControl`, `StatusLabel`, `EmptyState`, `TakeRow`, `CaptureTimer`, `InputMeter`, `ActionToast`) before inventing new chrome.
+| Destructive | surface fill, `--signal` border/text; filled signal only on confirm / active destructive |
+| Record | solid `--signal` rounded square (`--radius-record`) in recessed well (idle) + `Record`; recording: dark `--ink` face + `--signal` stop square + `Stop`; timer visible while active |
+| Idle plot | Capture stage above the record band shows a standby frame (zero axis, edge ticks, `STANDBY` in timer header slot, slow right→left scan) sharing live-wave geometry — not a decorative or fake waveform; scan off under `prefers-reduced-motion` |
+
+Reuse `$lib/ui` components (`PrimaryButton`, `GhostButton`, `BackButton`, `RecordControl`, `StatusLabel`, `EmptyState`, `TakeRow`, `CaptureTimer`, `InputMeter`, `ActionToast`) before inventing new chrome. UI glyphs use `$lib/ui/icons` (`Icon`) — do not paste one-off Material paths into routes.
+
+### Icons
+
+UI glyphs live in `$lib/assets/ui-icons/*.svg` and render through `$lib/ui/icons` (`Icon`). Names: back, account, collection, trash, reset, field-notes, loop, zoom-in, zoom-out, close, check, play, pause, stop. Paths use `currentColor`. Specimen marks stay generated catalog identity — not part of this set. Logo / PWA assets stay separate. Do not paste one-off icon paths into routes.
 
 ### Action toasts
 
@@ -68,7 +77,9 @@ Compact, content-width feedback chips: `--brand-soft` fill, `--brand` border, `-
 
 ## Motion
 
-State communication only (record transition, take insert, upload/progress, short stack navigations, compact action toasts). Stack pages may use a brief directional slide+fade (forward deeper, back shallower) via the View Transitions API — not decorative. Action toasts use a brief rubber overshoot (slide-up past rest on enter; inverse pull then settle-out on exit) — not celebratory Collection motion. No springy cards, ambient loops, or pulsing everything while recording. Honor `prefers-reduced-motion` (skip page slides and toast motion).
+State communication only (record transition, take insert, upload/progress, short stack navigations, compact action toasts). Stack pages may use a brief directional slide+fade (forward deeper, back shallower) via the View Transitions API — not decorative. Action toasts use a brief rubber overshoot (slide-up past rest on enter; inverse pull then settle-out on exit) — not celebratory Collection motion. No springy cards, or pulsing everything while recording. Honor `prefers-reduced-motion` (skip page slides, toast motion, and idle scan).
+
+**Exception — Capture standby scan:** while Capture is idle, the standby plot may run one slow right→left scan marker on the zero axis (same scroll direction as the live wave; instrument “armed” read). Meters header space matches the Capture timer so the zero axis aligns with recording. No fake waveform motion, no `--signal`/`--brand`, pause when the document is hidden, and disable entirely under `prefers-reduced-motion`.
 
 ## Accessibility
 
@@ -78,7 +89,7 @@ State communication only (record transition, take insert, upload/progress, short
 
 ## Waveforms
 
-Accurate PCM-derived peaks only. Canvas + DPR. Clear zero axis and time ruler. Never decorative placeholders, mirrored blobs, EQ bars, or fake paths after audio is loaded. Trim boundary strokes and DOM grips use `--signal` (block tabs below the wave) and stay visible even when retained bounds match the full take. Fade grips use `--ink` wedge tabs on the bottom edge of the time ruler (ruler includes bottom pad for them); fade envelopes are dashed `--ink` diagonals (not signal). Fades scale drawn peak amplitude by the linear fade gain. Discarded (outside trim) regions on the main waveform and overview use a `--disabled` wash with `--disabled` peaks so off material reads as excluded from upload; retained audio stays normal `--ink` on paper. Details: [`briefing/04_WAVEFORM_AND_AUDIO_EDITOR.md`](briefing/04_WAVEFORM_AND_AUDIO_EDITOR.md) and `.cursor/rules/waveform-ui.mdc`.
+Accurate PCM-derived peaks only. Canvas + DPR. Clear zero axis and time ruler. Never decorative placeholders, mirrored blobs, EQ bars, or fake paths after audio is loaded. Trim boundary strokes and DOM grips use `--signal` when idle (block tabs below the wave) and stay visible even when retained bounds match the full take; **while dragging a trim edge**, that grip tab and its canvas boundary stroke use `--brand` (same as action toasts / selection), and fade grips soften to 40% transparent. Selection uses `--brand-soft` fill and `--brand` edges/grips (distinct from idle signal trim). Fade grips use `--ink` wedge tabs on the bottom edge of the time ruler (ruler includes bottom pad for them); fade envelopes are dashed `--ink` diagonals (not signal). Fades scale drawn peak amplitude by the linear fade gain. Discarded (outside trim) regions on the main waveform and overview use a `--disabled` wash with `--disabled` peaks so off material reads as excluded from upload; retained audio stays normal `--ink` on paper. Details: [`briefing/04_WAVEFORM_AND_AUDIO_EDITOR.md`](briefing/04_WAVEFORM_AND_AUDIO_EDITOR.md) and `.cursor/rules/waveform-ui.mdc`.
 
 ## Anti-patterns (do not)
 

@@ -112,32 +112,40 @@ Safari failure is a release decision because no backend fallback will exist.
 ### Acceptance criteria
 
 - Trim changes output duration correctly.
-- Cut can remove at least one interior region.
 - Fade in and fade out affect rendered output.
 - Peak normalization reaches target without exceeding it.
-- Undo and redo work.
-- Reset restores initial recipe.
+- Reset (header control) restores the identity recipe.
 - Source file remains unchanged.
 - Edited recipe survives restart.
 - Editor releases large decoded buffers after exit.
+- Cut / Undo / Redo are not required in the take editor UI for MVP.
 
-## 6. Phase 4b — Extract (multi-sample from one recording)
+## 6. Phase 4b — Collect (multi-sample from one recording)
 
 ### Acceptance criteria
 
-- With a valid selection, Extract creates a new Local Draft in the same Field Session.
-- Parent take recipe and timeline remain unchanged after Extract.
-- Extracted take shares the parent source binary (`fileRef`) and retains only the selection in its edit recipe.
-- Extracted take appears in Collection with its own Field Notes and upload state.
-- User can Extract multiple regions from the same parent without leaving the parent editor for each repeat.
-- Discarding an extract does not delete the shared OPFS source while the parent (or another extract) still references it.
-- Display name for extracts is generated and editable; lineage may be surfaced honestly (e.g. derived-from) without implying cloud sync.
+- With a usable retained trim (narrower than the full source), Collect creates a new Local Draft in the same Field Session.
+- Parent source binary remains shared/intact; parent recipe returns to full-source identity after Collect so further regions can be trimmed.
+- Collected take shares the parent source binary (`fileRef`) and retains only the trim bounds in its edit recipe.
+- Collected take appears in Collection with its own Field Notes; upload starts from Collection only (no Upload on take).
+- Collect is a brand primary in the take transport; it depends on trim result state, not a temporary waveform selection. User can Collect multiple regions from the same parent without leaving the parent editor.
+- Discarding a collected draft does not delete the shared OPFS source while the parent (or another child) still references it.
+- Display names use short stem + two-digit number with no em/en dashes; lineage may be surfaced honestly (e.g. collected-from) without implying cloud sync.
+- Parents with collected children are excluded from the default upload-pending set; lone takes without children remain upload-pending.
+
+## 6b. Collection upload sheet
+
+### Acceptance criteria
+
+- Collection Upload does not instantly queue; it opens a confirm sheet with marked-item preview (marks + count) and metadata overlay (stem, description, tags).
+- Confirm applies overlay then enqueues; sheet switches to locked progress (k of N / status) until done/fail/cancel.
+- Select-mode Upload uses the same sheet for selected ∩ upload-pending only.
 
 ## 7. Phase 5 — Metadata
 
 ### Acceptance criteria
 
-- Every new take has a generated name.
+- Every new take has a generated name (short stem + `01`-style number; no em/en dashes).
 - Every new take has at least one usable tag or falls back safely.
 - Description is prefilled and editable.
 - One-shot is default.

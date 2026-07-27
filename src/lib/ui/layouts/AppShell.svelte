@@ -92,7 +92,7 @@
 		align-items: center;
 		column-gap: var(--space-2);
 		min-height: var(--touch-min);
-		padding: var(--space-2) var(--space-4);
+		padding: var(--space-2);
 		background: var(--paper);
 	}
 

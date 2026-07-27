@@ -2,7 +2,7 @@
 
 Browser-only, mobile-first PWA: record field audio (often longer multi-sound takes), keep local drafts (IndexedDB + OPFS), extract regions into separate Local Drafts, light non-destructive edits, upload to Audiotool. **No custom backend.**
 
-Visible vocabulary: **Capture** action; **Collection** destination at `/drafts`; **Field Session** grouping; **Field Notes** for existing take metadata/details; **Extract** for selection → new Local Draft; **Local Draft** for a take saved on this device after the OPFS + IDB gate. Keep internal `Session` / `Take` terms and do not add a notes field.
+Visible vocabulary: **Capture** action; **Collection** destination at `/drafts`; **Field Session** grouping; **Field Notes** for existing take metadata/details; **Collect** for retained trim → new Local Draft; **Local Draft** for a take saved on this device after the OPFS + IDB gate. Upload ships from Collection (confirm sheet → progress), not the take editor. Keep internal `Session` / `Take` terms and do not add a notes field.
 
 ## Start here
 
@@ -31,14 +31,14 @@ Hard constraints (no backend, no PAT, `127.0.0.1`, static SPA, honesty) are not 
 - **Static hosting:** `@sveltejs/adapter-static`, `fallback: '404.html'`, optional `BASE_PATH`.
 - **Client-only:** `ssr = false`; capture/OPFS/MediaRecorder are browser APIs.
 - **Svelte 5 runes** (forced in Vite). Prefer `$lib/audio`, `$lib/persistence`, `$lib/audiotool` over fat components.
-- **Design:** follow [`DESIGN.md`](DESIGN.md). Bright monochrome, Geist Mono; red (`--signal`) for record / clip / destructive and trim boundary markers; fade grips/envelopes use `--ink` wedges (not signal). No dark-first UI, no decorative fake waveforms.
+- **Design:** follow [`DESIGN.md`](DESIGN.md). Bright monochrome, Geist Mono; red (`--signal`) for record / clip / destructive, idle trim boundary markers, and Local Draft status chips; fade grips/envelopes use `--ink` wedges (not signal); primary CTAs (`PrimaryButton`), active waveform selection, and active trim drag use `--brand` / `--brand-soft`. No dark-first UI, no decorative fake waveforms.
 - **Persistence honesty:** a take is “Saved locally” only after OPFS binary write **and** IndexedDB metadata commit succeed.
 - **Do not claim** post-tab-close uploads, cross-device sync, or cloud backup of drafts.
-- **Collection identity:** specimen marks must be deterministic from persisted take/source facts, never waveforms, fingerprints, quality scores, rarity, or random decoration. No XP, streaks, collectible cards, celebratory motion, or cloud implications.
+- **Collection identity:** specimen marks must be deterministic from persisted take/source facts, never waveforms, fingerprints, quality scores, rarity, or random decoration. Neon fills come from `--specimen-neon-0`…`--specimen-neon-20` via the same hash. No XP, streaks, collectible cards, celebratory motion, or cloud implications.
 
 ## Current phase
 
-Capture foundations through Phase 7 upload queue and Phase 4b Extract are largely in place. **Next:** Phase 8 responsive / accessibility polish, and harden upload / Extract on real devices / Audiotool scopes. See [`docs/STATUS.md`](docs/STATUS.md).
+Capture foundations through Phase 7 upload queue and Phase 4b Collect are largely in place. **Next:** Collection upload confirm sheet + Collect UX hardening, Phase 8 responsive / accessibility polish, and harden upload / Collect on real devices / Audiotool scopes. See [`docs/STATUS.md`](docs/STATUS.md).
 
 Do **not** re-scaffold modules that already exist.
 

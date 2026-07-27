@@ -22,7 +22,7 @@ Build **SampleScout**, a mobile-first responsive Svelte/SvelteKit PWA for record
 - Default Audiotool visibility is `unlisted`.
 - Default sample kind is `one-shot`.
 - Recommended hard maximum is 10 minutes per take.
-- Visible vocabulary: Capture action; Collection destination at `/drafts`; Field Session grouping; Field Notes for existing take metadata/details; **Extract** for selection → new Local Draft.
+- Visible vocabulary: Capture action; Collection destination at `/drafts`; Field Session grouping; Field Notes for existing take metadata/details; **Collect** for retained trim → new Local Draft; upload from Collection only.
 - `Local Draft` means saved on this device only after the OPFS + IndexedDB commit gate.
 
 Before adding dependencies, explain what each dependency is needed for. Prefer browser APIs and small focused libraries.
@@ -36,14 +36,14 @@ A user can:
 3. Stop and have the take saved locally automatically.
 4. Immediately record another take.
 5. Leave any take unreviewed for later.
-6. Open a take, select useful regions, and **Extract** each as its own Local Draft while the parent recording stays intact.
+6. Open a take, trim useful regions, and **Collect** each as its own Local Draft while the parent source stays intact.
 7. Discard a bad take or Capture a new one (no in-place Retake).
 8. Discard a take with a temporary Undo.
 9. Import an existing audio file.
 10. View an accurate waveform.
 11. Trim, cut, fade, and peak-normalize non-destructively on a draft.
 12. Review prefilled metadata (Field Notes).
-13. Upload WAV or MP3 directly to Audiotool.
+13. From Collection, confirm and upload WAV or MP3 to Audiotool (confirm sheet → progress).
 14. Close and reopen the app and recover saved local takes.
 
 ## Product boundaries
@@ -173,7 +173,7 @@ Discard is optimistic:
 
 ## Field Notes and metadata defaults
 
-**Field Notes** labels the existing take details/metadata surface. It does not add a new persisted notes field. On `/take/[takeId]`, Field Notes is a section inside the Edit sheet (not a separate sheet below the waveform).
+**Field Notes** labels the existing take details/metadata surface. It does not add a new persisted notes field. On `/take/[takeId]`, Field Notes is its own sheet opened from the transport Field Notes icon (Discard at the bottom; Reset edits lives in the editor header).
 
 Generate:
 
@@ -232,16 +232,15 @@ Non-destructive recipe:
 
 Tools:
 
-- Extract (selection → new Local Draft; parent unchanged; shared source)
+- Collect (retained trim → new Local Draft; parent source unchanged, parent recipe resets to identity; shared source; brand primary on take; no take Upload)
 - Trim
-- Cut
 - Fade in
 - Fade out
 - Normalize to -1 dBFS
-- Undo
-- Redo
-- Reset
+- Reset (header icon; restores identity recipe)
 - Preview
+
+MVP UI does not expose Cut, Undo, or Redo.
 
 Use `OfflineAudioContext` or a deterministic PCM pipeline to render final output.
 

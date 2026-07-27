@@ -11,15 +11,16 @@ Before UI edits, read [`DESIGN.md`](DESIGN.md). Tokens live in `src/lib/styles/t
 ## Must
 
 - Background `--paper`; panels `--surface` + `1px solid var(--line)` + `--radius-panel`
-- Controls/buttons `--radius-control`; status/tags/toggles `--radius-round`
+- Controls/buttons `--radius-control`; status/tags/toggles `--radius-round`; record face `--radius-record`
 - Spacing only `--space-1`…`--space-7`; touch targets `--touch-min`
 - Type via `--font-mono` and `--text-*`; labels uppercase + `--text-label`
-- `--signal` only for record / clip / destructive / critical failure / trim boundary markers (fade grips use `--ink` wedges)
-- `--brand` / `--brand-soft` only for action-toast border/fill (neon blue-green; no leading accent bar)
+- `--signal` only for record / clip / destructive / critical failure / idle trim boundary markers / Local Draft status chips (fade grips use `--ink` wedges; active trim drag uses `--brand`)
+- `--brand` / `--brand-soft` for primary CTA faces (`PrimaryButton`), action-toast border/fill, active waveform selection, **and** active trim drag (neon blue-green; not record/destructive)
 - Discarded (outside-trim) waveform regions use `--disabled` wash + peaks; retained peaks stay `--ink`
 - Reuse `$lib/ui` components; keep state as text + color
 - Label `/drafts` as Collection, groups as Field Sessions, and existing take metadata/details as Field Notes
-- Collection may use catalog rhythm, indexing, and compact deterministic marks derived from persisted take/source facts
+- **Collect** is the take primary for retained trim → Local Draft; Collection **Upload** is a brand-well primary CTA with confirm→progress sheet
+- Collection may use catalog rhythm, indexing, and compact deterministic marks derived from persisted take/source facts (neon fill from `--specimen-neon-*`)
 
 ## Must not
 

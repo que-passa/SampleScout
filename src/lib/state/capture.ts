@@ -18,6 +18,7 @@ import { ensureActiveSession, putSession, renameSession } from '$lib/persistence
 import { checkStorageForRecording } from '$lib/persistence/storage-gate';
 import {
 	commitSavedTake,
+	listDisplayNamesForSession,
 	listTakesForSession,
 	nextSequenceForSession
 } from '$lib/persistence/takes';
@@ -344,9 +345,11 @@ class CaptureController {
 		}
 
 		const sequence = await nextSequenceForSession(this.session.id);
+		const existingDisplayNames = await listDisplayNamesForSession(this.session.id);
 		const draft = createTakeDraft({
 			session: this.session,
 			sequence,
+			existingDisplayNames,
 			source: {
 				fileRef: '',
 				mimeType: meta.mimeType,

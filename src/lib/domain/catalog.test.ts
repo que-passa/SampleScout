@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	SPECIMEN_MARK_SIZE,
+	SPECIMEN_NEON_COUNT,
 	deriveCatalogReference,
 	deriveSpecimenMark,
 	formatFieldSessionName,
@@ -79,7 +80,7 @@ describe('deriveSpecimenMark', () => {
 		expect(deriveCatalogReference(catalogInput)).toBe('FS-550E84-003');
 	});
 
-	it('has fixed dimensions and a usable mix of cells', () => {
+	it('has fixed dimensions, a neon color index, and a usable mix of cells', () => {
 		const mark = deriveSpecimenMark(specimenInput());
 		const cells = mark.cells.flat();
 		const activeCount = cells.filter(Boolean).length;
@@ -88,7 +89,14 @@ describe('deriveSpecimenMark', () => {
 		expect(mark.height).toBe(SPECIMEN_MARK_SIZE);
 		expect(mark.cells).toHaveLength(SPECIMEN_MARK_SIZE);
 		expect(mark.cells.every((row) => row.length === SPECIMEN_MARK_SIZE)).toBe(true);
+		expect(mark.colorIndex).toBeGreaterThanOrEqual(0);
+		expect(mark.colorIndex).toBeLessThan(SPECIMEN_NEON_COUNT);
 		expect(activeCount).toBeGreaterThan(0);
 		expect(activeCount).toBeLessThan(SPECIMEN_MARK_SIZE ** 2);
+	});
+
+	it('keeps the same color index for the same canonical input', () => {
+		const input = specimenInput();
+		expect(deriveSpecimenMark(input).colorIndex).toBe(deriveSpecimenMark(input).colorIndex);
 	});
 });

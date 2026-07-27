@@ -156,12 +156,13 @@
 			<span class="label" id="field-notes-kind-label">Kind</span>
 			<span class="origin">{formatMetadataOrigin(metadata.provenance.kind)}</span>
 		</div>
-		<div class="segment" role="group" aria-labelledby="field-notes-kind-label">
+		<div class="segment" role="tablist" aria-labelledby="field-notes-kind-label">
 			<button
 				type="button"
 				class="segment-btn"
 				class:selected={draft.kind === 'one-shot'}
-				aria-pressed={draft.kind === 'one-shot'}
+				role="tab"
+				aria-selected={draft.kind === 'one-shot'}
 				{disabled}
 				onclick={() => (draft.kind = 'one-shot')}
 			>
@@ -171,7 +172,8 @@
 				type="button"
 				class="segment-btn"
 				class:selected={draft.kind === 'loop'}
-				aria-pressed={draft.kind === 'loop'}
+				role="tab"
+				aria-selected={draft.kind === 'loop'}
 				{disabled}
 				onclick={() => (draft.kind = 'loop')}
 			>
@@ -185,12 +187,13 @@
 			<span class="label" id="field-notes-visibility-label">Visibility</span>
 			<span class="origin">{formatMetadataOrigin(metadata.provenance.visibility)}</span>
 		</div>
-		<div class="segment" role="group" aria-labelledby="field-notes-visibility-label">
+		<div class="segment" role="tablist" aria-labelledby="field-notes-visibility-label">
 			<button
 				type="button"
 				class="segment-btn"
 				class:selected={draft.visibility === 'unlisted'}
-				aria-pressed={draft.visibility === 'unlisted'}
+				role="tab"
+				aria-selected={draft.visibility === 'unlisted'}
 				{disabled}
 				onclick={() => (draft.visibility = 'unlisted')}
 			>
@@ -200,7 +203,8 @@
 				type="button"
 				class="segment-btn"
 				class:selected={draft.visibility === 'public'}
-				aria-pressed={draft.visibility === 'public'}
+				role="tab"
+				aria-selected={draft.visibility === 'public'}
 				{disabled}
 				onclick={() => (draft.visibility = 'public')}
 			>
@@ -229,12 +233,12 @@
 	{/if}
 
 	<div class="actions">
-		<button type="submit" class="save" disabled={!canSave}>
-			{saving ? 'Saving…' : 'Save'}
-		</button>
 		{#if saving}
 			<span class="status" aria-live="polite">Saving…</span>
 		{/if}
+		<button type="submit" class="save" disabled={!canSave}>
+			{saving ? 'Saving…' : 'Save'}
+		</button>
 	</div>
 </form>
 
@@ -277,17 +281,47 @@
 		width: 100%;
 		min-height: var(--touch-min);
 		padding: var(--space-2) var(--space-3);
-		border: 1px solid var(--ink);
+		border: none;
 		border-radius: var(--radius-control);
 		background: var(--surface);
 		color: var(--ink);
 		font-family: var(--font-mono);
 		font-size: var(--text-body);
+		/* Raised card face — same language as Collection rows / active tabs. */
+		box-shadow:
+			0 1px var(--space-1) color-mix(in srgb, var(--ink) 6%, transparent),
+			0 var(--space-1) var(--space-2) color-mix(in srgb, var(--ink) 8%, transparent),
+			inset 0 1px 0 color-mix(in srgb, var(--surface) 80%, transparent),
+			inset 0 -1px 0 color-mix(in srgb, var(--ink) 6%, transparent);
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		.control {
+			transition: box-shadow 140ms ease;
+		}
+	}
+
+	.control:focus {
+		outline: none;
+	}
+
+	.control:focus-visible {
+		outline: 2px solid var(--ink);
+		outline-offset: 2px;
+		box-shadow:
+			0 var(--space-1) var(--space-2) color-mix(in srgb, var(--ink) 8%, transparent),
+			0 var(--space-2) var(--space-3) color-mix(in srgb, var(--ink) 10%, transparent),
+			inset 0 1px 0 var(--surface),
+			inset 0 -1px 0 color-mix(in srgb, var(--ink) 5%, transparent);
 	}
 
 	.control:disabled {
-		border-color: var(--line);
+		background: var(--surface-subtle);
 		color: var(--disabled);
+		box-shadow:
+			inset 0 var(--space-1) var(--space-1) color-mix(in srgb, var(--ink) 10%, transparent),
+			inset 0 calc(var(--space-1) * -1) var(--space-1)
+				color-mix(in srgb, var(--paper) 50%, transparent);
 	}
 
 	.textarea {
@@ -297,47 +331,82 @@
 	}
 
 	.segment {
-		display: flex;
-		flex-direction: row;
-		gap: var(--space-2);
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: var(--space-1);
+		padding: var(--space-1);
+		border: none;
+		border-radius: var(--radius-control);
+		background: var(--surface-subtle);
+		/* Recessed grouping well — same language as RecordControl. */
+		box-shadow:
+			inset 0 var(--space-1) var(--space-2) color-mix(in srgb, var(--ink) 14%, transparent),
+			inset 0 calc(var(--space-1) * -1) var(--space-1)
+				color-mix(in srgb, var(--paper) 70%, transparent);
 	}
 
 	.segment-btn {
-		flex: 1;
-		min-height: var(--touch-min);
+		position: relative;
+		z-index: 0;
+		min-height: calc(var(--touch-min) - var(--space-2));
 		padding: 0 var(--space-3);
-		border: 1px solid var(--ink);
-		border-radius: var(--radius-control);
-		background: var(--surface);
-		color: var(--ink);
+		border: none;
+		border-radius: calc(var(--radius-control) - 1px);
+		background: transparent;
+		color: var(--ink-muted);
 		font-family: var(--font-mono);
 		font-size: var(--text-button);
 		font-weight: 600;
 		letter-spacing: 0.04em;
 		text-transform: lowercase;
 		cursor: pointer;
+		box-shadow: none;
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		.segment-btn {
+			transition:
+				color 140ms ease,
+				background-color 140ms ease,
+				box-shadow 140ms ease;
+		}
 	}
 
 	.segment-btn.selected {
-		background: var(--ink);
-		color: var(--surface);
+		z-index: 1;
+		background: var(--surface);
+		color: var(--ink);
+		/* Raised card face — sits flush in the well so track padding stays even. */
+		box-shadow:
+			0 1px var(--space-1) color-mix(in srgb, var(--ink) 8%, transparent),
+			inset 0 1px 0 color-mix(in srgb, var(--surface) 80%, transparent),
+			inset 0 -1px 0 color-mix(in srgb, var(--ink) 8%, transparent);
+	}
+
+	.segment-btn:focus {
+		outline: none;
+	}
+
+	.segment-btn:focus-visible {
+		outline: 2px solid var(--ink);
+		outline-offset: 1px;
 	}
 
 	.segment-btn:disabled {
-		border-color: var(--line);
 		color: var(--disabled);
 		cursor: not-allowed;
 	}
 
 	.segment-btn.selected:disabled {
-		background: var(--line-strong);
-		color: var(--surface);
-		border-color: var(--line-strong);
+		background: var(--surface);
+		color: var(--disabled);
+		box-shadow: none;
 	}
 
 	.actions {
 		display: flex;
 		align-items: center;
+		justify-content: flex-end;
 		gap: var(--space-3);
 		margin-top: var(--space-1);
 	}

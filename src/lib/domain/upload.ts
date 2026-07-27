@@ -113,7 +113,7 @@ export function formatUploadStateLabel(state: TakeUploadState | UploadJobState):
 		case 'uploading':
 			return 'Uploading';
 		case 'processing':
-			return 'Processing';
+			return 'Processing on Audiotool';
 		case 'uploaded':
 		case 'completed':
 			return 'Uploaded';

@@ -8,7 +8,9 @@ This concatenated reference uses some legacy visible labels. Apply these decisio
 - **Field Session** is the UI grouping label; keep internal `Session` / `CaptureSession` / `Take` terminology.
 - **Field Notes** labels the existing take metadata/details surface; do not add a persisted notes field.
 - **Local Draft** means saved on this device only and may appear only after both the OPFS source write and IndexedDB metadata commit succeed.
-- **Extract** creates a new Local Draft from a selected region of an existing take (shared source; parent intact). Typical field path: longer multi-sound capture → multiple extracts → upload each. See ADR 0003 and the individual briefing files.
+- **Collect** creates a new Local Draft from the retained trim of an existing take (shared source; parent intact). Typical field path: longer multi-sound capture → Trim → Collect repeatedly → upload from Collection. See ADR 0003 and the individual briefing files.
+- Upload pending excludes parents that have collected children; lone takes remain pending.
+- Display names use short stem + two-digit numbers; never em/en dashes.
 - Collection delight is limited to catalog rhythm, indexing, and deterministic specimen marks derived from persisted take/source facts.
 - Specimen marks are not waveforms, audio fingerprints, quality scores, rarity, or random decorative waveform. Real PCM-derived waveform rules remain unchanged.
 - Do not add XP, streaks, collectible cards, celebratory motion, or cloud/sync implications.
@@ -794,7 +796,7 @@ Use one optional functional signal color.
 Recommended:
 
 ```css
---signal: #e43b2f;
+--signal: #ff1f2e;
 ```
 
 Use only for:
@@ -947,16 +949,16 @@ Use large pill shapes only for toggles, tags, or status where the shape has sema
 
 ### Record
 
-The record control must be visually unmistakable — a solid red circular control in the familiar mobile-recorder pattern, seated in a shallow recessed well.
+The record control must be visually unmistakable — a solid red rounded-square control (large corner radius, not a pure circle), seated in a shallow recessed well.
 
 Idle:
 
-- Filled `--signal` circle (thumb-sized) inside a soft `--surface-subtle` well with quiet inset depth
-- Label `RECORD` below the circle
+- Filled `--signal` rounded square (thumb-sized, `--radius-record`) inside a soft `--surface-subtle` well with quiet inset depth and matching concentric corners
+- Label `RECORD` below the control
 
 Active:
 
-- Same circular footprint with a dark `--ink` face (still in the recessed well)
+- Same rounded-square footprint with a dark `--ink` face (still in the recessed well)
 - `--signal` rounded stop square (signal on the icon only — not the whole button fill)
 - Label `STOP`
 - Timer visible

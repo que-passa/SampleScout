@@ -6,6 +6,9 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 
 export const SPECIMEN_MARK_SIZE = 12;
 
+/** Neon specimen fill indices — CSS vars `--specimen-neon-0`…`--specimen-neon-20` in tokens.css */
+export const SPECIMEN_NEON_COUNT = 21;
+
 export type CatalogReferenceInput = Pick<Take, 'sessionId' | 'sequence'>;
 
 export type SpecimenMarkSourceFacts = Pick<
@@ -22,6 +25,8 @@ export interface SpecimenMark {
 	width: typeof SPECIMEN_MARK_SIZE;
 	height: typeof SPECIMEN_MARK_SIZE;
 	cells: readonly (readonly boolean[])[];
+	/** Index into the specimen neon palette (`--specimen-neon-{n}`). */
+	colorIndex: number;
 }
 
 /**
@@ -56,7 +61,9 @@ export function deriveSpecimenMark({ id, source }: SpecimenMarkInput): SpecimenM
 		normalizeNumber(source.byteLength),
 		normalizeNumber(source.channelCount ?? 0)
 	].join('|');
-	let state = stableHash(identity) || 0x9e3779b9;
+	const seed = stableHash(identity) || 0x9e3779b9;
+	const colorIndex = seed % SPECIMEN_NEON_COUNT;
+	let state = seed;
 	const cells = Array.from({ length: SPECIMEN_MARK_SIZE }, () =>
 		Array.from({ length: SPECIMEN_MARK_SIZE }, () => {
 			state ^= state << 13;
@@ -76,7 +83,8 @@ export function deriveSpecimenMark({ id, source }: SpecimenMarkInput): SpecimenM
 	return {
 		width: SPECIMEN_MARK_SIZE,
 		height: SPECIMEN_MARK_SIZE,
-		cells
+		cells,
+		colorIndex
 	};
 }
 

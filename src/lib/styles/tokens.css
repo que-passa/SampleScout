@@ -7,10 +7,34 @@
 	--line: #c9c9c3;
 	--line-strong: #85857f;
 	--disabled: #a8a8a2;
-	--signal: #e43b2f;
-	/* Neon blue-green brand — action-toast chrome only (not record/destructive) */
+	/* Neon record / clip / destructive — match brand punch, not muted brick */
+	--signal: #ff1f2e;
+	/* Neon blue-green brand — primary CTA faces + action toasts + active waveform selection + active trim drag (not record/destructive) */
 	--brand: #00f0c8;
 	--brand-soft: #c8fff2;
+
+	/* Specimen mark neon fills — deterministic catalog identity (see catalog.ts) */
+	--specimen-neon-0: #00f0c8;
+	--specimen-neon-1: #00ff9f;
+	--specimen-neon-2: #39ff14;
+	--specimen-neon-3: #b8ff00;
+	--specimen-neon-4: #eaff00;
+	--specimen-neon-5: #ffff00;
+	--specimen-neon-6: #ffd60a;
+	--specimen-neon-7: #ff9f1c;
+	--specimen-neon-8: #ff6b35;
+	--specimen-neon-9: #ff3d00;
+	--specimen-neon-10: #ff1744;
+	--specimen-neon-11: #ff0080;
+	--specimen-neon-12: #ff00d4;
+	--specimen-neon-13: #d400ff;
+	--specimen-neon-14: #9b5cff;
+	--specimen-neon-15: #6c63ff;
+	--specimen-neon-16: #00a8ff;
+	--specimen-neon-17: #00d4ff;
+	--specimen-neon-18: #00fff0;
+	--specimen-neon-19: #7dffb3;
+	--specimen-neon-20: #c8ff00;
 
 	--space-1: 4px;
 	--space-2: 8px;
@@ -24,6 +48,8 @@
 	--radius-control: 4px;
 	--radius-panel: 6px;
 	--radius-round: 999px;
+	/* Rounded-square record face (well = this + well padding for concentric corners) */
+	--radius-record: 24px;
 	/* Legacy alias — prefer named radius tokens in new CSS */
 	--radius: var(--radius-control);
 
@@ -39,5 +65,6 @@
 	--text-body: 1rem; /* 16px */
 	--text-meta: 0.875rem; /* 14px */
 	--text-annotation: 0.8125rem; /* 13px */
+	--text-micro: 0.6875rem; /* 11px — compact chips / Local Draft */
 	--text-button: 0.9375rem; /* 15px */
 }

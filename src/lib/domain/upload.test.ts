@@ -73,7 +73,7 @@ describe('takeUploadStateFromJob', () => {
 describe('formatUploadStateLabel', () => {
 	it('uses honest phase labels', () => {
 		expect(formatUploadStateLabel('uploading')).toBe('Uploading');
-		expect(formatUploadStateLabel('processing')).toBe('Processing');
+		expect(formatUploadStateLabel('processing')).toBe('Processing on Audiotool');
 		expect(formatUploadStateLabel('uploaded')).toBe('Uploaded');
 		expect(formatUploadStateLabel('failed')).toBe('Upload failed');
 	});

@@ -21,7 +21,7 @@ Collection remains the visible label for `/drafts` (base-path-safe links). Editi
 
 ### Entry from Capture
 
-Capture’s Collection shortcut (simplified waveform icon + pending count, or a Collection label when empty) is the primary path into Collection. Keep it available whenever not recording so an empty Collection remains reachable for Import.
+Capture’s Collection shortcut (simplified waveform icon + zero-padded **total** Local Draft count, including `00` when empty, with a **signal** **pending** bubble above the total when upload-pending drafts exist) is the primary path into Collection. Keep it available whenever not recording so an empty Collection remains reachable for Import.
 
 ### Tablet / desktop
 
@@ -39,11 +39,11 @@ Capture is a single open composition (not a dashboard of panels):
 - Session rename is click-to-edit: show either the title **or** the input, never both at once
 - Capability / storage warnings only when something blocks recording or saving
 
-Capture fills the available viewport (shell top bar fixed; no bottom tab bar). It is **not** a scrollable document — the record control and Field Session sit in a stable lower band (same position idle and while recording); live meters/waveform fill remaining height above while recording. Do not rely on page-level scrolling for Capture.
+Capture fills the available viewport (shell top bar fixed; no bottom tab bar). It is **not** a scrollable document — the record control and Field Session sit in a stable lower band (same position idle and while recording); the plot stage fills remaining height above. Idle shows a standby plot frame (zero axis, edge ticks, `STANDBY` in the timer header slot, slow right→left scan — no fake waveform; header height matches Capture timer so the axis aligns with the live wave; respect `prefers-reduced-motion`). While recording, the same stage shows the live meters/waveform. Do not rely on page-level scrolling for Capture.
 
 Do **not** crowd the capture screen with connection chips, storage estimates, developer config, or a recent-takes list. Takes live under **Collection**.
 
-Capture shows a compact **Collection shortcut** to the right of the record control: a simplified waveform icon plus a pending-draft count when > 0, or a Collection label when empty. Tapping it opens Collection at `/drafts`. Hide the shortcut while recording. The shell top-bar Account control (avatar when available) opens the Account sheet/modal on Capture, Collection, and Debug; Take uses the same control in its editor header.
+Capture shows a compact **Collection shortcut** to the right of the record control: a simplified waveform icon, a zero-padded **total** Local Draft count (including `00` when empty), and a **signal** **pending** bubble (record red fill, bright numerals) stacked above the total when any upload-pending drafts exist (same pending set as Collection Upload). Tapping it opens Collection at `/drafts`. Hide the shortcut while recording. The shell top-bar Account control (avatar when available) opens the Account sheet/modal on Capture, Collection, and Debug; Take uses the same control in its editor header.
 
 Auth note: the current product gate requires Audiotool connect before the shell; local-only capture without login remains a possible future relaxation.
 
@@ -72,9 +72,9 @@ Immediately:
 4. Compute an initial waveform overview asynchronously.
 5. Show `Local Draft` only after the OPFS + IndexedDB save gate; supporting copy may say `Saved on this device`.
 6. Keep “Record another” prominent (the primary record control returns to idle).
-7. Update the Collection shortcut count so the new take is reachable under **Collection**.
+7. Update the Collection shortcut counts (total + pending bubble) so the new take is reachable under **Collection**.
 
-Review actions (play, discard, edit, upload) live in **Collection** and the take editor — not as a take list on Capture. To capture again, record a new take; there is no in-place Retake that overwrites an existing Local Draft.
+Review actions (play, discard, edit) live in **Collection** and the take editor; **upload** starts only from Collection — not as a take list on Capture. To capture again, record a new take; there is no in-place Retake that overwrites an existing Local Draft.
 
 ## 3. Field Session behavior
 
@@ -134,43 +134,44 @@ There is no in-place Retake that replaces an existing Local Draft’s audio. If 
 
 ## 6. Discard flow
 
-1. User taps Discard on a Collection take (visible per-row action), batch Discard in Select mode, or Discard from the take editor Edit sheet.
+1. User taps Discard on a Collection take (visible per-row action), select-mode **Discard** after multi-select, or Discard from the take editor Field Notes sheet.
 2. Confirm with an in-app dialog (not the browser/OS alert) before proceeding.
 3. Take is removed from the visible stack immediately (batch may remove many).
 4. Compact action toast confirms discard (no Undo); batch Discard uses one summary toast.
 5. Binary cleanup is scheduled immediately and must be retryable.
 
-Use an in-app confirmation dialog (`ConfirmDialog`) for Collection single discard, take-editor Discard from the Edit sheet, and permanent cleanup such as Delete all local data. Do not use `window.confirm`.
+Use an in-app confirmation dialog (`ConfirmDialog`) for Collection single discard, take-editor Discard from the Field Notes sheet, and permanent cleanup such as Delete all local data. Do not use `window.confirm`.
 
-## 7. Extract flow (multi-sample from one recording)
+## 7. Collect flow (multi-sample from one recording)
 
-Typical field path: one longer take contains several useful sounds. Extract turns a selection into its own Local Draft without destroying the parent.
+Typical field path: one longer take contains several useful sounds. **Collect** turns the current retained **trim** into its own Local Draft without destroying the parent source. Selection is temporary (for Trim / preview); the trim recipe is the result state Collect commits. Single-region and multi-region cases use the same primary control (once vs repeatedly).
 
 1. User opens a saved take (recording or import).
-2. Selects a useful region on the waveform.
-3. Taps **Extract** (quick action on the take zoom row when a selection exists).
+2. Sets retained bounds via Trim (from a selection) and/or trim boundary grips.
+3. Taps **Collect** (brand primary in the take bottom bar; enabled only when the retained trim is narrower than the full source).
 4. App creates a new Local Draft in the same Field Session:
    - Same source binary (`fileRef`) — do not copy OPFS audio for MVP
-   - Own edit recipe retaining only the selection
+   - Own edit recipe retaining only the trim bounds
    - Optional `derivedFromTakeId` pointing at the parent
-   - Generated name that cites the parent and clock range (e.g. `Parent · 01:23–01:41`)
+   - Generated short name: stem + two-digit number (e.g. `Rain 01`); never em/en dashes
    - Session defaults / Field Notes prefill like any new take
-5. Parent take and its recipe remain unchanged; selection may clear for the next extract.
-6. Collection updates so the new draft is visible (count / row). Stay on the parent editor so the user can extract again quickly; offer a quiet toast with an optional open-child action.
-7. User repeats for further regions, then opens each draft (or multi-selects in Collection) for Field Notes and upload.
+5. Parent source stays intact; parent recipe returns to full-source identity so the next region can be trimmed and collected. Temporary selection clears.
+6. Collection updates so the new draft is visible (count / row). Stay on the parent editor so the user can Collect again quickly; offer a quiet toast with an optional open-child action.
+7. User repeats for further regions, then ships from **Collection** (confirm upload sheet). Parents with collected children are excluded from the default upload pending set; lone takes without children remain pending.
 
 Rules:
 
-- Extract requires a valid selection (same minimum length as trim).
-- Extract is not Trim: Trim rewrites the current take’s recipe; Extract adds a Collection item.
-- Extract is not Cut: Cut removes material from the current recipe output; Extract leaves the parent timeline intact.
-- Discarding an extract removes only that take record (and its rendered assets). Shared source cleanup must not delete the OPFS binary while any take still references it.
-- Discarding or retaking the parent must not orphan extracts unsafely: either keep the shared source for remaining children, or block parent discard while extracts exist with a clear explanation (product may choose the softer keep-source path for MVP).
-- Do not imply extracts sync across devices or live in the cloud.
+- Collect requires a usable retained trim (narrower than the full source; same minimum length as trim). It does **not** depend on a temporary waveform selection.
+- Collect is not Trim: Trim rewrites the current take’s recipe; Collect adds a Collection item from that trim result, then restores the parent recipe to identity.
+- Collect is not Cut: Cut removes material from the current recipe output; Collect leaves the parent source timeline available for further Collects.
+- Discarding a collected draft removes only that take record (and its rendered assets). Shared source cleanup must not delete the OPFS binary while any take still references it.
+- Discarding the parent must not orphan children unsafely: keep the shared source for remaining children (MVP).
+- Do not imply collected drafts sync across devices or live in the cloud.
+- Do not start upload from the take editor.
 
 ## 8. Field Notes metadata flow
 
-Label the existing take metadata/details surface **Field Notes**. On the take editor, Field Notes lives **inside the Edit sheet** (alongside Cut / history / Discard) — not a separate sheet or a control below the waveform. This label does not introduce a new persisted notes field.
+Label the existing take metadata/details surface **Field Notes**. On the take editor, Field Notes is its **own sheet** (opened from the transport Field Notes icon; Discard lives at the bottom). This label does not introduce a new persisted notes field.
 
 Fields:
 
@@ -197,15 +198,15 @@ Use a dedicated full-screen route or overlay — not a bottom sheet. Editing nee
 
 Structure:
 
-- Header chrome (replaces the global brand bar on this route): Back to Collection (top left, ≥44px), **centered truncated take name** (tap to rename), Account control top right (same as shell top bar)
-- Waveform stage: precise waveform sits on page `--paper` (not a boxed pane/card) and uses the available vertical space between header and bottom bar; no redundant “Waveform” label or status header (clock / MONO / SEL facts live in transport + Field Notes inside Edit)
+- Header chrome (replaces the global brand bar on this route): Back to Collection (top left, ≥44px), **centered truncated take name** (tap to rename), **Reset edits** icon (when recipe is non-identity) then Account control top right (same as shell top bar)
+- Waveform stage: precise waveform sits on page `--paper` (not a boxed pane/card) and uses the available vertical space between header and bottom bar; no redundant “Waveform” label or status header (positional time lives on the waveform ruler; duration / channel / selection facts live in Field Notes — no separate playhead clock in transport)
 - Overview navigator strip and compact zoom controls (±) pin in the bottom bar above transport
-- Pinned bottom transport: Edit (opens edit tools + Field Notes as Account-style bottom sheet on mobile / centered modal on desktop), Play/Pause + clock readout, Upload (opens upload sheet — format, optional prepare encode, Upload to Audiotool)
-- Edit sheet keeps **Cut**, **Undo** / **Redo** / **Reset**, **Field Notes**, and **Discard**. **Normalize**, **Trim**, and **Extract** live as quick actions on the zoom row (not duplicated in the sheet). Selection is waveform-only (no numeric sel inputs in the sheet). **Fade in/out** are waveform grips above the take wave. There is no Retake action; capture a new take instead. Successful edit actions and discards show a compact action toast.
-- **Extract** is a first-class edit action when a selection exists: create a new Local Draft from the selection without changing the parent recipe
+- Pinned bottom transport: left Play/Pause + Loop; right Field Notes icon (opens Field Notes as Account-style bottom sheet on mobile / centered modal on desktop) + **Collect** (brand primary; enabled only with a usable retained trim). No Upload on take — shipping is Collection-only.
+- Field Notes sheet holds metadata/details and **Discard**. No Cut, Undo, or Redo in the UI. **Reset** lives in the editor header (not the sheet). **Normalize** and **Trim** live as quick actions on the zoom row. Selection is waveform-only (no numeric sel inputs in the sheet). **Fade in/out** are waveform grips above the take wave. There is no Retake action; capture a new take instead. Successful edit actions, Collect, and discards show a compact action toast.
+- **Collect** is the primary commit when a retained trim exists: create a new Local Draft from the trim bounds, restore parent recipe to identity, stay on the parent for another Collect
 - Do **not** duplicate Capture/Collection links in the footer; stack back chrome covers navigation
 
-MVP `/take/[takeId]` follows this: editor header with top-left back → `/drafts` labeled Collection, centered filename, and top-right Account; waveform-first stage filling available height; pinned bottom bar (zoom/nav + transport); **Field Notes** lives inside the Edit sheet (not a separate trigger below the waveform). No primary bottom tabs; hide the SampleScout brand/top bar while on the take route (Account stays in the editor header).
+MVP `/take/[takeId]` follows this: editor header with top-left back → `/drafts` labeled Collection, centered filename, and top-right Reset + Account; waveform-first stage filling available height; pinned bottom bar (zoom/nav + transport); **Field Notes** opens from the transport icon button. No primary bottom tabs; hide the SampleScout brand/top bar while on the take route (Account stays in the editor header).
 
 **Viewport-locked instrument chrome:** header and transport stay **pinned**. Only the middle workspace body scrolls. Do not scroll the header or transport away with the take content. Respect `env(safe-area-inset-bottom)` on the transport bar.
 
@@ -292,9 +293,32 @@ Developer diagnostics (full capability report, MIME support) live on a separate 
 
 Show Field Sessions by default. Recent takes are reviewed here, not on Capture.
 
-Shell top bar (shared with Capture/Debug): back → Capture, page title **Collection**, Account control top right. Pin **Select** and **Import** in a bottom actions bar (always visible; does not scroll away with the list). Do not duplicate back, title, or Account in the scrollable body. Field Session group headings use the session name only — do not add a separate “Field Session” type label above names that already include that phrase (default: `Field Session · …`).
+Shell top bar (shared with Capture/Debug): back → Capture, page title **Collection**, Account control top right. Pin Collection actions in a bottom bar (always visible; does not scroll away with the list).
 
-Use catalog rhythm, stable indexing, and deterministic specimen marks to make accumulating recordings satisfying without turning records into collectible cards. A specimen mark is derived from persisted take/source facts and remains stable for those facts. It is not a waveform, audio fingerprint, quality score, rarity tier, or random decoration. Do not add XP, streaks, celebratory motion, or cloud implications.
+**Default bottom bar:** **Select**, **Import** on the left; **Upload** on the right (brand primary). Upload opens a confirm bottom sheet for every **upload-pending** Local Draft — saved, not yet uploaded, and with **no collected children**. Do not instantly queue. Do not duplicate back, title, or Account in the scrollable body.
+
+**Select mode bottom bar:** **Done**, then **Edit data**, **Discard**, and **Upload** (selected ∩ upload-pending only). Those three stay disabled until at least one take is selected. Import is hidden while selecting. Field Session group headings use the session name only — do not add a separate “Field Session” type label above names that already include that phrase (default: `Field Session · …`).
+
+### Collection upload sheet
+
+1. **Confirm phase:** top visual preview of marked items (specimen marks + names + total count); below, metadata overlay (title stem, description, tags) extending session defaults; **Cancel** left, **Upload** (brand primary) right.
+2. On confirm: apply overlay (regenerate `Stem 01`… for the batch in order; description/tags on all), then enqueue encode + Audiotool upload using each take’s saved output settings.
+3. **Progress phase:** same sheet swaps to progress-only (k of N, current name, status); not dismissible while jobs are active; Cancel cancels in-flight where supported.
+4. Partial failure is honest; row Retry remains on Collection. Success uses the existing compact action toast.
+
+Multi-select flow:
+
+1. Tap **Select**.
+2. Choose takes (row checkboxes; Select all / Clear in the list header).
+3. Choose an action:
+   - **Edit data** — opens a sheet with batch Field Notes (only checked fields apply).
+   - **Discard** — confirm, then remove selected Local Drafts from this device.
+   - **Upload** — open the confirm sheet for selected upload-pending drafts.
+4. Tap **Done** to leave select mode (clears the selection).
+
+Do not show the batch Field Notes form inline as soon as a row is checked — it opens only via **Edit data**.
+
+Use catalog rhythm, stable indexing, and deterministic specimen marks to make accumulating recordings satisfying without turning records into collectible cards. A specimen mark is derived from persisted take/source facts and remains stable for those facts (grid pattern and neon fill). It is not a waveform, audio fingerprint, quality score, rarity tier, or random decoration. Do not add XP, streaks, celebratory motion, or cloud implications.
 
 Session row/card:
 
@@ -328,15 +352,13 @@ Filters:
 - Failed
 - Uploaded
 
-Bulk actions:
+Bulk actions (after Select → choose takes):
 
-- Tags
-- Description template
-- Kind
-- Visibility
-- Format
-- Upload
-- Delete
+- Edit data (batch Field Notes: tags, description, kind, visibility, BPM)
+- Upload (selected ∩ upload-pending → confirm sheet)
+- Discard
+
+Outside select mode, **Upload** opens the confirm sheet for the full upload-pending Collection (Local Drafts not yet uploaded and without collected children).
 
 ## 12. Empty, error, and permission states
 

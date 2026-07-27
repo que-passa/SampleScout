@@ -10,14 +10,14 @@ The product supports:
 
 - Mobile microphone recording (including longer multi-sound captures within the take limit)
 - Multiple independent takes in a Field Session
-- **Extract:** turn selected regions of one recording into multiple Local Drafts for upload
+- **Collect:** turn retained trims of one recording into multiple Local Drafts (parent source intact); upload from Collection
 - A device-local Collection of drafts
 - Immediate discard; capture a new take instead of in-place retake
 - File import
 - Trim, cut, fade, and normalization on a per-draft recipe
 - Metadata defaults and batch editing
 - WAV and MP3 output
-- Direct Audiotool authentication and upload
+- Direct Audiotool authentication and upload (Collection confirm sheet → progress)
 
 The product does not attempt to replace a DAW.
 
@@ -61,7 +61,9 @@ A session contains multiple takes, but each take can have its own:
 - Output format
 - Upload status
 
-Extracted drafts are full takes in this sense: independent Field Notes and upload state. They may **share** the parent’s source binary (same OPFS `fileRef`) while keeping a distinct retain recipe. Extract is not the same as Trim: Trim changes one take’s recipe; Extract creates another Local Draft and leaves the parent intact.
+Collected drafts are full takes in this sense: independent Field Notes and upload state. They may **share** the parent’s source binary (same OPFS `fileRef`) while keeping a distinct retain recipe. Collect is not the same as Trim: Trim changes one take’s recipe; Collect creates another Local Draft from that trim result and restores the parent recipe to identity so further regions can be collected.
+
+**Upload pending:** a Local Draft is in the default upload set when it is not yet uploaded **and** it has no collected children (`derivedFromTakeId` pointing at it). Lone takes remain uploadable; parents with children are source-only for shipping until children are discarded.
 
 ### 3.3 No in-place Retake
 
@@ -79,7 +81,7 @@ Avoid empty fields wherever a responsible default exists.
 
 Default metadata:
 
-- **Name:** `[session name] — [sequence]`
+- **Name:** short stem + two-digit number (`Rain 01`). Never use em/en dashes (`—` / `–`) in generated names. Numbering continues while the stem matches the previous numbered name in the session; resets to `01` when the stem changes.
 - **Tags:** session tags, recent tags, preset tags, or `recording`
 - **Description:** generated session/take context
 - **Kind:** one-shot
@@ -87,7 +89,7 @@ Default metadata:
 - **Format:** WAV unless the user selects compact MP3
 - **BPM:** unset unless loop mode or user input supplies it
 
-Generated metadata remains visibly editable.
+Generated metadata remains visibly editable. On Collection upload, session defaults may be extended by a per-batch overlay for title stem, description, and tags.
 
 In the UI, the existing metadata/details surface is labeled **Field Notes**. This is vocabulary only: do not add a separate persisted notes field.
 
@@ -120,11 +122,13 @@ The common field path should be obvious:
 
 The common review path for multi-sound captures should be equally clear:
 
-`Open take → Select region → Extract → (repeat) → Field Notes / Upload on each draft`
+`Open take → Trim region → Collect → (repeat) → Collection → Upload`
 
-In-place edit on a single draft remains progressively disclosed:
+Single-region shape stays progressive:
 
-`Review → Trim / Cut / Fade → Field Notes → Upload`
+`Review → Trim / Fade → Collect (optional) → Collection → Upload`
+
+Upload never starts from the take editor; Collection owns confirm → progress.
 
 ### 3.8 Collection identity is bounded
 
@@ -144,18 +148,18 @@ Needs:
 - Comfortable longer takes (within the take limit)
 - Strong outdoor readability
 - Reliable local drafts
-- Extract multiple samples from one recording
+- Collect multiple samples from one recording
 - Minimal typing
 - Clear recording state
 
 ### Producer collecting one-shots
 
-Records percussion, object hits, foley, and short tonal sounds — either as discrete takes or as regions extracted from a longer pass.
+Records percussion, object hits, foley, and short tonal sounds — either as discrete takes or as regions collected from a longer pass.
 
 Needs:
 
 - Fast Capture of another take
-- Extract from selection
+- Collect from retained trim
 - Fast trim and fade
 - One-shot metadata
 - Batch tags
@@ -175,13 +179,13 @@ Needs:
 
 ### Desktop reviewer
 
-Returns later on desktop to organize and upload recordings made on mobile — including extracting several samples from longer field takes.
+Returns later on desktop to organize and upload recordings made on mobile — including collecting several samples from longer field takes.
 
 Needs:
 
 - Dense but controlled overview
 - Keyboard support
-- Fast Extract from selection
+- Fast Collect from retained trim
 - Batch metadata
 - Larger waveform editor
 - Upload queue
@@ -200,7 +204,7 @@ Drafts remain device-local. A phone’s local drafts do not automatically appear
 - Discard with Undo
 - File import
 - Accurate waveform
-- Extract selection as a new Local Draft (shared source, parent intact)
+- Collect retained trim as a new Local Draft (shared source, parent intact)
 - Trim
 - Cut
 - Fade in/out
@@ -211,7 +215,7 @@ Drafts remain device-local. A phone’s local drafts do not automatically appear
 - Private/public (UI Private maps to Audiotool `unlisted`)
 - WAV output
 - MP3 output through client-side encoding
-- Direct Audiotool upload
+- Direct Audiotool upload from Collection (confirm sheet → progress)
 - Upload and processing states
 - Local storage meter
 - Responsive phone, tablet, and desktop UI

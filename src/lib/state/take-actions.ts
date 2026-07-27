@@ -30,9 +30,10 @@ export async function notifyTakeInventoryChanged(): Promise<void> {
 }
 
 /**
- * Extract a selection into a new Local Draft (shared source). Parent stays intact.
+ * Collect a retained trim into a new Local Draft (shared source).
+ * Parent source stays intact; the take page resets parent recipe to identity after Collect.
  */
-export async function extractSelectionAsLocalDraft(input: {
+export async function collectSelectionAsLocalDraft(input: {
 	parentTakeId: TakeId;
 	startSeconds: number;
 	endSeconds: number;
@@ -41,7 +42,7 @@ export async function extractSelectionAsLocalDraft(input: {
 	await notifyTakeInventoryChanged();
 
 	const label = take.metadata.displayName || deriveCatalogReference(take);
-	actionToast.show(`Extracted · ${label}`, {
+	actionToast.show(`Collected · ${label}`, {
 		actionLabel: 'Open',
 		onAction: async () => {
 			await goto(resolve(`/take/${take.id}`));
@@ -50,6 +51,9 @@ export async function extractSelectionAsLocalDraft(input: {
 
 	return take;
 }
+
+/** @deprecated Use {@link collectSelectionAsLocalDraft}. */
+export const extractSelectionAsLocalDraft = collectSelectionAsLocalDraft;
 
 /**
  * Discard a take immediately. Binary cleanup is scheduled in IndexedDB.

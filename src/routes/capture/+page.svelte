@@ -8,11 +8,14 @@
 		onTakeInventoryChanged
 	} from '$lib/state';
 	import { detectCapabilities } from '$lib/capabilities';
-	import { countPendingDraftTakes } from '$lib/persistence';
+	import { countCollectionDrafts } from '$lib/persistence';
 	import CaptureTimer from '$lib/ui/components/CaptureTimer.svelte';
+	import GhostButton from '$lib/ui/components/GhostButton.svelte';
 	import LiveWaveform from '$lib/ui/components/LiveWaveform.svelte';
 	import RecordControl from '$lib/ui/components/RecordControl.svelte';
+	import StandbyPlot from '$lib/ui/components/StandbyPlot.svelte';
 	import AppShell from '$lib/ui/layouts/AppShell.svelte';
+	import { Icon } from '$lib/ui/icons';
 	import type { CapabilityReport } from '$lib/capabilities';
 
 	let capabilities = $state<CapabilityReport | null>(null);
@@ -25,6 +28,7 @@
 	let titleBeforeEdit = $state(initialSessionName);
 	let syncedSessionName = $state<string | null>(initialSnap.session?.name ?? null);
 	let pendingDraftCount = $state(0);
+	let totalDraftCount = $state(0);
 	let importing = $state(false);
 	let importStatus = $state<string | null>(null);
 	let importError = $state<string | null>(null);
@@ -46,9 +50,12 @@
 
 	async function refreshPendingDraftCount() {
 		try {
-			pendingDraftCount = await countPendingDraftTakes();
+			const counts = await countCollectionDrafts();
+			pendingDraftCount = counts.pending;
+			totalDraftCount = counts.total;
 		} catch {
 			pendingDraftCount = 0;
+			totalDraftCount = 0;
 		}
 	}
 
@@ -182,29 +189,54 @@
 	<section class="capture">
 		<div class="stage">
 			<!-- Always mounted so the lower band stays pinned idle ↔ recording. -->
-			<div class="meters" aria-hidden={!showTimer}>
-				{#if showTimer}
-					<div class="meters-header">
+			<div class="meters">
+				<!-- Header always reserved so idle standby axis matches live-wave vertical geometry. -->
+				<div class="meters-header">
+					{#if showTimer}
 						<CaptureTimer
 							elapsedSeconds={snap.elapsedSeconds}
 							remainingSeconds={snap.remainingSeconds}
 							warning={snap.warning}
 						/>
-					</div>
-					<div class="wave-row">
+					{:else}
+						<div class="standby-header" aria-hidden="true">
+							<div class="standby-title">STANDBY</div>
+							<div class="standby-remaining"></div>
+						</div>
+					{/if}
+				</div>
+				<div class="wave-row">
+					{#if showTimer}
 						<LiveWaveform
 							peaks={snap.livePeaks}
 							peakCount={snap.livePeaks.length}
 							clipping={snap.levels.clipping}
 							active={isRecording}
 						/>
-					</div>
-				{/if}
+					{:else}
+						<StandbyPlot />
+					{/if}
+				</div>
 			</div>
 
 			<div class="lower">
 				<div class="record-row">
-					<div class="record-side"></div>
+					<div class="record-side">
+						<span class:slot-hidden={!canCancel}>
+							<GhostButton
+								icon
+								danger
+								tabindex={canCancel ? undefined : -1}
+								aria-hidden={!canCancel}
+								disabled={!canCancel}
+								onclick={() => captureController.cancelRecording()}
+								aria-label="Discard recording"
+								title="Discard recording"
+							>
+								<Icon name="trash" />
+							</GhostButton>
+						</span>
+					</div>
 					<div class="record-center">
 						<RecordControl
 							disabled={isDisabled}
@@ -213,64 +245,33 @@
 						/>
 					</div>
 					<div class="record-side record-side-end">
-						<!-- Stacked in one cell so Collection ↔ Discard does not reflow the row. -->
 						<a
 							class="drafts-link"
 							class:slot-hidden={!showDraftsLink}
 							href={resolve('/drafts')}
 							tabindex={showDraftsLink ? undefined : -1}
 							aria-hidden={!showDraftsLink}
-							aria-label={pendingDraftCount > 0
-								? `${pendingDraftCount} Local Draft${pendingDraftCount === 1 ? '' : 's'} in Collection`
+							aria-label={totalDraftCount > 0
+								? pendingDraftCount > 0
+									? `${pendingDraftCount} pending of ${totalDraftCount} Local Draft${totalDraftCount === 1 ? '' : 's'} in Collection`
+									: `${totalDraftCount} Local Draft${totalDraftCount === 1 ? '' : 's'} in Collection`
 								: 'Open Collection'}
 							title="Collection"
 						>
-							<svg
-								class="drafts-icon"
-								viewBox="0 0 24 24"
-								width="20"
-								height="20"
-								aria-hidden="true"
-								focusable="false"
-							>
-								<rect fill="currentColor" x="3" y="9" width="2" height="6" rx="0.5" />
-								<rect fill="currentColor" x="7" y="5" width="2" height="14" rx="0.5" />
-								<rect fill="currentColor" x="11" y="7" width="2" height="10" rx="0.5" />
-								<rect fill="currentColor" x="15" y="4" width="2" height="16" rx="0.5" />
-								<rect fill="currentColor" x="19" y="8" width="2" height="8" rx="0.5" />
-							</svg>
-							{#if pendingDraftCount > 0}
-								<span class="drafts-count">{pendingDraftCount}</span>
-							{:else}
-								<span class="drafts-label">Collection</span>
-							{/if}
+							<span class="well">
+								<span class="face">
+									<Icon name="collection" />
+									<span class="drafts-counts">
+										{#if pendingDraftCount > 0}
+											<span class="pending-bubble" aria-hidden="true"
+												>{String(pendingDraftCount).padStart(2, '0')}</span
+											>
+										{/if}
+										<span class="drafts-total">{String(totalDraftCount).padStart(2, '0')}</span>
+									</span>
+								</span>
+							</span>
 						</a>
-						<button
-							type="button"
-							class="discard-button"
-							class:slot-hidden={!canCancel}
-							tabindex={canCancel ? undefined : -1}
-							aria-hidden={!canCancel}
-							disabled={!canCancel}
-							onclick={() => captureController.cancelRecording()}
-							aria-label="Discard recording"
-							title="Discard recording"
-						>
-							<svg
-								class="trash-icon"
-								viewBox="0 0 24 24"
-								width="20"
-								height="20"
-								aria-hidden="true"
-								focusable="false"
-							>
-								<path
-									fill="currentColor"
-									d="M9 3h6v2h5v2H4V5h5V3zm-3 6h2v10H6V9zm4 0h2v10h-2V9zm4 0h2v10h-2V9zM5 21h14V8H5v13z"
-								/>
-							</svg>
-							<span class="visually-hidden">Discard</span>
-						</button>
 					</div>
 				</div>
 
@@ -401,6 +402,31 @@
 		box-sizing: border-box;
 	}
 
+	/* Mirror CaptureTimer box so idle wave-row height matches recording. */
+	.standby-header {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: var(--space-1);
+	}
+
+	.standby-title {
+		display: flex;
+		align-items: center;
+		min-height: var(--text-timer);
+		font-size: var(--text-label);
+		font-weight: 600;
+		font-family: var(--font-mono);
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		line-height: 1;
+		color: var(--ink-muted);
+	}
+
+	.standby-remaining {
+		min-height: calc(var(--text-annotation) * 1.2);
+	}
+
 	.wave-row {
 		flex: 1;
 		min-height: 0;
@@ -461,7 +487,7 @@
 		display: grid;
 		align-items: center;
 		justify-items: start;
-		/* Match RecordControl `.well` height so side controls center on the circle, not the label. */
+		/* Match RecordControl `.well` height so side controls center on the control, not the label. */
 		min-height: calc(var(--space-7) * 2 + var(--space-3) * 2);
 		padding-left: var(--space-2);
 		padding-right: var(--space-6);
@@ -473,10 +499,6 @@
 		padding-left: var(--space-6);
 	}
 
-	.record-side-end > * {
-		grid-area: 1 / 1;
-	}
-
 	.slot-hidden {
 		visibility: hidden;
 		pointer-events: none;
@@ -485,82 +507,154 @@
 	.drafts-link {
 		display: inline-flex;
 		align-items: center;
-		gap: var(--space-2);
-		min-height: var(--touch-min);
+		justify-content: center;
+		flex-shrink: 0;
 		min-width: var(--touch-min);
-		padding: 0 var(--space-3);
-		border: 1px solid var(--line);
+		min-height: var(--touch-min);
+		padding: 0;
+		border: none;
 		border-radius: var(--radius-control);
-		background: var(--surface);
-		color: var(--ink);
+		background: transparent;
+		color: var(--ink-muted);
 		text-decoration: none;
 		font-size: var(--text-meta);
 		font-weight: 600;
-	}
-
-	.drafts-link:hover {
-		background: var(--surface-subtle);
+		cursor: pointer;
 	}
 
 	.drafts-link:focus-visible {
+		outline: none;
+	}
+
+	.drafts-link:focus-visible .well {
 		outline: 2px solid var(--ink);
-		outline-offset: 2px;
+		outline-offset: var(--space-1);
 	}
 
-	.drafts-icon {
-		display: block;
-		flex-shrink: 0;
-		color: var(--ink-muted);
+	.drafts-link .well {
+		position: relative;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		/* Slightly taller than base touch chip for the stacked counts. */
+		min-height: calc(var(--touch-min) + var(--space-2));
+		padding: var(--space-1);
+		box-sizing: border-box;
+		border-radius: calc(var(--radius-control) + var(--space-1));
+		background: var(--surface-subtle);
+		/* Soft recessed pad — same language as AccountButton. */
+		box-shadow:
+			inset 0 var(--space-1) var(--space-2) color-mix(in srgb, var(--ink) 14%, transparent),
+			inset 0 calc(var(--space-1) * -1) var(--space-1)
+				color-mix(in srgb, var(--paper) 70%, transparent);
 	}
 
-	.drafts-count {
+	.drafts-link .face {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+		min-height: calc(var(--touch-min) + var(--space-2) - var(--space-1) * 2);
+		/* well space-1 + face space-2 ≈ original padding space-3 */
+		padding: 0 var(--space-2);
+		box-sizing: border-box;
+		border-radius: var(--radius-control);
+		background: var(--surface);
+		/* Quiet face depth. */
+		box-shadow:
+			inset 0 1px 0 color-mix(in srgb, var(--paper) 22%, transparent),
+			inset 0 -1px 0 color-mix(in srgb, var(--ink) 18%, transparent);
+	}
+
+	.drafts-counts {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: calc(var(--space-1) / 2);
+		min-width: calc(var(--text-meta) * 1.5);
 		font-variant-numeric: tabular-nums;
 		letter-spacing: 0.02em;
 	}
 
-	.drafts-label {
-		font-size: var(--text-annotation);
+	.pending-bubble {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: calc(var(--space-4) + var(--space-1));
+		min-height: var(--space-4);
+		padding: 0 var(--space-1);
+		border-radius: var(--radius-round);
+		/* Record/signal fill with bright numerals. */
+		background: var(--signal);
+		color: var(--paper);
+		font-size: var(--text-label);
+		font-weight: 700;
+		line-height: 1;
+	}
+
+	.drafts-total {
+		color: var(--ink);
+		font-size: var(--text-meta);
 		font-weight: 600;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
+		line-height: 1;
 	}
 
-	.discard-button {
-		display: inline-grid;
-		place-items: center;
-		width: var(--touch-min);
-		height: var(--touch-min);
-		padding: 0;
-		border: 1px solid var(--signal);
-		border-radius: var(--radius-control);
-		background: var(--surface);
-		color: var(--signal);
-		cursor: pointer;
+	@media (prefers-reduced-motion: no-preference) {
+		.drafts-link {
+			transition: color 140ms ease;
+		}
+
+		.drafts-link .well {
+			transition:
+				background-color 140ms ease,
+				box-shadow 140ms ease;
+		}
+
+		.drafts-link .face {
+			transition:
+				background-color 140ms ease,
+				box-shadow 140ms ease;
+		}
 	}
 
-	.discard-button:hover {
-		background: var(--surface-subtle);
+	@media (hover: hover) {
+		.drafts-link:hover {
+			color: var(--ink);
+		}
+
+		.drafts-link:hover .well {
+			background: color-mix(in srgb, var(--surface-subtle) 82%, var(--ink));
+			box-shadow:
+				inset 0 var(--space-1) var(--space-2) color-mix(in srgb, var(--ink) 6%, transparent),
+				inset 0 calc(var(--space-1) * -1) var(--space-1)
+					color-mix(in srgb, var(--paper) 90%, transparent);
+		}
+
+		.drafts-link:hover .face {
+			background: color-mix(in srgb, var(--surface) 42%, var(--paper));
+			box-shadow:
+				inset 0 1px 0 color-mix(in srgb, var(--paper) 55%, transparent),
+				inset 0 -1px 0 color-mix(in srgb, var(--ink) 10%, transparent);
+		}
 	}
 
-	.discard-button:focus-visible {
-		outline: 2px solid var(--ink);
-		outline-offset: 2px;
+	.drafts-link:active {
+		color: var(--brand);
 	}
 
-	.trash-icon {
-		display: block;
+	.drafts-link:active .well {
+		box-shadow:
+			inset 0 var(--space-1) var(--space-2) color-mix(in srgb, var(--ink) 30%, transparent),
+			inset 0 calc(var(--space-1) * -1) var(--space-1)
+				color-mix(in srgb, var(--paper) 48%, transparent);
 	}
 
-	.visually-hidden {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		white-space: nowrap;
-		border: 0;
+	.drafts-link:active .face {
+		background: color-mix(in srgb, var(--surface) 88%, var(--ink));
+	}
+
+	.drafts-link:active .drafts-total {
+		color: var(--brand);
 	}
 
 	.session-title {
@@ -590,7 +684,7 @@
 		max-width: 24rem;
 		min-height: var(--touch-min);
 		padding: var(--space-2) var(--space-3);
-		border: 1px solid transparent;
+		border: none;
 		border-radius: var(--radius-control);
 		font-family: var(--font-mono);
 		font-size: var(--text-screen);
@@ -602,12 +696,12 @@
 
 	.session-display {
 		background: transparent;
-		border-bottom-color: var(--line);
+		box-shadow: inset 0 -1px 0 var(--line);
 		cursor: pointer;
 	}
 
 	.session-display:hover {
-		border-bottom-color: var(--ink-muted);
+		box-shadow: inset 0 -1px 0 var(--ink-muted);
 	}
 
 	.session-display:focus-visible {
@@ -616,12 +710,33 @@
 	}
 
 	.session-input {
-		border-color: var(--ink);
 		background: var(--surface);
+		/* Raised card face — same language as Field Notes sheet inputs. */
+		box-shadow:
+			0 1px var(--space-1) color-mix(in srgb, var(--ink) 6%, transparent),
+			0 var(--space-1) var(--space-2) color-mix(in srgb, var(--ink) 8%, transparent),
+			inset 0 1px 0 color-mix(in srgb, var(--surface) 80%, transparent),
+			inset 0 -1px 0 color-mix(in srgb, var(--ink) 6%, transparent);
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		.session-input {
+			transition: box-shadow 140ms ease;
+		}
 	}
 
 	.session-input:focus {
 		outline: none;
+	}
+
+	.session-input:focus-visible {
+		outline: 2px solid var(--ink);
+		outline-offset: 2px;
+		box-shadow:
+			0 var(--space-1) var(--space-2) color-mix(in srgb, var(--ink) 8%, transparent),
+			0 var(--space-2) var(--space-3) color-mix(in srgb, var(--ink) 10%, transparent),
+			inset 0 1px 0 var(--surface),
+			inset 0 -1px 0 color-mix(in srgb, var(--ink) 5%, transparent);
 	}
 
 	.status-hint {

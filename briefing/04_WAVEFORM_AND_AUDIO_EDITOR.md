@@ -137,7 +137,7 @@ A waveform is not a Bézier illustration.
 
 ### Retained / trim boundaries
 
-Trim grips and **2px `--signal` vertical strokes** at each retained-range start and end stay visible on the main waveform and overview navigator even when retained bounds match the full take (identity recipe), so users can always drag to trim. Discarded source regions (outside retained bounds) on the **main waveform** and overview use a `--disabled` wash and `--disabled` peaks so excluded audio reads as off / not part of the uploaded result; retained audio stays normal `--ink` peaks on paper (no retained-band highlight wash). Navigator markers stay strokes only for boundaries; discarded wash may still appear between retained segments. On the main waveform, canvas strokes are paired with **DOM grip tabs** that hang **below** the wave frame (block tab only — no connecting stem; the canvas boundary is the vertical line; `--signal`, near `--touch-min` hit area). Markers and grips are draggable (`col-resize` cursor); dragging adjusts the edit recipe retained bounds and commits on release as one undo step.
+Trim grips and **2px `--signal` vertical strokes** at each retained-range start and end stay visible on the main waveform and overview navigator even when retained bounds match the full take (identity recipe), so users can always drag to trim. Discarded source regions (outside retained bounds) on the **main waveform** and overview use a `--disabled` wash and `--disabled` peaks so excluded audio reads as off / not part of the uploaded result; retained audio stays normal `--ink` peaks on paper (no retained-band highlight wash). Navigator markers stay strokes only for boundaries; discarded wash may still appear between retained segments. On the main waveform, canvas strokes are paired with **DOM grip tabs** that hang **below** the wave frame (block tab only — no connecting stem; the canvas boundary is the vertical line; idle `--signal`, near `--touch-min` hit area). Markers and grips are draggable (`col-resize` cursor); dragging adjusts the edit recipe retained bounds and commits on release as one undo step. **While a trim edge is being dragged**, that grip tab and its matching canvas boundary stroke (main + navigator) switch to `--brand` (same token as action toasts / selection — not `--ink`); other trim edges stay `--signal`. Fade grips soften to **40% transparent** for the duration of the trim drag so the active trim edge reads clearly.
 
 ### Fade grips
 
@@ -172,7 +172,7 @@ Selection contains:
 - Start time
 - End time
 - Duration
-- Visible region shading
+- Visible region shading (`--brand-soft` fill + `--brand` edges; selection grips use brand — distinct from `--signal` trim)
 - Start handle
 - End handle
 
@@ -185,9 +185,9 @@ Interaction:
 - Arrow keys nudge active handle
 - Modified arrow keys use finer/coarser increments
 - Numeric input offers exact editing
-- Clear selection via a dedicated Clear control next to selection inputs
+- Clear selection via a dedicated Clear control next to selection inputs (MVP: selection also clears after successful **Trim**; Collect clears any leftover selection when committing a trim)
 
-Visible handles may be thin, but hit targets must be large.
+Visible handles may be thin, but hit targets must be large (near half `--touch-min` on canvas edges; DOM grips at `--touch-min`). At zero fade, pointer in the time-ruler fade band prefers fade grips; horizontal drag on the wave body near a retained edge prefers trim.
 
 ## 8. Zoom and navigation
 
@@ -212,7 +212,7 @@ The overview strip always shows the full take. Drag the viewport rectangle to pa
 
 Zoom must preserve the time position under the pointer or gesture center when practical. Button zoom anchors on selection midpoint, then playhead, then view center.
 
-After a selection gesture completes (or selection is set from the Edit sheet), the view auto-fits to that selection (same padding as “Fit selection”). After a trim-edge adjust commits — or retained bounds change via Trim / Cut / undo / open — the view auto-fits to the retained region (same as “Fit trimmed region”). Auto-fit is suppressed while the corresponding drag is in progress so the wave does not chase the pointer.
+After a selection gesture completes, the view auto-fits to that selection (same padding as “Fit selection”). After a trim-edge adjust commits — or retained bounds change via Trim / Collect / Reset / open — the view auto-fits to the retained region (same as “Fit trimmed region”). Auto-fit is suppressed while the corresponding drag is in progress so the wave does not chase the pointer.
 
 Single-finger / primary-button drag on the main waveform remains selection (tap seeks). Do not use a Select/Pan mode toggle.
 
@@ -250,17 +250,19 @@ A more practical representation may store an ordered segment list with boundary 
 
 Do not rewrite the source file after every edit.
 
-## 11. Trim, cut, and extract
+## 11. Trim, cut, and Collect
 
 ### Trim
 
-Retain the region between start and end **on the current take**.
+Retain the region between start and end **on the current take**. Successful Trim clears the temporary selection. Trim also **enables peak normalize** on the new retained bounds so gain is recalculated for that section (not the discarded source). Trim shapes the current draft; it does not mint a new Collection item.
 
 ### Cut
 
 Remove the selected region and concatenate the remaining regions **on the current take**.
 
-After cutting:
+Domain support may remain for recipe history, but **MVP UI does not expose Cut** (prefer Collect for multi-sample and Trim for keep-only on the current take).
+
+After cutting (if used programmatically):
 
 - Preserve edit history
 - Update edited duration
@@ -269,16 +271,19 @@ After cutting:
 
 For MVP performance, the edited overview may be generated from retained source peaks when possible.
 
-### Extract
+### Collect
 
-Create a **new Local Draft** from the selected source range:
+Create a **new Local Draft** from the current retained trim:
 
-- Parent take recipe and timeline stay unchanged
-- Child take shares the parent `fileRef` and uses a single retain segment for the selection
-- Child appears in Collection for its own Field Notes and upload
-- Primary multi-sample workflow: one field recording → several extracts → upload each
+- Requires a usable retained trim narrower than the full source (same minimum length as trim); does **not** depend on temporary selection
+- Parent source stays intact; parent recipe resets to full-source identity after Collect
+- Child take shares the parent `fileRef` and uses a single retain segment for the trim bounds
+- Child appears in Collection for its own Field Notes; upload starts from Collection only
+- Brand primary control in the take transport; stay on parent after success so the next region can be trimmed and collected
+- Primary multi-sample workflow: one field recording → Trim → Collect repeatedly → upload from Collection
+- Parents with collected children are excluded from the default upload-pending set; lone takes without children remain pending
 
-Extract is the intended path when one recording contains multiple useful samples. Prefer Extract over repeatedly trimming/undoing the same take.
+Collect is the intended path when one recording contains multiple useful samples (and for single-region “carve then ship” via one Collect). Prefer Collect over repeatedly trimming/undoing the same take when the goal is multiple uploadable assets.
 
 ## 12. Fade
 
@@ -292,7 +297,7 @@ MVP interaction:
 
 - Waveform **fade grips** on the bottom edge of the time ruler (`--ink` wedge tabs; trim keeps `--signal` block tabs below)
 - Drag to set duration; peaks + dashed `--ink` envelope diagonal visualize the linear ramp
-- Not exposed as Edit-sheet Fade in / Fade out actions
+- Not exposed as Field Notes sheet Fade in / Fade out actions
 
 MVP curves:
 
@@ -318,6 +323,8 @@ Process:
 3. Display proposed gain.
 4. Apply as a non-destructive gain operation.
 5. Prevent gain that would exceed the target.
+
+**Trim** auto-enables peak normalize for the new retained section. Manual Normalize remains available for identity / post-cut cases.
 
 Do not call peak normalization “loudness normalization.”
 
@@ -404,6 +411,6 @@ If peak analysis fails:
 - Selection values match visible boundaries.
 - Playback begins at the displayed playhead within practical UI tolerance.
 - Trimmed/cut output duration matches the edit recipe.
-- Extract creates a new Local Draft from the selection without changing the parent recipe.
+- Collect creates a new Local Draft from the retained trim; parent recipe resets to identity afterward.
 - Normalization does not exceed the configured peak target.
 - No fake waveform is shown after real audio exists.

@@ -10,12 +10,14 @@
 		adjustRetainedBoundary,
 		applyFadeIn,
 		applyFadeOut,
-		cutSelection,
+		collectableRetainedBounds,
 		deriveCatalogReference,
 		deriveSpecimenMark,
 		enablePeakNormalization,
 		formatRecordingDate,
 		formatUploadStateLabel,
+		isActiveTakeUploadState,
+		isActiveUploadJobState,
 		isIdentityRecipe,
 		isTakeSavedLocally,
 		recipeDurationSeconds,
@@ -23,7 +25,8 @@
 		trimToSelection,
 		uploadStateTone,
 		type EditRecipe,
-		type Take
+		type Take,
+		type TakeMetadataPatch
 	} from '$lib/domain';
 	import { ensurePeaksForTake, type LoadedPeaks } from '$lib/audio/peaks';
 	import { readBinary } from '$lib/persistence/opfs';
@@ -37,25 +40,27 @@
 	import {
 		actionToast,
 		discardLocalDraft,
-		extractSelectionAsLocalDraft,
+		collectSelectionAsLocalDraft,
 		onTakeInventoryChanged,
 		onUploadQueueChanged,
 		renameTakeDisplayName,
 		saveTakeEditRecipe,
-		saveTakeMetadata
+		saveTakeMetadata,
+		uploadQueue
 	} from '$lib/state';
-	import type { TakeMetadataPatch } from '$lib/domain';
 	import AccountButton from '$lib/ui/components/AccountButton.svelte';
 	import BackButton from '$lib/ui/components/BackButton.svelte';
 	import ConfirmDialog from '$lib/ui/components/ConfirmDialog.svelte';
 	import EmptyState from '$lib/ui/components/EmptyState.svelte';
+	import GhostButton from '$lib/ui/components/GhostButton.svelte';
 	import SheetOverlay from '$lib/ui/components/SheetOverlay.svelte';
-	import UploadSettingsPanel from '$lib/ui/components/UploadSettingsPanel.svelte';
 	import FieldNotesEditor from '$lib/ui/components/FieldNotesEditor.svelte';
+	import PrimaryButton from '$lib/ui/components/PrimaryButton.svelte';
 	import SpecimenMark from '$lib/ui/components/SpecimenMark.svelte';
 	import StatusLabel from '$lib/ui/components/StatusLabel.svelte';
 	import AppShell from '$lib/ui/layouts/AppShell.svelte';
 	import WaveformOverview from '$lib/ui/waveform/WaveformOverview.svelte';
+	import { Icon } from '$lib/ui/icons';
 
 	const takeId = $derived(page.params.takeId ?? '');
 
@@ -89,27 +94,24 @@
 	let editError = $state<string | null>(null);
 	let savingFieldNotes = $state(false);
 	let fieldNotesError = $state<string | null>(null);
-	let editSheetOpen = $state(false);
-	let uploadSheetOpen = $state(false);
+	let fieldNotesSheetOpen = $state(false);
 	let loopPreview = $state(false);
 	let discardConfirmOpen = $state(false);
 	let discarding = $state(false);
+
+	const uploadJob = $derived(take ? uploadQueue.byTakeId[take.id] : undefined);
+
+	const uploadLocked = $derived(
+		take != null &&
+			(isActiveTakeUploadState(take.uploadState) ||
+				(uploadJob != null && isActiveUploadJobState(uploadJob.state)))
+	);
 
 	const sourceDuration = $derived(peaks?.durationSeconds || take?.source.durationSeconds || 0);
 
 	const currentRecipe = $derived.by(() => {
 		void historyEpoch;
 		return editHistory?.current ?? take?.editRecipe ?? null;
-	});
-
-	const canUndo = $derived.by(() => {
-		void historyEpoch;
-		return editHistory?.canUndo ?? false;
-	});
-
-	const canRedo = $derived.by(() => {
-		void historyEpoch;
-		return editHistory?.canRedo ?? false;
 	});
 
 	const identity = $derived(
@@ -129,6 +131,11 @@
 		selectionStart != null &&
 			selectionEnd != null &&
 			Math.abs(selectionEnd - selectionStart) >= MIN_SEGMENT_SECONDS
+	);
+
+	/** Collect commits the retained trim result, not a temporary waveform selection. */
+	const hasUsableTrim = $derived(
+		currentRecipe != null && collectableRetainedBounds(currentRecipe, sourceDuration) != null
 	);
 
 	function bumpHistory() {
@@ -216,7 +223,7 @@
 		mutate: (recipe: EditRecipe) => EditRecipe,
 		feedback?: string
 	): Promise<boolean> {
-		if (!take || !editHistory) return false;
+		if (!take || !editHistory || uploadLocked) return false;
 		editError = null;
 		try {
 			const next = mutate(editHistory.current);
@@ -236,7 +243,14 @@
 		if (!hasUsableSelection || selectionStart == null || selectionEnd == null) return;
 		const start = selectionStart;
 		const end = selectionEnd;
-		await applyRecipeMutation((recipe) => trimToSelection(recipe, start, end), 'Trim applied');
+		const ok = await applyRecipeMutation(
+			(recipe) => trimToSelection(recipe, start, end),
+			'Trim applied'
+		);
+		if (ok) {
+			selectionStart = null;
+			selectionEnd = null;
+		}
 	}
 
 	async function onTrimBoundaryCommit(detail: {
@@ -257,34 +271,33 @@
 		);
 	}
 
-	async function onCut() {
-		if (!hasUsableSelection || selectionStart == null || selectionEnd == null) return;
-		const start = selectionStart;
-		const end = selectionEnd;
-		await applyRecipeMutation((recipe) => cutSelection(recipe, start, end), 'Cut applied');
-	}
-
-	async function onExtract() {
-		if (!take || !hasUsableSelection || selectionStart == null || selectionEnd == null) return;
-		const start = selectionStart;
-		const end = selectionEnd;
+	async function onCollect() {
+		if (uploadLocked) return;
+		if (!take || !editHistory || !currentRecipe || sourceDuration <= 0) return;
+		const bounds = collectableRetainedBounds(currentRecipe, sourceDuration);
+		if (!bounds) return;
 		editError = null;
 		try {
-			await extractSelectionAsLocalDraft({
+			await collectSelectionAsLocalDraft({
 				parentTakeId: take.id,
-				startSeconds: start,
-				endSeconds: end
+				startSeconds: bounds.start,
+				endSeconds: bounds.end
 			});
 			selectionStart = null;
 			selectionEnd = null;
+			// Return parent to full-source identity so the next region can be trimmed and collected.
+			const next = editHistory.resetToIdentity(sourceDuration);
+			bumpHistory();
+			await persistRecipe(next);
 		} catch (cause) {
 			const message =
 				cause && typeof cause === 'object' && 'message' in cause
 					? String((cause as { message: string }).message)
 					: cause instanceof Error
 						? cause.message
-						: 'Could not extract selection.';
-			editError = message.trim() || 'Could not extract selection.';
+						: 'Could not collect trim.';
+			editError = message.trim() || 'Could not collect trim.';
+			actionToast.show(editError);
 		}
 	}
 
@@ -292,38 +305,8 @@
 		await applyRecipeMutation((recipe) => enablePeakNormalization(recipe), 'Normalize applied');
 	}
 
-	async function onUndo() {
-		if (!take || !editHistory) return;
-		const previous = editHistory.undo();
-		if (!previous) return;
-		bumpHistory();
-		editError = null;
-		try {
-			await persistRecipe(previous);
-			actionToast.show('Edit undone');
-		} catch (cause) {
-			editError =
-				cause instanceof Error && cause.message.trim() ? cause.message : 'Could not undo edit.';
-		}
-	}
-
-	async function onRedo() {
-		if (!take || !editHistory) return;
-		const next = editHistory.redo();
-		if (!next) return;
-		bumpHistory();
-		editError = null;
-		try {
-			await persistRecipe(next);
-			actionToast.show('Edit redone');
-		} catch (cause) {
-			editError =
-				cause instanceof Error && cause.message.trim() ? cause.message : 'Could not redo edit.';
-		}
-	}
-
 	async function onResetEdits() {
-		if (!take || !editHistory || sourceDuration <= 0) return;
+		if (!take || !editHistory || sourceDuration <= 0 || uploadLocked) return;
 		editError = null;
 		try {
 			const next = editHistory.resetToIdentity(sourceDuration);
@@ -331,8 +314,10 @@
 			await persistRecipe(next);
 			actionToast.show('Edits reset');
 		} catch (cause) {
-			editError =
+			const message =
 				cause instanceof Error && cause.message.trim() ? cause.message : 'Could not reset edits.';
+			editError = message;
+			actionToast.show(message);
 		}
 	}
 
@@ -535,18 +520,8 @@
 		return `${String(mins).padStart(2, '0')}:${String(whole).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
 	}
 
-	function toggleEditSheet() {
-		editSheetOpen = !editSheetOpen;
-		if (editSheetOpen) {
-			uploadSheetOpen = false;
-		}
-	}
-
-	function toggleUploadSheet() {
-		uploadSheetOpen = !uploadSheetOpen;
-		if (uploadSheetOpen) {
-			editSheetOpen = false;
-		}
+	function toggleFieldNotesSheet() {
+		fieldNotesSheetOpen = !fieldNotesSheetOpen;
 	}
 
 	const channelLabel = $derived(
@@ -644,7 +619,7 @@
 	}
 
 	async function commitName() {
-		if (!take || !editingName) return;
+		if (!take || !editingName || uploadLocked) return;
 		editingName = false;
 		const next = draftName.trim() || take.metadata.displayName;
 		draftName = next;
@@ -670,7 +645,7 @@
 	}
 
 	function requestDiscard() {
-		if (!take || discarding) return;
+		if (!take || discarding || uploadLocked) return;
 		discardConfirmOpen = true;
 	}
 
@@ -688,7 +663,7 @@
 			const id = take.id;
 			await discardLocalDraft(id);
 			discardConfirmOpen = false;
-			editSheetOpen = false;
+			fieldNotesSheetOpen = false;
 			await goto(resolve('/drafts'));
 		} finally {
 			discarding = false;
@@ -696,7 +671,7 @@
 	}
 
 	async function onSaveFieldNotes(patch: TakeMetadataPatch) {
-		if (!take || savingFieldNotes) return;
+		if (!take || savingFieldNotes || uploadLocked) return;
 		savingFieldNotes = true;
 		fieldNotesError = null;
 		try {
@@ -739,9 +714,12 @@
 	{:else if take}
 		<section class="workspace">
 			<header class="editor-header">
-				<BackButton href={resolve('/drafts')} label="Collection" />
+				<div class="header-start">
+					<BackButton href={resolve('/drafts')} label="Collection" />
+					<SpecimenMark mark={deriveSpecimenMark(take)} size="compact" />
+				</div>
 				<div class="title-slot">
-					{#if editingName}
+					{#if editingName && !uploadLocked}
 						<input
 							{@attach autofocus}
 							type="text"
@@ -752,12 +730,29 @@
 							aria-label="Take name"
 						/>
 					{:else}
-						<button type="button" class="take-title" onclick={() => (editingName = true)}>
+						<button
+							type="button"
+							class="take-title"
+							disabled={uploadLocked}
+							onclick={() => {
+								if (uploadLocked) return;
+								editingName = true;
+							}}
+						>
 							{displayName}
 						</button>
 					{/if}
 				</div>
 				<div class="header-end">
+					<GhostButton
+						icon
+						disabled={uploadLocked || identity}
+						onclick={() => void onResetEdits()}
+						aria-label="Reset edits"
+						title="Reset edits"
+					>
+						<Icon name="reset" />
+					</GhostButton>
 					<AccountButton />
 				</div>
 			</header>
@@ -784,30 +779,28 @@
 						{onSelectionChange}
 						{onTrimBoundaryCommit}
 						{onFadeBoundaryCommit}
+						editsLocked={uploadLocked}
 						onRetry={() => {
 							const current = take;
 							if (current) void loadPeaks(current);
 						}}
 					>
 						{#snippet chromeActions()}
-							<button type="button" class="chrome-action" onclick={() => void onNormalize()}>
+							<button
+								type="button"
+								class="chrome-action"
+								disabled={uploadLocked}
+								onclick={() => void onNormalize()}
+							>
 								Normalize
 							</button>
 							<button
 								type="button"
 								class="chrome-action"
-								disabled={!hasUsableSelection}
+								disabled={uploadLocked || !hasUsableSelection}
 								onclick={() => void onTrim()}
 							>
 								Trim
-							</button>
-							<button
-								type="button"
-								class="chrome-action"
-								disabled={!hasUsableSelection}
-								onclick={() => void onExtract()}
-							>
-								Extract
 							</button>
 						{/snippet}
 					</WaveformOverview>
@@ -822,123 +815,61 @@
 						aria-label="Waveform navigation"
 					></div>
 					<div class="transport-bar">
-						<button
-							type="button"
-							class={['secondary-button', 'transport-edit', editSheetOpen && 'active']}
-							onclick={toggleEditSheet}
-							aria-expanded={editSheetOpen}
-							aria-haspopup="dialog"
-						>
-							Edit
-						</button>
-						<div class="transport-center">
-							<div class="transport-play-row">
-								<button type="button" class="play-button" onclick={() => void togglePlayback()}>
-									{playing ? 'Pause' : 'Play'}
-								</button>
-								<button
-									type="button"
-									class={['loop-button', loopPreview && 'active']}
-									aria-label="Loop"
-									aria-pressed={loopPreview}
-									title="Loop"
-									onclick={() => {
-										loopPreview = !loopPreview;
-									}}
-								>
-									<svg
-										class="loop-icon"
-										viewBox="0 0 24 24"
-										width="20"
-										height="20"
-										aria-hidden="true"
-										focusable="false"
-										fill="currentColor"
-									>
-										<path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z" />
-									</svg>
-								</button>
-							</div>
-							<p class="transport-clock" aria-live="polite">
-								{formatClock(currentTime)} / {formatClock(transportDuration)}
-							</p>
+						<div class="transport-left">
+							<button type="button" class="play-button" onclick={() => void togglePlayback()}>
+								{playing ? 'Pause' : 'Play'}
+							</button>
+							<button
+								type="button"
+								class={['loop-button', loopPreview && 'active']}
+								aria-label="Loop"
+								aria-pressed={loopPreview}
+								title="Loop"
+								onclick={() => {
+									loopPreview = !loopPreview;
+								}}
+							>
+								<span class="well">
+									<span class="face">
+										<Icon name="loop" size={18} />
+									</span>
+									{#if loopPreview}
+										<span class="live" aria-hidden="true"></span>
+									{/if}
+								</span>
+							</button>
 						</div>
-						<button
-							type="button"
-							class={['upload-button', 'transport-side', uploadSheetOpen && 'active']}
-							onclick={toggleUploadSheet}
-							aria-expanded={uploadSheetOpen}
-							aria-haspopup="dialog"
-						>
-							Upload
-						</button>
+						<div class="transport-right">
+							<GhostButton
+								icon
+								active={fieldNotesSheetOpen}
+								onclick={toggleFieldNotesSheet}
+								aria-label="Field Notes"
+								aria-expanded={fieldNotesSheetOpen}
+								aria-haspopup="dialog"
+							>
+								<Icon name="field-notes" />
+							</GhostButton>
+							<PrimaryButton
+								disabled={uploadLocked || !hasUsableTrim}
+								onclick={() => void onCollect()}
+							>
+								Collect
+							</PrimaryButton>
+						</div>
 					</div>
 				</div>
 			</div>
 		</section>
 
-		{#if uploadSheetOpen}
-			<SheetOverlay title="Upload" onclose={() => (uploadSheetOpen = false)}>
-				<UploadSettingsPanel
-					embedded
-					{take}
-					channelCount={take.source.channelCount || peaks?.channels || 1}
-					sampleRate={take.source.sampleRate || peaks?.sampleRate || 48000}
-					durationSeconds={editedDuration || take.source.durationSeconds}
-					onsaved={async (updated) => {
-						take = updated;
-					}}
-					onuploaded={async (updated) => {
-						const refreshed = await getTake(updated.id);
-						if (refreshed) take = refreshed;
-					}}
-				/>
-			</SheetOverlay>
-		{/if}
-
-		{#if editSheetOpen}
-			<SheetOverlay title="Edit" onclose={() => (editSheetOpen = false)}>
+		{#if fieldNotesSheetOpen}
+			<SheetOverlay title="Field Notes" onclose={() => (fieldNotesSheetOpen = false)}>
 				<div class="editor-tools">
-					<div class="tool-row">
-						<button
-							type="button"
-							class="secondary-button"
-							disabled={!hasUsableSelection}
-							onclick={() => void onCut()}
-						>
-							Cut
-						</button>
-						<button
-							type="button"
-							class="secondary-button"
-							disabled={!canUndo}
-							onclick={() => void onUndo()}
-						>
-							Undo
-						</button>
-						<button
-							type="button"
-							class="secondary-button"
-							disabled={!canRedo}
-							onclick={() => void onRedo()}
-						>
-							Redo
-						</button>
-						<button
-							type="button"
-							class="secondary-button"
-							disabled={identity}
-							onclick={() => void onResetEdits()}
-						>
-							Reset
-						</button>
-					</div>
 					{#if editError}
 						<p class="edit-error" role="alert">{editError}</p>
 					{/if}
 
 					<section class="field-notes-section" aria-label="Field Notes">
-						<h2 class="section-heading">Field Notes</h2>
 						<div class="catalog-summary">
 							<SpecimenMark mark={deriveSpecimenMark(take)} />
 							<div>
@@ -949,6 +880,7 @@
 
 						<FieldNotesEditor
 							metadata={take.metadata}
+							disabled={uploadLocked}
 							saving={savingFieldNotes}
 							onsave={onSaveFieldNotes}
 						/>
@@ -957,11 +889,6 @@
 						{/if}
 
 						<div class="metadata-grid">
-							<div class="metadata-item">
-								<span class="metadata-label">Playhead</span>
-								<span class="metadata-value">{formatClock(displayPlayhead)}</span>
-							</div>
-
 							<div class="metadata-item">
 								<span class="metadata-label">Duration</span>
 								<span class="metadata-value">{formatClock(sourceDuration)}</span>
@@ -999,7 +926,7 @@
 
 							{#if take.derivedFromTakeId}
 								<div class="metadata-item">
-									<span class="metadata-label">Extracted from</span>
+									<span class="metadata-label">Collected from</span>
 									<span class="metadata-value">
 										<a class="derived-link" href={resolve(`/take/${take.derivedFromTakeId}`)}>
 											Parent take
@@ -1035,7 +962,7 @@
 										{formatUploadStateLabel(take.uploadState)}
 									</StatusLabel>
 								{:else}
-									<StatusLabel tone={isTakeSavedLocally(take) ? 'ok' : 'muted'}>
+									<StatusLabel tone={isTakeSavedLocally(take) ? 'signal' : 'muted'}>
 										{isTakeSavedLocally(take) ? 'LOCAL DRAFT · THIS DEVICE' : 'Not saved'}
 									</StatusLabel>
 								{/if}
@@ -1043,28 +970,17 @@
 						</div>
 					</section>
 
-					<div class="tool-row danger-row">
-						<button
-							type="button"
-							class="discard-icon-button"
+					<div class="danger-row">
+						<GhostButton
+							icon
+							danger
+							disabled={uploadLocked}
 							onclick={requestDiscard}
 							aria-label="Discard take"
 							title="Discard"
 						>
-							<svg
-								class="trash-icon"
-								viewBox="0 0 24 24"
-								width="20"
-								height="20"
-								aria-hidden="true"
-								focusable="false"
-							>
-								<path
-									fill="currentColor"
-									d="M9 3h6v2h5v2H4V5h5V3zm-3 6h2v10H6V9zm4 0h2v10h-2V9zm4 0h2v10h-2V9zM5 21h14V8H5v13z"
-								/>
-							</svg>
-						</button>
+							<Icon name="trash" />
+						</GhostButton>
 					</div>
 				</div>
 			</SheetOverlay>
@@ -1112,10 +1028,20 @@
 		align-items: center;
 		column-gap: var(--space-2);
 		min-height: var(--touch-min);
-		padding: var(--space-2) var(--space-4);
+		padding: var(--space-2);
 		border-bottom: 1px solid var(--line);
 		background: var(--paper);
 		z-index: 1;
+	}
+
+	.header-start {
+		display: flex;
+		align-items: center;
+		justify-content: flex-start;
+		justify-self: start;
+		gap: var(--space-2);
+		min-width: var(--touch-min);
+		min-height: var(--touch-min);
 	}
 
 	.title-slot {
@@ -1130,6 +1056,7 @@
 		align-items: center;
 		justify-content: flex-end;
 		justify-self: end;
+		gap: var(--space-2);
 		min-width: var(--touch-min);
 		min-height: var(--touch-min);
 	}
@@ -1159,6 +1086,16 @@
 
 	.take-title:hover {
 		text-decoration-color: var(--ink-muted);
+	}
+
+	.take-title:disabled {
+		cursor: default;
+		opacity: 0.7;
+		text-decoration: none;
+	}
+
+	.take-title:disabled:hover {
+		text-decoration: none;
 	}
 
 	.take-title-input {
@@ -1226,54 +1163,14 @@
 	.field-notes-section {
 		display: grid;
 		gap: var(--space-3);
-		padding-top: var(--space-3);
-		border-top: 1px solid var(--line);
-	}
-
-	.section-heading {
-		margin: 0;
-		font-size: var(--text-label);
-		font-weight: 600;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		color: var(--ink-muted);
-	}
-
-	.tool-row {
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--space-2);
 	}
 
 	.danger-row {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
 		padding-top: var(--space-2);
 		border-top: 1px solid var(--line);
-	}
-
-	.discard-icon-button {
-		display: inline-grid;
-		place-items: center;
-		width: var(--touch-min);
-		height: var(--touch-min);
-		padding: 0;
-		border: 1px solid var(--signal);
-		border-radius: var(--radius-control);
-		background: var(--surface);
-		color: var(--signal);
-		cursor: pointer;
-	}
-
-	.discard-icon-button:hover {
-		background: var(--surface-subtle);
-	}
-
-	.discard-icon-button:focus-visible {
-		outline: 2px solid var(--signal);
-		outline-offset: 2px;
-	}
-
-	.trash-icon {
-		display: block;
 	}
 
 	.edit-error {
@@ -1353,55 +1250,23 @@
 	}
 
 	.transport-bar {
-		display: grid;
-		grid-template-columns: minmax(var(--touch-min), 1fr) auto minmax(var(--touch-min), 1fr);
+		display: flex;
 		align-items: center;
+		justify-content: space-between;
 		gap: var(--space-2);
 		padding: var(--space-2) var(--space-4);
 		padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom, 0px));
 		background: var(--paper);
 	}
 
-	.transport-side {
-		justify-self: stretch;
-	}
-
-	.transport-edit {
-		justify-self: start;
-		width: auto;
-		padding: 0 var(--space-2);
-	}
-
-	.transport-bar > .transport-side:last-child {
-		justify-self: end;
-	}
-
-	.transport-center {
-		display: grid;
-		justify-items: center;
-		gap: var(--space-1);
-	}
-
-	.transport-play-row {
+	.transport-left,
+	.transport-right {
 		display: flex;
 		align-items: center;
-		justify-content: center;
 		gap: var(--space-2);
 	}
 
-	.transport-clock {
-		margin: 0;
-		font-size: var(--text-meta);
-		font-weight: 600;
-		font-family: var(--font-mono);
-		letter-spacing: 0.02em;
-		color: var(--ink-muted);
-		white-space: nowrap;
-	}
-
-	.play-button,
-	.secondary-button,
-	.upload-button {
+	.play-button {
 		min-height: var(--touch-min);
 		padding: 0 var(--space-4);
 		border-radius: var(--radius-control);
@@ -1412,10 +1277,7 @@
 		cursor: pointer;
 	}
 
-	.transport-edit.secondary-button {
-		padding: 0 var(--space-2);
-	}
-
+	/* Loop: Account-style recessed well + face; transport-sized; latched = brand LED. */
 	.loop-button {
 		display: inline-flex;
 		align-items: center;
@@ -1424,15 +1286,129 @@
 		min-width: var(--touch-min);
 		min-height: var(--touch-min);
 		padding: 0;
-		border: 1px solid var(--ink);
+		border: none;
 		border-radius: var(--radius-control);
-		background: var(--surface);
-		color: var(--ink);
+		background: transparent;
+		color: var(--ink-muted);
 		cursor: pointer;
 	}
 
-	.loop-icon {
-		display: block;
+	.loop-button:focus-visible {
+		outline: none;
+	}
+
+	.loop-button:focus-visible .well {
+		outline: 2px solid var(--ink);
+		outline-offset: var(--space-1);
+	}
+
+	.loop-button .well {
+		position: relative;
+		display: grid;
+		place-items: center;
+		width: calc(var(--space-6) + var(--space-2));
+		height: calc(var(--space-6) + var(--space-2));
+		flex-shrink: 0;
+		padding: var(--space-1);
+		box-sizing: border-box;
+		border-radius: calc(var(--radius-panel) + var(--space-1));
+		background: var(--surface-subtle);
+		box-shadow:
+			inset 0 var(--space-1) var(--space-2) color-mix(in srgb, var(--ink) 14%, transparent),
+			inset 0 calc(var(--space-1) * -1) var(--space-1)
+				color-mix(in srgb, var(--paper) 70%, transparent);
+	}
+
+	.loop-button .face {
+		display: grid;
+		place-items: center;
+		width: 100%;
+		height: 100%;
+		overflow: hidden;
+		border-radius: var(--radius-panel);
+		background: var(--surface);
+		box-shadow:
+			inset 0 1px 0 color-mix(in srgb, var(--paper) 22%, transparent),
+			inset 0 -1px 0 color-mix(in srgb, var(--ink) 18%, transparent);
+	}
+
+	.loop-button .live {
+		position: absolute;
+		top: var(--space-2);
+		right: var(--space-2);
+		width: var(--space-1);
+		height: var(--space-1);
+		border-radius: var(--radius-round);
+		background: var(--brand);
+		pointer-events: none;
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		.loop-button {
+			transition: color 140ms ease;
+		}
+
+		.loop-button .well {
+			transition:
+				background-color 140ms ease,
+				box-shadow 140ms ease;
+		}
+
+		.loop-button .face {
+			transition:
+				background-color 140ms ease,
+				box-shadow 140ms ease;
+		}
+
+		.loop-button.active .live {
+			animation: loop-live 2.4s ease-in-out infinite;
+		}
+	}
+
+	@keyframes loop-live {
+		0%,
+		100% {
+			background-color: var(--brand);
+		}
+		50% {
+			background-color: color-mix(in srgb, var(--brand) 55%, var(--ink));
+		}
+	}
+
+	@media (hover: hover) {
+		.loop-button:hover {
+			color: var(--ink);
+		}
+
+		.loop-button:hover .well {
+			background: color-mix(in srgb, var(--surface-subtle) 82%, var(--ink));
+			box-shadow:
+				inset 0 var(--space-1) var(--space-2) color-mix(in srgb, var(--ink) 6%, transparent),
+				inset 0 calc(var(--space-1) * -1) var(--space-1)
+					color-mix(in srgb, var(--paper) 90%, transparent);
+		}
+
+		.loop-button:hover .face {
+			background: color-mix(in srgb, var(--surface) 42%, var(--paper));
+			box-shadow:
+				inset 0 1px 0 color-mix(in srgb, var(--paper) 55%, transparent),
+				inset 0 -1px 0 color-mix(in srgb, var(--ink) 10%, transparent);
+		}
+	}
+
+	.loop-button:active {
+		color: var(--brand);
+	}
+
+	.loop-button:active .well {
+		box-shadow:
+			inset 0 var(--space-1) var(--space-2) color-mix(in srgb, var(--ink) 30%, transparent),
+			inset 0 calc(var(--space-1) * -1) var(--space-1)
+				color-mix(in srgb, var(--paper) 48%, transparent);
+	}
+
+	.loop-button:active .face {
+		background: color-mix(in srgb, var(--surface) 88%, var(--ink));
 	}
 
 	.play-button {
@@ -1442,39 +1418,8 @@
 		color: var(--surface);
 	}
 
-	.secondary-button {
-		border: 1px solid var(--ink);
+	.play-button:hover {
 		background: var(--surface);
 		color: var(--ink);
-	}
-
-	.upload-button {
-		border: 1px solid var(--ink);
-		background: var(--ink);
-		color: var(--surface);
-	}
-
-	.play-button:hover,
-	.upload-button:hover {
-		background: var(--surface);
-		color: var(--ink);
-	}
-
-	.secondary-button:hover:not(:disabled),
-	.loop-button:hover {
-		background: var(--surface-subtle);
-	}
-
-	.secondary-button.active,
-	.upload-button.active,
-	.loop-button.active {
-		background: var(--surface-subtle);
-		color: var(--ink);
-	}
-
-	.secondary-button:disabled {
-		border-color: var(--disabled);
-		color: var(--disabled);
-		cursor: not-allowed;
 	}
 </style>

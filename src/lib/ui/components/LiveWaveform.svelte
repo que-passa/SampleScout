@@ -44,7 +44,7 @@
 
 		const line = readCssVar('--line', '#c9c9c3');
 		const ink = readCssVar('--ink', '#111111');
-		const signal = readCssVar('--signal', '#e43b2f');
+		const signal = readCssVar('--signal', '#ff1f2e');
 		const muted = readCssVar('--ink-muted', '#5c5c58');
 
 		const midY = cssHeight / 2;

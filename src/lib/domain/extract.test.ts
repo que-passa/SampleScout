@@ -1,23 +1,28 @@
 import { describe, expect, it } from 'vitest';
-import { createSession, createTakeDraft } from './metadata';
-import { buildExtractTakeDraft, formatExtractClock, formatExtractDisplayName } from './extract';
+import { createSession, createTakeDraft, createInitialEditRecipe } from './metadata';
+import { trimToSelection } from './edit-recipe';
+import { buildExtractTakeDraft, collectableRetainedBounds } from './extract';
 
-describe('formatExtractClock', () => {
-	it('formats mm:ss.mmm', () => {
-		expect(formatExtractClock(83.456)).toBe('01:23.456');
+describe('collectableRetainedBounds', () => {
+	it('returns null for a full-source identity recipe', () => {
+		expect(collectableRetainedBounds(createInitialEditRecipe(30), 30)).toBeNull();
 	});
-});
 
-describe('formatExtractDisplayName', () => {
-	it('cites parent and range', () => {
-		expect(formatExtractDisplayName('Field Session · 25 Jul — 001', 1.5, 3)).toBe(
-			'Field Session · 25 Jul — 001 · 00:01.500–00:03.000'
-		);
+	it('returns trim bounds for a single retained segment', () => {
+		const recipe = trimToSelection(createInitialEditRecipe(30), 4, 9);
+		expect(collectableRetainedBounds(recipe, 30)).toEqual({ start: 4, end: 9 });
+	});
+
+	it('ignores fades/normalize alone when bounds still span the full source', () => {
+		const recipe = createInitialEditRecipe(10);
+		recipe.peakNormalization = { enabled: true, targetDbfs: -1 };
+		recipe.segments[0]!.fadeInSeconds = 0.05;
+		expect(collectableRetainedBounds(recipe, 10)).toBeNull();
 	});
 });
 
 describe('buildExtractTakeDraft', () => {
-	it('shares source and retains only the selection', () => {
+	it('shares source and retains only the selection with numbered name', () => {
 		const session = createSession('Field');
 		const parentDraft = createTakeDraft({
 			session,
@@ -37,7 +42,8 @@ describe('buildExtractTakeDraft', () => {
 			session,
 			sequence: 2,
 			startSeconds: 4,
-			endSeconds: 9
+			endSeconds: 9,
+			existingDisplayNames: [parent.metadata.displayName]
 		});
 
 		expect(extract.source.fileRef).toBe(parent.source.fileRef);
@@ -46,7 +52,8 @@ describe('buildExtractTakeDraft', () => {
 		expect(extract.editRecipe.segments[0]?.sourceStartSeconds).toBe(4);
 		expect(extract.editRecipe.segments[0]?.sourceEndSeconds).toBe(9);
 		expect(extract.lifecycleState).toBe('finalizing');
-		expect(extract.metadata.displayName).toContain('00:04.000–00:09.000');
+		expect(extract.metadata.displayName).toBe('Field 02');
+		expect(extract.metadata.displayName).not.toMatch(/[—–]/);
 	});
 
 	it('rejects a too-short selection', () => {

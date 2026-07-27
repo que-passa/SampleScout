@@ -8,6 +8,7 @@ import { audiotoolAuth, connect, disconnect, hydrateAudiotoolAuth } from './audi
 import { actionToast, getActionToastSnapshot } from './action-toast';
 import {
 	batchSaveTakeMetadata,
+	collectSelectionAsLocalDraft,
 	discardLocalDraft,
 	discardLocalDrafts,
 	extractSelectionAsLocalDraft,
@@ -38,6 +39,7 @@ export { actionToast, getActionToastSnapshot };
 export type { ActionToastEntry, ActionToastShowOptions } from './action-toast';
 export {
 	batchSaveTakeMetadata,
+	collectSelectionAsLocalDraft,
 	discardLocalDraft,
 	discardLocalDrafts,
 	extractSelectionAsLocalDraft,

@@ -1,6 +1,7 @@
 export { createId, nowIso, createAppError, formatSequence } from './ids';
 export {
 	SPECIMEN_MARK_SIZE,
+	SPECIMEN_NEON_COUNT,
 	deriveCatalogReference,
 	deriveSpecimenMark,
 	formatFieldSessionName
@@ -19,6 +20,14 @@ export {
 	createTakeDraft,
 	isTakeSavedLocally,
 	isPendingDraftTake,
+	isUploadPendingTake,
+	takeHasCollectedChildren,
+	sanitizeDisplayNameStem,
+	stemFromSessionName,
+	formatNumberedDisplayName,
+	parseNumberedDisplayName,
+	nextNumberedDisplayName,
+	assignNumberedDisplayNames,
 	formatRecordingDate,
 	applyTakeMetadataPatch,
 	formatMetadataOrigin,
@@ -26,7 +35,12 @@ export {
 	parseTagList
 } from './metadata';
 export type { TakeMetadataPatch } from './metadata';
-export { buildExtractTakeDraft, formatExtractClock, formatExtractDisplayName } from './extract';
+export {
+	buildExtractTakeDraft,
+	collectableRetainedBounds,
+	formatExtractClock,
+	formatExtractDisplayName
+} from './extract';
 export {
 	formatUploadStateLabel,
 	isActiveTakeUploadState,

@@ -179,6 +179,76 @@ export function formatRecordingDate(isoDate: string): string {
 	}).format(date);
 }
 
+/** Strip em/en dashes and collapse whitespace for display-name stems. */
+export function sanitizeDisplayNameStem(raw: string): string {
+	return raw
+		.replace(/[\u2014\u2013]/g, ' ')
+		.replace(/\s+/g, ' ')
+		.trim();
+}
+
+/**
+ * Short stem from a Field Session title. Default “Field Session · …” names
+ * compress to day+month; user-renamed sessions keep the cleaned title.
+ */
+export function stemFromSessionName(sessionName: string): string {
+	const cleaned = sanitizeDisplayNameStem(sessionName);
+	if (!cleaned) return 'Take';
+	const fieldMatch = cleaned.match(/^Field Session\s*[·.]\s*(.+)$/i);
+	if (fieldMatch?.[1]) {
+		const rest = fieldMatch[1].trim();
+		const dayMonth = rest.match(/^(\d{1,2}\s+[A-Za-z]{3})\b/);
+		if (dayMonth?.[1]) return dayMonth[1];
+		const beforeDot = rest.split(/\s*[·.]\s*/)[0]?.trim();
+		return beforeDot || 'Session';
+	}
+	return cleaned;
+}
+
+export function formatNumberedDisplayName(stem: string, number: number): string {
+	const safeStem = sanitizeDisplayNameStem(stem) || 'Take';
+	const n = Math.max(1, Math.trunc(number));
+	const label = n < 100 ? String(n).padStart(2, '0') : String(n);
+	return `${safeStem} ${label}`;
+}
+
+/** Parse `Stem 01` style names. Returns null when no trailing number. */
+export function parseNumberedDisplayName(
+	displayName: string
+): { stem: string; number: number } | null {
+	const cleaned = sanitizeDisplayNameStem(displayName);
+	const match = cleaned.match(/^(.*)\s+(\d+)$/);
+	if (!match?.[1] || !match[2]) return null;
+	const stem = match[1].trim();
+	if (!stem) return null;
+	const number = Number.parseInt(match[2], 10);
+	if (!Number.isFinite(number) || number < 1) return null;
+	return { stem, number };
+}
+
+/**
+ * Next `Stem NN` after existing session names. Continues the counter when the
+ * last numbered name shares this stem; otherwise starts at 01.
+ */
+export function nextNumberedDisplayName(stem: string, existingDisplayNames: string[]): string {
+	const safeStem = sanitizeDisplayNameStem(stem) || 'Take';
+	for (let i = existingDisplayNames.length - 1; i >= 0; i -= 1) {
+		const parsed = parseNumberedDisplayName(existingDisplayNames[i] ?? '');
+		if (!parsed) continue;
+		if (parsed.stem.toLowerCase() === safeStem.toLowerCase()) {
+			return formatNumberedDisplayName(safeStem, parsed.number + 1);
+		}
+		return formatNumberedDisplayName(safeStem, 1);
+	}
+	return formatNumberedDisplayName(safeStem, 1);
+}
+
+/** Assign contiguous `Stem 01`… names for a batch upload overlay. */
+export function assignNumberedDisplayNames(stem: string, count: number): string[] {
+	const n = Math.max(0, Math.trunc(count));
+	return Array.from({ length: n }, (_, index) => formatNumberedDisplayName(stem, index + 1));
+}
+
 export function generateTakeMetadata(input: {
 	sessionName: string;
 	sequence: number;
@@ -186,8 +256,14 @@ export function generateTakeMetadata(input: {
 	sessionDefaults: SessionDefaults;
 	recentTags?: string[];
 	presetTags?: string[];
+	/** Prior display names in session order (oldest → newest) for Stem NN continuity. */
+	existingDisplayNames?: string[];
+	/** Override stem; defaults to {@link stemFromSessionName}. */
+	titleStem?: string;
 }): TakeMetadata {
 	const sequenceLabel = formatSequence(input.sequence);
+	const stem = sanitizeDisplayNameStem(input.titleStem ?? stemFromSessionName(input.sessionName));
+	const displayName = nextNumberedDisplayName(stem, input.existingDisplayNames ?? []);
 	const tags =
 		input.sessionDefaults.tags.length > 0
 			? [...input.sessionDefaults.tags]
@@ -207,7 +283,7 @@ export function generateTakeMetadata(input: {
 					: 'application-default';
 
 	return {
-		displayName: `${input.sessionName} — ${sequenceLabel}`,
+		displayName,
 		description: `Recorded during “${input.sessionName}” on ${formatRecordingDate(input.recordedAt)}. Take ${sequenceLabel}.`,
 		tags,
 		kind: input.sessionDefaults.kind,
@@ -232,6 +308,8 @@ export function createTakeDraft(input: {
 	session: CaptureSession;
 	sequence: number;
 	source: Take['source'];
+	existingDisplayNames?: string[];
+	titleStem?: string;
 }): Take {
 	const timestamp = nowIso();
 	return {
@@ -245,7 +323,9 @@ export function createTakeDraft(input: {
 			sessionName: input.session.name,
 			sequence: input.sequence,
 			recordedAt: timestamp,
-			sessionDefaults: input.session.defaults
+			sessionDefaults: input.session.defaults,
+			existingDisplayNames: input.existingDisplayNames,
+			titleStem: input.titleStem
 		}),
 		editRecipe: createInitialEditRecipe(input.source.durationSeconds),
 		output: input.session.defaults.output,
@@ -260,7 +340,20 @@ export function isTakeSavedLocally(take: Take): boolean {
 	return take.lifecycleState === 'saved' && Boolean(take.source.fileRef);
 }
 
-/** Locally persisted take that has not finished uploading to Audiotool. */
+/** Locally persisted take that has not finished uploading to Audiotool (ignores children). */
 export function isPendingDraftTake(take: Take): boolean {
 	return isTakeSavedLocally(take) && take.uploadState !== 'uploaded';
+}
+
+/** True when any take was Collected from this parent. */
+export function takeHasCollectedChildren(takeId: Take['id'], allTakes: readonly Take[]): boolean {
+	return allTakes.some((candidate) => candidate.derivedFromTakeId === takeId);
+}
+
+/**
+ * Upload-pending: Local Draft, not uploaded, and no collected children.
+ * Lone parents stay pending; parents with children are source-only for shipping.
+ */
+export function isUploadPendingTake(take: Take, allTakes: readonly Take[]): boolean {
+	return isPendingDraftTake(take) && !takeHasCollectedChildren(take.id, allTakes);
 }

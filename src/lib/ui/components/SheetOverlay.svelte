@@ -2,15 +2,20 @@
 	import type { Snippet } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { fade, fly } from 'svelte/transition';
+	import GhostButton from '$lib/ui/components/GhostButton.svelte';
+	import { Icon } from '$lib/ui/icons';
 
 	let {
 		title,
 		onclose,
-		children
+		children,
+		dismissible = true
 	}: {
 		title: string;
 		onclose: () => void;
 		children: Snippet;
+		/** When false, Escape / backdrop / close cannot dismiss (e.g. active upload). */
+		dismissible?: boolean;
 	} = $props();
 
 	const uid = $props.id();
@@ -21,19 +26,23 @@
 	const duration = $derived(reduceMotion.current ? 0 : 180);
 	const panelFly = $derived(desktop.current ? { y: 12, duration } : { y: 48, duration });
 
-	function autofocus(node: HTMLButtonElement) {
+	function autofocus(node: HTMLElement) {
 		node.focus();
 	}
 
+	function noopAttach(node: HTMLElement) {
+		void node;
+	}
+
 	function onKeydown(event: KeyboardEvent) {
-		if (event.key === 'Escape') {
+		if (event.key === 'Escape' && dismissible) {
 			event.preventDefault();
 			onclose();
 		}
 	}
 
 	function onBackdropClick(event: MouseEvent) {
-		if (event.target === event.currentTarget) {
+		if (dismissible && event.target === event.currentTarget) {
 			onclose();
 		}
 	}
@@ -48,13 +57,16 @@
 		aria-modal="true"
 		aria-labelledby={titleId}
 		tabindex="-1"
+		{@attach dismissible ? noopAttach : autofocus}
 		transition:fly={panelFly}
 	>
 		<header class="header">
 			<h2 id={titleId} class="title">{title}</h2>
-			<button type="button" class="close" {@attach autofocus} onclick={onclose} aria-label="Close">
-				<span aria-hidden="true">×</span>
-			</button>
+			{#if dismissible}
+				<GhostButton icon focusOnMount onclick={onclose} aria-label="Close">
+					<Icon name="close" />
+				</GhostButton>
+			{/if}
 		</header>
 		<div class="body">
 			{@render children()}
@@ -106,32 +118,6 @@
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
 		color: var(--ink-muted);
-	}
-
-	.close {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		min-width: var(--touch-min);
-		min-height: var(--touch-min);
-		margin: calc(var(--space-2) * -1);
-		padding: 0;
-		border: 1px solid transparent;
-		border-radius: var(--radius-control);
-		background: transparent;
-		color: var(--ink);
-		font-size: var(--text-title);
-		line-height: 1;
-		cursor: pointer;
-	}
-
-	.close:hover {
-		background: var(--surface-subtle);
-	}
-
-	.close:focus-visible {
-		outline: 2px solid var(--ink);
-		outline-offset: 2px;
 	}
 
 	.body {

@@ -22,6 +22,14 @@ describe('trimToSelection', () => {
 		expect(next.segments[0]?.sourceEndSeconds).toBe(5);
 		expect(recipeDurationSeconds(next)).toBe(3);
 	});
+
+	it('enables peak normalize for the trimmed retained bounds', () => {
+		const recipe = createInitialEditRecipe(10);
+		const next = trimToSelection(recipe, 2, 5);
+		expect(next.peakNormalization?.enabled).toBe(true);
+		expect(next.peakNormalization?.targetDbfs).toBe(-1);
+		expect(next.peakNormalization?.calculatedGainDb).toBeUndefined();
+	});
 });
 
 describe('adjustRetainedBoundary', () => {

@@ -68,7 +68,7 @@ Use one optional functional signal color.
 Recommended:
 
 ```css
---signal: #e43b2f;
+--signal: #ff1f2e;
 --brand: #00f0c8;
 --brand-soft: #c8fff2;
 ```
@@ -80,10 +80,11 @@ Use `--signal` only for:
 - Destructive confirmation
 - Critical failure
 - Trim / edit boundary markers on the waveform
+- Local Draft status chips (Collection take rows and take Status) — same record red, border + text
 
-Use `--brand` / `--brand-soft` for compact action-toast chrome (success / confirm feedback). Do not use `--signal` for those toasts. Discarded (outside-trim) waveform regions use `--disabled` wash and peaks; retained audio stays normal `--ink` on paper.
+Use `--brand` / `--brand-soft` for primary CTA faces (`PrimaryButton`: Collect / Upload), compact action-toast chrome (success / confirm feedback), **and** active waveform selection fill/edges/grips. While dragging a trim edge, that grip and its boundary stroke also use `--brand` (idle trim stays `--signal`). Do not use `--signal` for those toasts, primary CTAs, or selection. Discarded (outside-trim) waveform regions use `--disabled` wash and peaks; retained audio stays normal `--ink` on paper.
 
-Do not use signal or brand color for ordinary navigation or decoration.
+Do not use signal or brand color for ordinary navigation or decoration (Account / Collection / Loop wells stay surface-faced; brand appears only as the latched LED or primary CTA face).
 
 Alternative: provide a fully monochrome mode using fill, border weight, pattern, and text labels instead of signal color.
 
@@ -207,17 +208,27 @@ Use large pill shapes only for toggles, tags, or status where the shape has sema
 
 ### Primary
 
-- Black fill
-- White text
-- 1 px black border
-- Clear pressed state
-- Minimum 44 px mobile height
+- Recessed well (`--surface-subtle` + inset depth) with a raised `--brand` face and `--ink` label
+- Same physical stack as Account / Collection / Loop instrument chrome; brand face marks the CTA (parallel to Record’s signal face)
+- Clear hover (lighter well + slightly lifted brand face) and pressed (deeper well + darkened brand face) states
+- Minimum 44 px mobile height (`--touch-min`)
+- Use `PrimaryButton` for take **Collect**, Collection footer **Upload**, and upload-sheet confirm **Upload**
 
 ### Secondary
 
-- White or transparent fill
-- Black border
-- Black text
+- Same recessed well + raised `--surface` face as Account, Capture Collection shortcut, and take-editor **Loop**
+- Quieter latch/status chrome; Loop latched shows a `--brand` live LED like Account connected
+- Flat ink-border secondary remains available for rarer text actions that are not instrument wells
+
+### Ghost
+
+- Idle: transparent fill, no border, ink text/icon
+- Hover: flat `--surface-subtle` well + `--surface` face (no inset shadows)
+- Sticky on / expanded: Account / Collection default recessed well + raised `--surface` face
+- `:active` (while pressed): deeper well inset; `--brand` for text/icon fill (destructive ghosts keep `--signal`)
+- Use `GhostButton` / `BackButton` for Back, Collection **Select** / **Import** / select-mode **Edit data** / **Discard**, take-editor **Reset**, **Field Notes**, sheet close
+- Collection **Upload** and take **Collect** use **Primary**, not Ghost
+- Compact waveform chrome (zoom ±, Normalize / Trim) may keep a smaller flat hit target for now
 
 ### Destructive
 
@@ -226,16 +237,16 @@ Use large pill shapes only for toggles, tags, or status where the shape has sema
 
 ### Record
 
-The record control must be visually unmistakable — a solid red circular control in the familiar mobile-recorder pattern, seated in a shallow recessed well.
+The record control must be visually unmistakable — a solid red rounded-square control (large corner radius, not a pure circle), seated in a shallow recessed well.
 
 Idle:
 
-- Filled `--signal` circle (thumb-sized) inside a soft `--surface-subtle` well with quiet inset depth
-- Label `RECORD` below the circle
+- Filled `--signal` rounded square (thumb-sized, `--radius-record`) inside a soft `--surface-subtle` well with quiet inset depth and matching concentric corners
+- Label `RECORD` below the control
 
 Active:
 
-- Same circular footprint with a dark `--ink` face (still in the recessed well)
+- Same rounded-square footprint with a dark `--ink` face (still in the recessed well)
 - `--signal` rounded stop square (signal on the icon only — not the whole button fill)
 - Label `STOP`
 - Timer visible
@@ -244,15 +255,17 @@ Avoid oversized decorative rings, pulsing halos, glowing effects, and floating d
 
 ## 8. Iconography
 
-Use a consistent thin-line icon set or custom icons.
+Use the shared SampleScout UI set: SVG files in `$lib/assets/ui-icons`, rendered via `$lib/ui/icons` (`Icon`). Do not mix Material fills, emoji, or ad-hoc path dumps into screens.
 
 Rules:
 
-- 1.5–2 px strokes
-- Square line caps where appropriate
-- Icons accompanied by text for important actions
+- 24×24 viewBox assets with `currentColor` stroke/fill
+- Swap artwork by replacing the SVG file — keep the `Icon` name stable
+- Icons accompanied by text for important actions when a label is clearer (Play, Upload, Normalize…)
 - No mixed icon families
 - Avoid metaphorical icons when a text label is clearer
+- Specimen marks remain generated catalog identity — not UI glyphs
+- Brand / PWA mark assets stay separate from chrome icons
 
 The SampleScout mark may combine:
 
@@ -265,9 +278,9 @@ Avoid a generic location pin as the primary identity unless it is substantially 
 
 ### Specimen marks
 
-A Collection record may carry a small deterministic specimen mark derived from persisted take/source facts. The same inputs must produce the same mark; no random-on-render decoration. Marks are catalog identities only—not waveforms, audio fingerprints, signal analysis, quality scores, rarity, or status.
+A Collection record may carry a small deterministic specimen mark derived from persisted take/source facts. The same inputs must produce the same mark (pattern and neon fill); no random-on-render decoration. Marks are catalog identities only—not waveforms, audio fingerprints, signal analysis, quality scores, rarity, or status.
 
-Keep marks monochrome, compact, subordinate to the record name, and built from existing tokens. They must never resemble a fake waveform or replace the real PCM-derived waveform.
+Keep marks compact and subordinate to the record name. Active cells use one of 21 neon fills (`--specimen-neon-0`…`--specimen-neon-20`, same family as brand success teal) chosen deterministically from the mark hash. They must never resemble a fake waveform or replace the real PCM-derived waveform.
 
 ## 9. Panels and lists
 
@@ -328,13 +341,14 @@ Allowed:
 - Processing indicator
 - Panel reveal
 - Selection movement
+- Capture idle standby scan — one slow right→left marker on the zero axis (matches live-wave scroll; instrument “armed”), not a fake waveform; header slot matches timer height so the axis aligns with recording; pause when hidden; off under `prefers-reduced-motion`
 
 Avoid:
 
 - Springy card animations
-- Continuous ambient motion
+- Open-ended ambient decoration (glow pulses, floating particles, looping marketing motion)
 - Pulsing everything during recording
-- Waveform animation unrelated to actual input
+- Waveform animation unrelated to actual input (standby scan is axis/cursor only)
 - Celebratory collection motion, rarity reveals, XP, or streak effects
 
 Respect `prefers-reduced-motion`.

@@ -7,6 +7,7 @@ import {
 	checkStorageForImport,
 	commitSavedTake,
 	ensureActiveSession,
+	listDisplayNamesForSession,
 	nextSequenceForSession,
 	sourcePath,
 	writeBinary
@@ -51,10 +52,12 @@ export function buildImportTakeDraft(input: {
 	durationSeconds: number;
 	channelCount: number;
 	sampleRate: number;
+	existingDisplayNames?: string[];
 }): Take {
 	return createTakeDraft({
 		session: input.session,
 		sequence: input.sequence,
+		existingDisplayNames: input.existingDisplayNames,
 		source: {
 			fileRef: '',
 			mimeType: input.file.type || 'application/octet-stream',
@@ -106,13 +109,15 @@ export async function importAudioFile(
 
 	const session = await ensureActiveSession();
 	const sequence = await nextSequenceForSession(session.id);
+	const existingDisplayNames = await listDisplayNamesForSession(session.id);
 	const draft = buildImportTakeDraft({
 		session,
 		sequence,
 		file,
 		durationSeconds: summary.durationSeconds,
 		channelCount: summary.channelCount,
-		sampleRate: summary.sampleRate
+		sampleRate: summary.sampleRate,
+		existingDisplayNames
 	});
 
 	const path = sourcePath(session.id, draft.id);

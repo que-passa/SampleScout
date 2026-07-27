@@ -21,6 +21,7 @@
 		zoomView,
 		type ViewWindow
 	} from './view-window';
+	import { Icon } from '$lib/ui/icons';
 
 	let {
 		data,
@@ -47,7 +48,9 @@
 		onRetry,
 		onSelectionChange,
 		onTrimBoundaryCommit,
-		onFadeBoundaryCommit
+		onFadeBoundaryCommit,
+		/** When true, trim / fade / selection edits are disabled (zoom / pan / seek still work). */
+		editsLocked = false
 	}: {
 		data: Float32Array | null;
 		channels: number;
@@ -81,6 +84,7 @@
 		}) => void;
 		/** Fade duration in seconds; fade-in starts at trim start, fade-out ends at trim end. */
 		onFadeBoundaryCommit?: (detail: { edge: 'in' | 'out'; seconds: number }) => void;
+		editsLocked?: boolean;
 	} = $props();
 
 	type RetainedRange = {
@@ -129,14 +133,15 @@
 	let detailForKey: string | null = null;
 
 	const DRAG_THRESHOLD_PX = 4;
-	const NAV_EDGE_HIT_PX = 14;
-	const TRIM_EDGE_HIT_PX = 14;
-	/** Same hit radius as trim — selection edges use ink grips, not signal. */
+	/** ~half of `--touch-min` (44) for easier edge grabs. */
+	const NAV_EDGE_HIT_PX = 22;
+	const TRIM_EDGE_HIT_PX = 22;
+	/** Same hit radius as trim — selection edges use brand grips, not signal. */
 	const SELECTION_EDGE_HIT_PX = TRIM_EDGE_HIT_PX;
 	/** Tick/label band inside the time ruler. */
 	const RULER_CONTENT_HEIGHT_PX = 22;
 	/** Extra ruler height below ticks — fade grip tabs sit here. */
-	const RULER_BOTTOM_PAD_PX = 14;
+	const RULER_BOTTOM_PAD_PX = 16;
 	/** Full time-ruler band (content + bottom pad). */
 	const RULER_HEIGHT_PX = RULER_CONTENT_HEIGHT_PX + RULER_BOTTOM_PAD_PX;
 	const WHEEL_ZOOM_SENSITIVITY = 0.0025;
@@ -328,8 +333,9 @@
 	}
 
 	/**
-	 * 2px `--signal` column at a retained edge. Start sits to the right of the time
-	 * ([x, x+2]); end sits to the left ([x-2, x]) so DOM stems can share the same box.
+	 * 2px column at a retained edge (caller sets fillStyle: idle `--signal`,
+	 * active trim drag `--brand`). Start sits to the right of the time ([x, x+2]);
+	 * end sits to the left ([x-2, x]) so DOM stems can share the same box.
 	 */
 	function fillBoundaryMarker(
 		ctx: CanvasRenderingContext2D,
@@ -632,7 +638,10 @@
 		ctx.globalAlpha = 1;
 	}
 
-	/** 2px `--signal` columns at retained (trim) boundaries — heavier than 1px selection/playhead. */
+	/**
+	 * 2px columns at retained (trim) boundaries — heavier than 1px selection/playhead.
+	 * Idle edges use `stroke` (`--signal`); the actively dragged edge uses `active.stroke` (`--brand`).
+	 */
 	function drawRetainedBoundaryMarkers(
 		ctx: CanvasRenderingContext2D,
 		y0: number,
@@ -641,16 +650,19 @@
 		t1: number,
 		viewDur: number,
 		width: number,
-		stroke: string
+		stroke: string,
+		active?: { rangeIndex: number; edge: 'start' | 'end'; stroke: string } | null
 	) {
 		const sorted = sortedRetainedRanges();
 		if (sorted.length === 0) return;
 
-		ctx.fillStyle = stroke;
-		for (const range of sorted) {
+		for (let rangeIndex = 0; rangeIndex < sorted.length; rangeIndex += 1) {
+			const range = sorted[rangeIndex]!;
 			for (const edge of ['start', 'end'] as const) {
 				const edgeT = range[edge];
 				if (edgeT < t0 || edgeT > t1) continue;
+				const isActive = active != null && active.rangeIndex === rangeIndex && active.edge === edge;
+				ctx.fillStyle = isActive ? active.stroke : stroke;
 				fillBoundaryMarker(ctx, boundaryMarkerX(edgeT, t0, viewDur, width), edge, y0, y1);
 			}
 		}
@@ -793,7 +805,9 @@
 		const paper = isStage ? readCssVar('--paper', '#f7f7f3') : readCssVar('--surface', '#ffffff');
 		const line = readCssVar('--line', '#c9c9c3');
 		const ink = readCssVar('--ink', '#111111');
-		const signal = readCssVar('--signal', '#e43b2f');
+		const signal = readCssVar('--signal', '#ff1f2e');
+		const brand = readCssVar('--brand', '#00f0c8');
+		const brandSoft = readCssVar('--brand-soft', '#c8fff2');
 		const muted = readCssVar('--ink-muted', '#5c5c58');
 		const subtle = readCssVar('--surface-subtle', '#efefeb');
 		const disabled = readCssVar('--disabled', '#a8a8a2');
@@ -867,7 +881,17 @@
 			showDiscarded ? disabled : null
 		);
 		drawFadeEnvelopes(ctx, waveTop, waveH, t0, t1, viewDur, cssWidth, ink);
-		drawRetainedBoundaryMarkers(ctx, waveTop, waveTop + waveH, t0, t1, viewDur, cssWidth, signal);
+		drawRetainedBoundaryMarkers(
+			ctx,
+			waveTop,
+			waveTop + waveH,
+			t0,
+			t1,
+			viewDur,
+			cssWidth,
+			signal,
+			trimDrag ? { rangeIndex: trimDrag.rangeIndex, edge: trimDrag.edge, stroke: brand } : null
+		);
 
 		if (selectionLo != null && selectionHi != null && selectionHi > selectionLo) {
 			const selStart = Math.max(selectionLo, t0);
@@ -875,12 +899,13 @@
 			if (selEnd > selStart) {
 				const x0 = xForTime(selStart, t0, viewDur, cssWidth);
 				const x1 = xForTime(selEnd, t0, viewDur, cssWidth);
-				ctx.fillStyle = ink;
-				ctx.globalAlpha = 0.12;
+				/* brand-soft wash at ~0.5 so selection reads clearly on paper. */
+				ctx.fillStyle = brandSoft;
+				ctx.globalAlpha = 0.5;
 				ctx.fillRect(x0, waveTop, Math.max(1, x1 - x0), waveH);
 				ctx.globalAlpha = 1;
 
-				ctx.strokeStyle = ink;
+				ctx.strokeStyle = brand;
 				ctx.lineWidth = 1;
 				ctx.beginPath();
 				ctx.moveTo(x0 + 0.5, waveTop);
@@ -919,15 +944,15 @@
 		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 		ctx.clearRect(0, 0, navWidth, navHeight);
 
-		const paper = isStage ? readCssVar('--paper', '#f7f7f3') : readCssVar('--surface', '#ffffff');
+		const paper = readCssVar('--paper', '#f7f7f3');
 		const subtle = readCssVar('--surface-subtle', '#efefeb');
-		const line = readCssVar('--line', '#c9c9c3');
 		const ink = readCssVar('--ink', '#111111');
-		const signal = readCssVar('--signal', '#e43b2f');
+		const signal = readCssVar('--signal', '#ff1f2e');
+		const brand = readCssVar('--brand', '#00f0c8');
 		const muted = readCssVar('--ink-muted', '#5c5c58');
 		const disabled = readCssVar('--disabled', '#a8a8a2');
 
-		ctx.fillStyle = isStage ? paper : subtle;
+		ctx.fillStyle = subtle;
 		ctx.fillRect(0, 0, navWidth, navHeight);
 
 		if (analyzing || !data || peakCount <= 0 || channels <= 0) {
@@ -992,7 +1017,8 @@
 			durationSeconds,
 			Math.max(1e-6, durationSeconds),
 			navWidth,
-			signal
+			signal,
+			trimDrag ? { rangeIndex: trimDrag.rangeIndex, edge: trimDrag.edge, stroke: brand } : null
 		);
 
 		ctx.strokeStyle = ink;
@@ -1011,12 +1037,6 @@
 			ctx.moveTo(px + 0.5, 0);
 			ctx.lineTo(px + 0.5, navHeight);
 			ctx.stroke();
-		}
-
-		ctx.strokeStyle = line;
-		ctx.lineWidth = 1;
-		if (!isStage) {
-			ctx.strokeRect(0.5, 0.5, navWidth - 1, navHeight - 1);
 		}
 	}
 
@@ -1184,8 +1204,54 @@
 		| null = null;
 	let navCursor = $state('default');
 
-	function hitTrimEdge(clientX: number): { rangeIndex: number; edge: 'start' | 'end' } | null {
+	/**
+	 * Zero-fade priority: fade grips sit on trim edges.
+	 * - Pointer in the ruler (incl. bottom pad / fade grip band) → fade
+	 * - Horizontal drag near retained edge on the wave body → trim
+	 */
+	function pointerInFadeGripBand(clientY: number): boolean {
+		if (!canvas) return false;
+		const y = clientY - canvas.getBoundingClientRect().top;
+		return y >= 0 && y < RULER_HEIGHT_PX;
+	}
+
+	function hitFadeEdge(
+		clientX: number,
+		clientY: number
+	): { edge: 'in' | 'out'; rangeIndex: number } | null {
 		if (!canvas || cssWidth <= 0 || durationSeconds <= 0) return null;
+		if (!pointerInFadeGripBand(clientY)) return null;
+		const ranges = sortedRetainedRanges();
+		if (ranges.length === 0) return null;
+
+		const t0 = viewStart * durationSeconds;
+		const viewDur = Math.max(1e-6, viewEnd * durationSeconds - t0);
+		const x = clientX - canvas.getBoundingClientRect().left;
+
+		let best: { edge: 'in' | 'out'; rangeIndex: number; dist: number } | null = null;
+		const first = ranges[0]!;
+		const fadeInX = boundaryMarkerX(first.start + first.fadeInSeconds, t0, viewDur, cssWidth);
+		const distIn = Math.abs(x - fadeInX);
+		if (distIn <= TRIM_EDGE_HIT_PX) {
+			best = { edge: 'in', rangeIndex: 0, dist: distIn };
+		}
+		const lastIndex = ranges.length - 1;
+		const last = ranges[lastIndex]!;
+		const fadeOutX = boundaryMarkerX(last.end - last.fadeOutSeconds, t0, viewDur, cssWidth);
+		const distOut = Math.abs(x - fadeOutX);
+		if (distOut <= TRIM_EDGE_HIT_PX && (!best || distOut < best.dist)) {
+			best = { edge: 'out', rangeIndex: lastIndex, dist: distOut };
+		}
+		return best ? { edge: best.edge, rangeIndex: best.rangeIndex } : null;
+	}
+
+	function hitTrimEdge(
+		clientX: number,
+		clientY?: number
+	): { rangeIndex: number; edge: 'start' | 'end' } | null {
+		if (!canvas || cssWidth <= 0 || durationSeconds <= 0) return null;
+		/* Ruler band belongs to fade when grips coincide at zero fade. */
+		if (clientY != null && pointerInFadeGripBand(clientY)) return null;
 		const ranges = sortedRetainedRanges();
 		if (ranges.length === 0) return null;
 
@@ -1665,7 +1731,7 @@
 	}
 
 	function onTrimHandlePointerDown(event: PointerEvent, rangeIndex: number, edge: 'start' | 'end') {
-		if (analyzing || !data) return;
+		if (editsLocked || analyzing || !data) return;
 		if (event.pointerType === 'mouse' && event.button !== 0) return;
 		event.preventDefault();
 		event.stopPropagation();
@@ -1685,7 +1751,7 @@
 	}
 
 	function onFadeHandlePointerDown(event: PointerEvent, edge: 'in' | 'out', rangeIndex: number) {
-		if (analyzing || !data) return;
+		if (editsLocked || analyzing || !data) return;
 		if (event.pointerType === 'mouse' && event.button !== 0) return;
 		event.preventDefault();
 		event.stopPropagation();
@@ -1705,7 +1771,7 @@
 	}
 
 	function onSelectionHandlePointerDown(event: PointerEvent, edge: 'start' | 'end') {
-		if (analyzing || !data) return;
+		if (editsLocked || analyzing || !data) return;
 		if (event.pointerType === 'mouse' && event.button !== 0) return;
 		event.preventDefault();
 		event.stopPropagation();
@@ -1724,12 +1790,21 @@
 		commitSelectionEdgeDrag(event.pointerId, event.clientX, event.currentTarget);
 	}
 
-	function syncMainCursor(clientX: number) {
+	function syncMainCursor(clientX: number, clientY?: number) {
 		if (analyzing || !data) {
 			mainCursor = 'default';
 			return;
 		}
-		if (trimDrag || fadeDrag || hitTrimEdge(clientX)) {
+		if (editsLocked) {
+			mainCursor = 'default';
+			return;
+		}
+		if (
+			trimDrag ||
+			fadeDrag ||
+			(clientY != null && hitFadeEdge(clientX, clientY)) ||
+			hitTrimEdge(clientX, clientY)
+		) {
 			mainCursor = TRIM_CURSOR;
 			return;
 		}
@@ -1817,17 +1892,26 @@
 			return;
 		}
 
-		const trimHit = hitTrimEdge(event.clientX);
-		if (trimHit && event.isPrimary) {
-			if (beginTrimDrag(event.pointerId, trimHit.rangeIndex, trimHit.edge)) {
-				return;
+		if (!editsLocked) {
+			const fadeHit = hitFadeEdge(event.clientX, event.clientY);
+			if (fadeHit && event.isPrimary) {
+				if (beginFadeDrag(event.pointerId, fadeHit.edge, fadeHit.rangeIndex)) {
+					return;
+				}
 			}
-		}
 
-		const selectionEdge = hitSelectionEdge(event.clientX);
-		if (selectionEdge && event.isPrimary) {
-			if (beginSelectionEdgeDrag(event.pointerId, selectionEdge)) {
-				return;
+			const trimHit = hitTrimEdge(event.clientX, event.clientY);
+			if (trimHit && event.isPrimary) {
+				if (beginTrimDrag(event.pointerId, trimHit.rangeIndex, trimHit.edge)) {
+					return;
+				}
+			}
+
+			const selectionEdge = hitSelectionEdge(event.clientX);
+			if (selectionEdge && event.isPrimary) {
+				if (beginSelectionEdgeDrag(event.pointerId, selectionEdge)) {
+					return;
+				}
 			}
 		}
 
@@ -1842,24 +1926,27 @@
 			return;
 		}
 
-		if (hitSelectionBody(event.clientX) && event.isPrimary) {
+		if (!editsLocked && hitSelectionBody(event.clientX) && event.isPrimary) {
 			if (beginSelectionMoveDrag(event.pointerId, time)) {
 				return;
 			}
 		}
 
+		/* When edits are locked, selectDrag still tracks click-to-seek (no selection commit). */
 		selectDrag = {
 			pointerId: event.pointerId,
 			originX: event.clientX,
 			originTime: time,
 			dragged: false
 		};
-		suppressSelectionFit = true;
+		if (!editsLocked) {
+			suppressSelectionFit = true;
+		}
 	}
 
 	function onMainPointerMove(event: PointerEvent) {
 		if (!activePointers.has(event.pointerId)) {
-			syncMainCursor(event.clientX);
+			syncMainCursor(event.clientX, event.clientY);
 			return;
 		}
 		activePointers.set(event.pointerId, {
@@ -1929,6 +2016,7 @@
 		}
 
 		if (selectDrag && event.pointerId === selectDrag.pointerId) {
+			if (editsLocked) return;
 			const dx = Math.abs(event.clientX - selectDrag.originX);
 			if (!selectDrag.dragged && dx < DRAG_THRESHOLD_PX) return;
 			selectDrag.dragged = true;
@@ -1982,12 +2070,12 @@
 				/* already released */
 			}
 		}
-		syncMainCursor(event.clientX);
+		syncMainCursor(event.clientX, event.clientY);
 	}
 
 	function onMainPointerLeave() {
 		if (trimDrag || selectionEdgeDrag || selectionMoveDrag || selectDrag || panDrag) return;
-		mainCursor = 'crosshair';
+		mainCursor = editsLocked ? 'default' : 'crosshair';
 	}
 
 	function navHitMode(clientX: number): 'start' | 'end' | 'move' | 'jump' {
@@ -2160,6 +2248,7 @@
 		void selectionEnd;
 		void retainedRanges;
 		void previewRetainedRanges;
+		void trimDrag;
 		void detailPcm;
 		draw();
 	});
@@ -2179,6 +2268,7 @@
 		void navHeight;
 		void retainedRanges;
 		void previewRetainedRanges;
+		void trimDrag;
 		drawNavigator();
 	});
 </script>
@@ -2193,7 +2283,7 @@
 			aria-label="Zoom out"
 			title="Zoom out"
 		>
-			−
+			<Icon name="zoom-out" size={16} />
 		</button>
 		<button
 			type="button"
@@ -2203,7 +2293,7 @@
 			aria-label="Zoom in"
 			title="Zoom in"
 		>
-			+
+			<Icon name="zoom-in" size={16} />
 		</button>
 	</div>
 {/snippet}
@@ -2313,11 +2403,12 @@
 					type="button"
 					class={['fade-grip', handle.edge === 'in' ? 'edge-in' : 'edge-out']}
 					class:active={fadeDrag?.edge === handle.edge}
+					class:trim-dragging={Boolean(trimDrag)}
 					style:left="{handle.x}px"
 					style:cursor={TRIM_CURSOR}
 					aria-label={handle.label}
 					title={handle.label}
-					disabled={analyzing || !data}
+					disabled={editsLocked || analyzing || !data}
 					onpointerdown={(event) => onFadeHandlePointerDown(event, handle.edge, handle.rangeIndex)}
 					onpointermove={onFadeHandlePointerMove}
 					onpointerup={onFadeHandlePointerUp}
@@ -2336,7 +2427,7 @@
 					style:cursor={TRIM_CURSOR}
 					aria-label={handle.label}
 					title={handle.label}
-					disabled={analyzing || !data}
+					disabled={editsLocked || analyzing || !data}
 					onpointerdown={(event) => onSelectionHandlePointerDown(event, handle.edge)}
 					onpointermove={onSelectionHandlePointerMove}
 					onpointerup={onSelectionHandlePointerUp}
@@ -2356,7 +2447,7 @@
 					style:cursor={TRIM_CURSOR}
 					aria-label={handle.label}
 					title={handle.label}
-					disabled={analyzing || !data}
+					disabled={editsLocked || analyzing || !data}
 					onpointerdown={(event) => onTrimHandlePointerDown(event, handle.rangeIndex, handle.edge)}
 					onpointermove={onTrimHandlePointerMove}
 					onpointerup={onTrimHandlePointerUp}
@@ -2462,7 +2553,7 @@
 		min-width: 30px;
 		min-height: 30px;
 		padding: 0 var(--space-2);
-		border: 1px solid var(--ink);
+		border: none;
 		border-radius: var(--radius-control);
 		background: transparent;
 		color: var(--ink);
@@ -2478,30 +2569,33 @@
 		background: var(--surface-subtle);
 	}
 
+	.chrome-actions :global(.chrome-action:active:not(:disabled)) {
+		background: var(--surface-subtle);
+		color: var(--brand);
+	}
+
 	.chrome-actions :global(.chrome-action:disabled) {
-		border-color: var(--disabled);
 		color: var(--disabled);
 		cursor: not-allowed;
 	}
 
 	.zoom-btn {
 		box-sizing: border-box;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
 		min-width: 30px;
 		min-height: 30px;
 		padding: 0 var(--space-1);
-		border: 1px solid var(--ink);
+		border: none;
 		border-radius: var(--radius-control);
-		background: var(--surface);
+		background: transparent;
 		color: var(--ink);
 		font-size: var(--text-label);
 		font-weight: 600;
 		letter-spacing: 0.04em;
 		line-height: 1;
 		cursor: pointer;
-	}
-
-	.chrome-stage .zoom-btn {
-		background: transparent;
 	}
 
 	.zoom-btn.label {
@@ -2513,8 +2607,12 @@
 		background: var(--surface-subtle);
 	}
 
+	.zoom-btn:active:not(:disabled) {
+		background: var(--surface-subtle);
+		color: var(--brand);
+	}
+
 	.zoom-btn:disabled {
-		border-color: var(--disabled);
 		color: var(--disabled);
 		cursor: not-allowed;
 	}
@@ -2634,13 +2732,13 @@
 		outline-offset: 2px;
 	}
 
-	/* Selection: ink block tabs (distinct from signal trim). */
+	/* Selection: brand block tabs (match canvas selection edges). */
 	.selection-grip-tab {
 		display: block;
-		width: var(--space-4);
-		height: var(--space-3);
+		width: var(--space-5);
+		height: var(--space-4);
 		flex-shrink: 0;
-		background: var(--ink);
+		background: var(--brand);
 	}
 
 	.selection-grip.edge-start .selection-grip-tab {
@@ -2658,8 +2756,8 @@
 	/* Trim: signal block tabs (rectangle). */
 	.trim-grip-tab {
 		display: block;
-		width: var(--space-4);
-		height: var(--space-3);
+		width: var(--space-5);
+		height: var(--space-4);
 		flex-shrink: 0;
 		background: var(--signal);
 	}
@@ -2672,15 +2770,16 @@
 		border-radius: var(--radius-control) 0 0 var(--radius-control);
 	}
 
+	/* Active trim drag: brand (same as selection / action toasts), not ink. */
 	.trim-grip.active .trim-grip-tab {
-		background: var(--ink);
+		background: var(--brand);
 	}
 
 	/* Fade: ink wedge tabs (ramp triangles), distinct from trim blocks. */
 	.fade-grip-tab {
 		display: block;
-		width: var(--space-4);
-		height: var(--space-3);
+		width: var(--space-5);
+		height: var(--space-4);
 		flex-shrink: 0;
 		background: var(--ink);
 		border-radius: 0;
@@ -2700,12 +2799,21 @@
 		background: var(--line-strong);
 	}
 
+	/* Soften fade grips while a trim edge is being dragged (not when disabled). */
+	.fade-grip.trim-dragging:not(:disabled) {
+		opacity: 0.6;
+	}
+
 	.nav-frame {
 		width: 100%;
 		height: calc(var(--space-7) + var(--space-2));
-		border: 1px solid var(--line);
 		border-radius: var(--radius-panel);
 		background: var(--surface-subtle);
+		/* Soft recessed pad — inset only, no floating drop-shadow. */
+		box-shadow:
+			inset 0 var(--space-1) var(--space-2) color-mix(in srgb, var(--ink) 14%, transparent),
+			inset 0 calc(var(--space-1) * -1) var(--space-1)
+				color-mix(in srgb, var(--paper) 70%, transparent);
 		overflow: hidden;
 		touch-action: none;
 	}
@@ -2721,14 +2829,20 @@
 	}
 
 	.chrome-stage .nav-frame {
-		border: 1px solid var(--line);
 		border-radius: var(--radius-panel);
-		background: transparent;
+		background: var(--surface-subtle);
+		box-shadow:
+			inset 0 var(--space-1) var(--space-2) color-mix(in srgb, var(--ink) 14%, transparent),
+			inset 0 calc(var(--space-1) * -1) var(--space-1)
+				color-mix(in srgb, var(--paper) 70%, transparent);
 	}
 
-	.wave-frame.analyzing,
-	.nav-frame.analyzing {
+	.wave-frame.analyzing {
 		border-style: dashed;
+	}
+
+	.nav-frame.analyzing {
+		border: 1px dashed var(--line);
 	}
 
 	.chrome-stage .wave-frame.analyzing {
@@ -2736,7 +2850,7 @@
 	}
 
 	.chrome-stage .nav-frame.analyzing {
-		border-style: dashed;
+		border: 1px dashed var(--line);
 	}
 
 	.hint {

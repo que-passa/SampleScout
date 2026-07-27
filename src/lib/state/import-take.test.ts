@@ -37,7 +37,7 @@ describe('import take helpers', () => {
 		expect(draft.source.fileRef).toBe('');
 		expect(draft.lifecycleState).toBe('finalizing');
 		expect(isTakeSavedLocally(draft)).toBe(false);
-		expect(draft.metadata.displayName).toContain('002');
+		expect(draft.metadata.displayName).toMatch(/01$/);
 	});
 
 	it('falls back mime type when the file reports empty type', () => {
