@@ -103,7 +103,7 @@ Default session name: **`Session`**. Datetime is **not** part of the name; Colle
 - Below: up to **12 user presets** (custom names remembered on this device, newest first, FIFO) then ~**21 built-in** location/activity chips (e.g. Atmo, Walk, Home, Forest, Beach, City…).
 - Tap a chip **applies that name and closes** the sheet.
 - User chips are visually distinct from built-ins. Case-insensitive match to a built-in does not create a duplicate user pill.
-- **If the active session already has Local Files**, applying a *different* name **seals** that session (`inactive`) and starts a **new** active session with the chosen name. Existing files stay under the previous session group in Collection. Capture cannot record into sealed sessions.
+- **If the active session already has Local Files**, applying a _different_ name **seals** that session (`inactive`) and starts a **new** active session with the chosen name. Existing files stay under the previous session group in Collection. Capture cannot record into sealed sessions.
 - **If the active session is empty**, the name is updated in place (no empty sealed group).
 - Applying the same name is a no-op. Changing the session title never rewrites existing take display names.
 
@@ -310,8 +310,8 @@ Shell top bar (shared with Capture/Debug): back → Capture, page title **Collec
 
 Each session block header:
 
-| Left | Right |
-|------|--------|
+| Left                                                                                 | Right                                                                              |
+| ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
 | Session **name** (stored title; may still contain a dated default until naming work) | **`N files`** + session date as **`dd/mm`** (from `createdAt`; single day for MVP) |
 
 In **Select** mode, a checkbox precedes the session name and selects or deselects every take in that Field Session (same visual as take-row checkboxes). Take / Local File rows sit under that header. Session datetime is metadata on the right — do not treat the dated portion of the default name as the Collection time chrome.

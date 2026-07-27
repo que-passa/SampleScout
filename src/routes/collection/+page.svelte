@@ -574,10 +574,7 @@
 
 <AppShell>
 	<section class="collection">
-		<div
-			class="collection-scroll"
-			class:is-empty={!loading && !loadError && sessions.length === 0}
-		>
+		<div class="collection-scroll" class:is-empty={!loading && !loadError && sessions.length === 0}>
 			{#if loading}
 				<p class="loading">Loading…</p>
 			{:else if loadError}
@@ -712,10 +709,7 @@
 							</PrimaryButton>
 						</div>
 					{:else}
-						<GhostButton
-							onclick={openImportPicker}
-							disabled={importing || uploading || discarding}
-						>
+						<GhostButton onclick={openImportPicker} disabled={importing || uploading || discarding}>
 							Import
 						</GhostButton>
 						<GhostButton

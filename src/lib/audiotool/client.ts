@@ -72,8 +72,7 @@ function toStatus(
 		return {
 			state: 'disconnected',
 			configured: false,
-			message:
-				'Set PUBLIC_AUDIOTOOL_CLIENT_ID and PUBLIC_AUDIOTOOL_REDIRECT_URL in .env.'
+			message: 'Set PUBLIC_AUDIOTOOL_CLIENT_ID and PUBLIC_AUDIOTOOL_REDIRECT_URL in .env.'
 		};
 	}
 

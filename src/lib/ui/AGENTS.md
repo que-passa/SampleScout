@@ -4,26 +4,26 @@ Read [`DESIGN.md`](../../../DESIGN.md) before adding or restyling UI.
 
 ## Prefer existing components
 
-| Component                        | Use for                                                                        |
-| -------------------------------- | ------------------------------------------------------------------------------ |
-| `AppShell` / `AccountOverlay`    | Brand bar (Capture) + Account sheet/modal; no tab bar                          |
-| `SheetOverlay` / `ConfirmDialog` | Shared sheet-modal chrome; destructive confirm dialog                          |
-| `BatchUploadPanel`               | Collection upload confirm→progress (sheet body)                                |
-| `PrimaryButton`                  | Brand-well primary CTAs (Collect, Collection Upload)                           |
+| Component                        | Use for                                                                                                                                                  |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AppShell` / `AccountOverlay`    | Brand bar (Capture) + Account sheet/modal; no tab bar                                                                                                    |
+| `SheetOverlay` / `ConfirmDialog` | Shared sheet-modal chrome; destructive confirm dialog                                                                                                    |
+| `BatchUploadPanel`               | Collection upload confirm→progress (sheet body)                                                                                                          |
+| `PrimaryButton`                  | Brand-well primary CTAs (Collect, Collection Upload)                                                                                                     |
 | `GhostButton` / `BackButton`     | Flat ghost actions (BackButton look = Ghost chrome); `BackButton` = GhostButton link wrapper; `compact` for toolbar; `danger` for destructive label/icon |
-| `RecordControl`                  | Record / stop                                                                  |
-| `CaptureTimer`                   | Elapsed / remaining / warnings                                                 |
-| `LiveWaveform`                   | Live scrolling capture wave (min/max)                                          |
-| `StandbyPlot`                    | Idle Capture plot (axis / ticks / STANDBY / scan)                              |
-| `InputMeter`                     | Input level + clip                                                             |
-| `StatusLabel`                    | Compact state chips (text + tone)                                              |
-| `EmptyState`                     | Empty lists / unloaded editor                                                  |
-| `TakeRow`                        | Take list records                                                              |
-| `SessionNameSheet`               | Capture session rename sheet (input + user/built-in chips + Done)              |
-| `ActionToast`                    | Compact ephemeral action feedback                                              |
-| `AuthSplash`                     | Unsigned-in gate (logo + Connect)                                              |
-| `BusyIndicator`                  | Compact loading dots (temporary states)                                        |
-| `Icon` (`$lib/ui/icons`)         | Shared UI glyphs (stroke set + play/pause/stop)                                |
+| `RecordControl`                  | Record / stop                                                                                                                                            |
+| `CaptureTimer`                   | Elapsed / remaining / warnings                                                                                                                           |
+| `LiveWaveform`                   | Live scrolling capture wave (min/max)                                                                                                                    |
+| `StandbyPlot`                    | Idle Capture plot (axis / ticks / STANDBY / scan)                                                                                                        |
+| `InputMeter`                     | Input level + clip                                                                                                                                       |
+| `StatusLabel`                    | Compact state chips (text + tone)                                                                                                                        |
+| `EmptyState`                     | Empty lists / unloaded editor                                                                                                                            |
+| `TakeRow`                        | Take list records                                                                                                                                        |
+| `SessionNameSheet`               | Capture session rename sheet (input + user/built-in chips + Done)                                                                                        |
+| `ActionToast`                    | Compact ephemeral action feedback                                                                                                                        |
+| `AuthSplash`                     | Unsigned-in gate (logo + Connect)                                                                                                                        |
+| `BusyIndicator`                  | Compact loading dots (temporary states)                                                                                                                  |
+| `Icon` (`$lib/ui/icons`)         | Shared UI glyphs (stroke set + play/pause/stop)                                                                                                          |
 
 Put audio/persistence logic in `$lib/audio`, `$lib/persistence`, `$lib/state` — keep these components presentational.
 

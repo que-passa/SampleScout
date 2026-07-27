@@ -23,11 +23,7 @@
 		zoomView,
 		type ViewWindow
 	} from './view-window';
-	import {
-		edgeScrollCanPan,
-		edgeScrollDeltaAbs,
-		edgeScrollIntensity
-	} from './edge-scroll';
+	import { edgeScrollCanPan, edgeScrollDeltaAbs, edgeScrollIntensity } from './edge-scroll';
 	import { Icon } from '$lib/ui/icons';
 	import GhostButton from '$lib/ui/components/GhostButton.svelte';
 

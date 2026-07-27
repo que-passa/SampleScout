@@ -1,9 +1,5 @@
 <script lang="ts">
-	import {
-		DEFAULT_SESSION_NAME,
-		SESSION_NAME_PRESETS,
-		normalizeSessionName
-	} from '$lib/domain';
+	import { DEFAULT_SESSION_NAME, SESSION_NAME_PRESETS, normalizeSessionName } from '$lib/domain';
 	import PrimaryButton from '$lib/ui/components/PrimaryButton.svelte';
 	import SheetOverlay from '$lib/ui/components/SheetOverlay.svelte';
 
@@ -67,7 +63,7 @@
 </script>
 
 {#if open}
-	<SheetOverlay title="Session name" onclose={onclose}>
+	<SheetOverlay title="Session name" {onclose}>
 		<div class="sheet">
 			<div class="field">
 				<input

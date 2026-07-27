@@ -29,9 +29,7 @@ vi.mock('$lib/persistence/db', () => ({
 			where: () => ({
 				equals: (status: string) => ({
 					toArray: async () =>
-						[...sessions.values()]
-							.filter((s) => s.status === status)
-							.map((s) => structuredClone(s))
+						[...sessions.values()].filter((s) => s.status === status).map((s) => structuredClone(s))
 				})
 			})
 		}
