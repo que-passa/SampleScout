@@ -60,6 +60,7 @@ Collection delight stays bounded to catalog rhythm, indexing, and those determin
 | `08_CURSOR_BUILD_BRIEF.md`          | Copy-ready implementation instruction for Cursor                        |
 | `09_GITHUB_PAGES_DEPLOYMENT.md`     | Static deployment, base paths, OAuth redirects, PWA constraints         |
 | `10_RESEARCH_AND_OPEN_RISKS.md`     | Verified facts, unresolved API questions, backend-required features     |
+| `11_SUGGESTED_REGIONS.md`           | Suggested Regions: energy-island suggestions → selection → Trim/Collect (decisions locked; not built yet) |
 
 ## Reading order for implementation
 

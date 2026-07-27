@@ -85,3 +85,4 @@ export {
 } from './edit-recipe';
 export type { RetainedSourceRange } from './edit-recipe';
 export type * from './types';
+export type { SuggestedRegionsRecord } from './suggested-regions';

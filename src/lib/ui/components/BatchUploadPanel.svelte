@@ -14,6 +14,7 @@
 		progressCurrent = null,
 		progressIndex,
 		progressTotal,
+		failureMessages = [],
 		embedded = false,
 		initialStem = '',
 		initialDescription = '',
@@ -30,6 +31,8 @@
 		progressCurrent?: string | null;
 		progressIndex: number;
 		progressTotal: number;
+		/** Failed upload messages to show during/after progress (full text for screenshots). */
+		failureMessages?: { takeId?: string; name: string; message: string }[];
 		embedded?: boolean;
 		initialStem?: string;
 		initialDescription?: string;
@@ -57,6 +60,7 @@
 		!busy && !progressActive && titleStem.trim().length > 0 && takes.length > 0
 	);
 	const hasRemove = $derived(onremove != null);
+	const hasFailures = $derived(failureMessages.length > 0);
 
 	async function handleConfirm(event: Event) {
 		event.preventDefault();
@@ -79,24 +83,42 @@
 		<!-- Progress phase -->
 		<div class="progress-section" role="status" aria-live="polite">
 			<h3 class="progress-title">
-				Uploading {progressIndex} of {progressTotal}
+				{hasFailures && !progressCurrent
+					? 'Upload results'
+					: `Uploading ${progressIndex} of ${progressTotal}`}
 			</h3>
 			{#if progressCurrent}
 				<p class="progress-current">{progressCurrent}</p>
 			{/if}
 			<p class="progress-status">{progressLabel}</p>
 
-			{#if progressFraction != null && Number.isFinite(progressFraction)}
-				<div class="progress-track" aria-hidden="true">
-					<div class="progress-fill" style={`width: ${Math.round(progressFraction * 100)}%`}></div>
-				</div>
-			{:else}
-				<div class="progress-track progress-track-indeterminate" aria-hidden="true">
-					<div class="progress-fill-indeterminate"></div>
-				</div>
+			{#if hasFailures}
+				<ul class="failure-list">
+					{#each failureMessages as failure (failure.takeId ?? failure.name + failure.message)}
+						<li class="failure-item">
+							<span class="failure-name">{failure.name}</span>
+							<p class="failure-message">{failure.message}</p>
+						</li>
+					{/each}
+				</ul>
 			{/if}
 
-			<GhostButton onclick={oncancel}>Cancel</GhostButton>
+			{#if !(hasFailures && !progressCurrent)}
+				{#if progressFraction != null && Number.isFinite(progressFraction)}
+					<div class="progress-track" aria-hidden="true">
+						<div
+							class="progress-fill"
+							style={`width: ${Math.round(progressFraction * 100)}%`}
+						></div>
+					</div>
+				{:else}
+					<div class="progress-track progress-track-indeterminate" aria-hidden="true">
+						<div class="progress-fill-indeterminate"></div>
+					</div>
+				{/if}
+			{/if}
+
+			<GhostButton onclick={oncancel}>{hasFailures && !progressCurrent ? 'Close' : 'Cancel'}</GhostButton>
 		</div>
 	{:else}
 		<!-- Confirm phase -->
@@ -215,6 +237,46 @@
 		font-size: var(--text-body);
 		font-weight: 600;
 		color: var(--ink);
+	}
+
+	.failure-list {
+		display: grid;
+		gap: var(--space-2);
+		margin: 0;
+		padding: var(--space-2);
+		list-style: none;
+		text-align: left;
+		border: 1px solid var(--line);
+		border-radius: var(--radius-control);
+		background: var(--paper);
+		max-height: 12rem;
+		overflow-y: auto;
+	}
+
+	.failure-item {
+		display: grid;
+		gap: var(--space-1);
+		min-width: 0;
+	}
+
+	.failure-name {
+		font-size: var(--text-label);
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		color: var(--ink-muted);
+	}
+
+	.failure-message {
+		margin: 0;
+		color: var(--signal);
+		font-size: var(--text-annotation);
+		font-weight: 500;
+		letter-spacing: 0.02em;
+		line-height: 1.35;
+		white-space: normal;
+		overflow-wrap: anywhere;
+		word-break: break-word;
 	}
 
 	.progress-track {

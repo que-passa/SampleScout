@@ -14,6 +14,7 @@ body {
 	margin: 0;
 	height: 100%;
 	overflow: hidden;
+	overscroll-behavior: none;
 	background: var(--paper);
 	color: var(--ink);
 	font-family: var(--font-mono);
@@ -24,6 +25,13 @@ body {
 	-webkit-user-select: none;
 	user-select: none;
 	-webkit-touch-callout: none;
+}
+
+/* While dragging trim / fade / selection edges — reinforce no rubber-band. */
+html.edit-drag-lock,
+body.edit-drag-lock {
+	overscroll-behavior: none;
+	touch-action: none;
 }
 
 input,

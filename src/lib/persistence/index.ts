@@ -71,6 +71,14 @@ import {
 	updateUploadJob
 } from './upload-jobs';
 import { getAppSettings, putAppSettings, putSessionNamePresets } from './settings';
+import {
+	deleteSuggestedRegions,
+	getSuggestedRegions,
+	isSuggestedRegionsCacheFresh,
+	putSuggestedRegions,
+	saveSuggestedRegionsForTake,
+	suggestedRegionsSourceFingerprint
+} from './suggested-regions';
 
 export {
 	clearAllMetadata,
@@ -139,7 +147,13 @@ export {
 	updateUploadJob,
 	getAppSettings,
 	putAppSettings,
-	putSessionNamePresets
+	putSessionNamePresets,
+	deleteSuggestedRegions,
+	getSuggestedRegions,
+	isSuggestedRegionsCacheFresh,
+	putSuggestedRegions,
+	saveSuggestedRegionsForTake,
+	suggestedRegionsSourceFingerprint
 };
 
 export async function deleteAllLocalData(): Promise<void> {

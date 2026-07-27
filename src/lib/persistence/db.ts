@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
+import type { SuggestedRegionsRecord } from '$lib/domain/suggested-regions';
 import type { AppSettings, CaptureSession, CleanupJob, Take, UploadJob } from '$lib/domain/types';
 import { SCHEMA_VERSION } from './paths';
 
@@ -8,16 +9,21 @@ export class SampleScoutDatabase extends Dexie {
 	uploadJobs!: EntityTable<UploadJob, 'id'>;
 	cleanupJobs!: EntityTable<CleanupJob, 'id'>;
 	settings!: EntityTable<AppSettings, 'id'>;
+	suggestedRegions!: EntityTable<SuggestedRegionsRecord, 'takeId'>;
 
 	constructor() {
 		super('samplescout');
 
-		this.version(SCHEMA_VERSION).stores({
+		this.version(1).stores({
 			sessions: 'id, status, updatedAt',
 			takes: 'id, sessionId, sequence, lifecycleState, updatedAt',
 			uploadJobs: 'id, takeId, state, updatedAt',
 			cleanupJobs: 'id, deleteAfter',
 			settings: 'id'
+		});
+
+		this.version(SCHEMA_VERSION).stores({
+			suggestedRegions: 'takeId, updatedAt'
 		});
 	}
 }
@@ -38,7 +44,8 @@ export async function clearAllMetadata(): Promise<void> {
 		db.takes.clear(),
 		db.uploadJobs.clear(),
 		db.cleanupJobs.clear(),
-		db.settings.clear()
+		db.settings.clear(),
+		db.suggestedRegions.clear()
 	]);
 }
 

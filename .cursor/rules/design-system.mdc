@@ -14,10 +14,12 @@ Before UI edits, read [`DESIGN.md`](DESIGN.md). Tokens live in `src/lib/styles/t
 - Controls/buttons `--radius-control`; status/tags/toggles `--radius-round`; record face `--radius-record`
 - Spacing only `--space-1`…`--space-7`; touch targets `--touch-min`
 - Type via `--font-mono` and `--text-*`; labels uppercase + `--text-label`
-- `--signal` only for record / clip / destructive / critical failure / idle trim boundary markers / Local File status chips (fade grips use `--ink` wedges; active trim drag uses `--brand`)
-- `--brand` / `--brand-soft` for primary CTA faces (`PrimaryButton`), action-toast border/fill, active waveform selection, **and** active trim drag (neon blue-green; not record/destructive)
+- `--signal` only for record / clip / destructive / critical failure / idle trim boundary markers / Local File status chips / Collection upload-chip **failed** fill (fade grips use `--ink` wedges; active trim drag uses `--brand`)
+- `--brand` / `--brand-soft` for primary CTA faces (`PrimaryButton`), action-toast border/fill, active waveform selection, active trim drag, **and** Collection `UploadStatusChip` queued/uploaded faces (neon blue-green; not record/destructive)
+- Collection take rows use `UploadStatusChip` (morphing Local / Queued / Busy / Uploaded / Failed) — not a remounted `StatusLabel` swap
+- Take play/pause uses `PlaybackControl` (smaller Record-style well; `--ink` face, not `--signal`)
 - Discarded (outside-trim) waveform regions use `--disabled` wash + peaks; retained peaks stay `--ink`
-- Reuse `$lib/ui` components; keep state as text + color
+- Reuse `$lib/ui` components; keep state as text + color (busy chip may be spinner-only with `aria-label`; phase copy lives in the upload sheet)
 - Label `/collection` as Collection, groups as Field Sessions, and existing take metadata/details as Field Notes
 - **Collect** is the take primary for retained trim → Local File; Collection **Upload** is a brand-well primary CTA with confirm→progress sheet
 - Collection may use catalog rhythm, indexing, and compact deterministic marks derived from persisted take/source facts (neon fill from `--specimen-neon-*`)

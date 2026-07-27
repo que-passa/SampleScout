@@ -475,7 +475,7 @@
 		max-width: 28rem;
 		margin-inline: auto;
 		padding-inline: var(--space-4);
-		padding-bottom: var(--space-7);
+		padding-bottom: var(--space-4);
 		box-sizing: border-box;
 	}
 

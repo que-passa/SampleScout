@@ -56,7 +56,12 @@
 		onTrimBoundaryCommit,
 		onFadeBoundaryCommit,
 		/** When true, trim / fade / selection edits are disabled (zoom / pan / seek still work). */
-		editsLocked = false
+		editsLocked = false,
+		/**
+		 * Optional scouted region ranges (source seconds). Drawn as muted bands/ticks while
+		 * the take editor is navigating Suggested Regions — not specimen neon, not trim signal.
+		 */
+		scoutedRegions = undefined
 	}: {
 		data: Float32Array | null;
 		channels: number;
@@ -94,6 +99,7 @@
 		/** Fade duration in seconds; fade-in starts at trim start, fade-out ends at trim end. */
 		onFadeBoundaryCommit?: (detail: { edge: 'in' | 'out'; seconds: number }) => void;
 		editsLocked?: boolean;
+		scoutedRegions?: Array<{ startSeconds: number; endSeconds: number }> | null;
 	} = $props();
 
 	type RetainedRange = {
@@ -144,15 +150,15 @@
 	let normalizePreviewGain = $state(1);
 
 	const DRAG_THRESHOLD_PX = 4;
-	/** ~half of `--touch-min` (44) for easier edge grabs. */
+	/** ~half of grip hit (`--touch-min` + `--space-2` ≈ 52) for canvas edge grabs. */
 	const NAV_EDGE_HIT_PX = 22;
-	const TRIM_EDGE_HIT_PX = 22;
+	const TRIM_EDGE_HIT_PX = 26;
 	/** Same hit radius as trim — selection edges use brand grips, not signal. */
 	const SELECTION_EDGE_HIT_PX = TRIM_EDGE_HIT_PX;
 	/** Tick/label band inside the time ruler. */
 	const RULER_CONTENT_HEIGHT_PX = 22;
-	/** Extra ruler height below ticks — fade grip tabs sit here. */
-	const RULER_BOTTOM_PAD_PX = 16;
+	/** Extra ruler height below ticks — matches taller fade grip tabs (`--space-5`). */
+	const RULER_BOTTOM_PAD_PX = 24;
 	/** Full time-ruler band (content + bottom pad). */
 	const RULER_HEIGHT_PX = RULER_CONTENT_HEIGHT_PX + RULER_BOTTOM_PAD_PX;
 	const WHEEL_ZOOM_SENSITIVITY = 0.0025;
@@ -211,6 +217,19 @@
 		if (!frame) return fallback;
 		const value = getComputedStyle(frame).getPropertyValue(name).trim();
 		return value || fallback;
+	}
+
+	/** Canvas `font` does not resolve CSS `var()` — resolve `--font-mono` first. */
+	function canvasFont(sizePx: number, weight = 500): string {
+		/* Prefer computed font-family (inherits body Geist Mono) over the raw token string. */
+		const computed = frame ? getComputedStyle(frame).fontFamily.trim() : '';
+		const family =
+			computed ||
+			readCssVar(
+				'--font-mono',
+				"'Geist Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace"
+			);
+		return `${weight} ${sizePx}px ${family}`;
 	}
 
 	function formatClock(seconds: number): string {
@@ -601,6 +620,25 @@
 		return handles;
 	});
 
+	/**
+	 * DOM playhead fraction within the visible view [0, 1], or null when out of view /
+	 * analyzing / no duration. Keeps playhead ticks off the canvas redraw path.
+	 */
+	const mainPlayheadFrac = $derived.by((): number | null => {
+		if (analyzing || !data || !(durationSeconds > 0) || !Number.isFinite(currentTime)) return null;
+		const t0 = viewStart * durationSeconds;
+		const t1 = viewEnd * durationSeconds;
+		if (currentTime < t0 || currentTime > t1) return null;
+		const viewDur = Math.max(1e-6, t1 - t0);
+		return (currentTime - t0) / viewDur;
+	});
+
+	/** Navigator playhead fraction of full duration [0, 1], or null when unavailable. */
+	const navPlayheadFrac = $derived.by((): number | null => {
+		if (analyzing || !data || !(durationSeconds > 0) || !Number.isFinite(currentTime)) return null;
+		return currentTime / durationSeconds;
+	});
+
 	/** Draw linear fade envelopes (amplitude ramp) — ink diagonals, distinct from signal trim marks. */
 	function drawFadeEnvelopes(
 		ctx: CanvasRenderingContext2D,
@@ -684,6 +722,72 @@
 		}
 	}
 
+	/**
+	 * Muted map of scouted ranges (Suggested Regions). Current selection keeps brand chrome;
+	 * other scouted bands use ink-muted wash + edge ticks so the overview stays honest.
+	 */
+	function drawScoutedRegions(
+		ctx: CanvasRenderingContext2D,
+		y0: number,
+		y1: number,
+		t0: number,
+		t1: number,
+		viewDur: number,
+		width: number,
+		stroke: string,
+		fill: string
+	) {
+		const regions = scoutedRegions;
+		if (!regions || regions.length === 0 || !(durationSeconds > 0)) return;
+
+		const height = Math.max(1, y1 - y0);
+		const activeLo =
+			selectionLo != null && selectionHi != null && selectionHi > selectionLo
+				? selectionLo
+				: null;
+		const activeHi = activeLo != null ? selectionHi : null;
+
+		for (const region of regions) {
+			const start = Math.min(region.startSeconds, region.endSeconds);
+			const end = Math.max(region.startSeconds, region.endSeconds);
+			if (!(end > start)) continue;
+
+			const isActive =
+				activeLo != null &&
+				activeHi != null &&
+				Math.abs(start - activeLo) < 1e-3 &&
+				Math.abs(end - activeHi) < 1e-3;
+
+			const clipStart = Math.max(start, t0);
+			const clipEnd = Math.min(end, t1);
+			if (clipEnd > clipStart && !isActive) {
+				const x0 = xForTime(clipStart, t0, viewDur, width);
+				const x1 = xForTime(clipEnd, t0, viewDur, width);
+				ctx.fillStyle = fill;
+				ctx.globalAlpha = 0.18;
+				ctx.fillRect(x0, y0, Math.max(1, x1 - x0), height);
+				ctx.globalAlpha = 1;
+			}
+
+			ctx.strokeStyle = stroke;
+			ctx.lineWidth = 1;
+			ctx.globalAlpha = isActive ? 0.35 : 0.85;
+			ctx.beginPath();
+			if (start >= t0 && start <= t1) {
+				const x = xForTime(start, t0, viewDur, width);
+				ctx.moveTo(x + 0.5, y0);
+				ctx.lineTo(x + 0.5, y1);
+			}
+			if (end >= t0 && end <= t1) {
+				const x = xForTime(end, t0, viewDur, width);
+				ctx.moveTo(x + 0.5, y0);
+				ctx.lineTo(x + 0.5, y1);
+			}
+			ctx.stroke();
+			ctx.globalAlpha = 1;
+		}
+	}
+
 	function drawPeaks(
 		ctx: CanvasRenderingContext2D,
 		waveTop: number,
@@ -750,7 +854,7 @@
 
 			if (showLabels && useSplit) {
 				ctx.fillStyle = muted;
-				ctx.font = '600 10px var(--font-mono), monospace';
+				ctx.font = canvasFont(10);
 				ctx.textAlign = 'left';
 				ctx.textBaseline = 'top';
 				ctx.fillText(lane === 0 ? 'L' : lane === 1 ? 'R' : `C${lane + 1}`, 4, y0 + 2);
@@ -799,7 +903,7 @@
 
 		if (showLabels && !useSplit && drawChannels > 1) {
 			ctx.fillStyle = muted;
-			ctx.font = '600 10px var(--font-mono), monospace';
+			ctx.font = canvasFont(10);
 			ctx.textAlign = 'left';
 			ctx.textBaseline = 'top';
 			ctx.fillText('COMBINED', 4, waveTop + 2);
@@ -856,7 +960,7 @@
 		const { major, minor } = chooseTickStep(viewDur);
 
 		ctx.fillStyle = muted;
-		ctx.font = '600 11px var(--font-mono), monospace';
+		ctx.font = canvasFont(11);
 		ctx.textAlign = 'left';
 		ctx.textBaseline = 'middle';
 
@@ -879,7 +983,7 @@
 			ctx.fillStyle = muted;
 			ctx.textAlign = 'center';
 			ctx.textBaseline = 'middle';
-			ctx.font = '600 12px var(--font-mono), monospace';
+			ctx.font = canvasFont(12);
 			const message = analyzing ? 'ANALYZING WAVEFORM' : error ? error : 'No waveform data';
 			ctx.fillText(message, cssWidth / 2, waveTop + waveH / 2);
 			return;
@@ -913,6 +1017,17 @@
 			signal,
 			trimDrag ? { rangeIndex: trimDrag.rangeIndex, edge: trimDrag.edge, stroke: brand } : null
 		);
+		drawScoutedRegions(
+			ctx,
+			waveTop,
+			waveTop + waveH,
+			t0,
+			t1,
+			viewDur,
+			cssWidth,
+			muted,
+			muted
+		);
 
 		if (selectionLo != null && selectionHi != null && selectionHi > selectionLo) {
 			const selStart = Math.max(selectionLo, t0);
@@ -935,16 +1050,6 @@
 				ctx.lineTo(x1 + 0.5, waveTop + waveH);
 				ctx.stroke();
 			}
-		}
-
-		if (durationSeconds > 0 && currentTime >= t0 && currentTime <= t1) {
-			const x = ((currentTime - t0) / viewDur) * cssWidth;
-			ctx.strokeStyle = ink;
-			ctx.lineWidth = 1;
-			ctx.beginPath();
-			ctx.moveTo(x + 0.5, 0);
-			ctx.lineTo(x + 0.5, cssHeight);
-			ctx.stroke();
 		}
 	}
 
@@ -978,7 +1083,7 @@
 
 		if (analyzing || !data || peakCount <= 0 || channels <= 0) {
 			ctx.fillStyle = muted;
-			ctx.font = '600 10px var(--font-mono), monospace';
+			ctx.font = canvasFont(10);
 			ctx.textAlign = 'center';
 			ctx.textBaseline = 'middle';
 			ctx.fillText(analyzing ? '…' : 'NO WAVEFORM', navWidth / 2, navHeight / 2);
@@ -1041,6 +1146,17 @@
 			signal,
 			trimDrag ? { rangeIndex: trimDrag.rangeIndex, edge: trimDrag.edge, stroke: brand } : null
 		);
+		drawScoutedRegions(
+			ctx,
+			0,
+			navHeight,
+			0,
+			durationSeconds,
+			Math.max(1e-6, durationSeconds),
+			navWidth,
+			muted,
+			muted
+		);
 
 		ctx.strokeStyle = ink;
 		ctx.lineWidth = 2;
@@ -1049,16 +1165,6 @@
 		ctx.fillStyle = ink;
 		ctx.fillRect(x0, 0, 3, navHeight);
 		ctx.fillRect(Math.max(0, x1 - 3), 0, 3, navHeight);
-
-		if (durationSeconds > 0) {
-			const px = (currentTime / durationSeconds) * navWidth;
-			ctx.strokeStyle = ink;
-			ctx.lineWidth = 1;
-			ctx.beginPath();
-			ctx.moveTo(px + 0.5, 0);
-			ctx.lineTo(px + 0.5, navHeight);
-			ctx.stroke();
-		}
 	}
 
 	function observeFrame(node: HTMLDivElement) {
@@ -1192,12 +1298,14 @@
 		selectionMoveDrag = null;
 		suppressSelectionFit = false;
 		stopEdgeScroll();
+		unlockEditDragScrollIfIdle();
 	}
 
 	function endTrimGesture() {
 		trimDrag = null;
 		suppressTrimFit = false;
 		stopEdgeScroll();
+		unlockEditDragScrollIfIdle();
 	}
 
 	let trimDrag = $state.raw<{
@@ -1299,7 +1407,10 @@
 		}
 	}
 
-	onDestroy(() => stopEdgeScroll());
+	onDestroy(() => {
+		stopEdgeScroll();
+		unlockEditDragScroll();
+	});
 
 	let fadeDrag = $state.raw<{
 		pointerId: number;
@@ -1312,6 +1423,47 @@
 		currentFadeSeconds: number;
 		dragged: boolean;
 	} | null>(null);
+
+	/** Teardown for document touchmove / overscroll lock while an edit-edge drag is active. */
+	let editDragScrollUnlock: (() => void) | null = null;
+
+	/** Claim the gesture at document level so iOS Safari cannot rubber-band / pull-to-refresh. */
+	function lockEditDragScroll() {
+		if (editDragScrollUnlock || typeof document === 'undefined') return;
+		const stopTouchMove = on(
+			document,
+			'touchmove',
+			(event: TouchEvent) => {
+				event.preventDefault();
+			},
+			{ passive: false, capture: true }
+		);
+		const html = document.documentElement;
+		const body = document.body;
+		const prevHtmlOverscroll = html.style.overscrollBehavior;
+		const prevBodyOverscroll = body.style.overscrollBehavior;
+		html.style.overscrollBehavior = 'none';
+		body.style.overscrollBehavior = 'none';
+		html.classList.add('edit-drag-lock');
+		body.classList.add('edit-drag-lock');
+		editDragScrollUnlock = () => {
+			stopTouchMove();
+			html.style.overscrollBehavior = prevHtmlOverscroll;
+			body.style.overscrollBehavior = prevBodyOverscroll;
+			html.classList.remove('edit-drag-lock');
+			body.classList.remove('edit-drag-lock');
+			editDragScrollUnlock = null;
+		};
+	}
+
+	function unlockEditDragScroll() {
+		editDragScrollUnlock?.();
+	}
+
+	function unlockEditDragScrollIfIdle() {
+		if (!trimDrag && !fadeDrag && !selectionEdgeDrag) unlockEditDragScroll();
+	}
+
 	let navDrag:
 		| { mode: 'move'; originX: number; originStart: number; originEnd: number }
 		| { mode: 'start' | 'end'; other: number }
@@ -1483,6 +1635,7 @@
 				/* already released / unsupported */
 			}
 		}
+		lockEditDragScroll();
 		return true;
 	}
 
@@ -1533,6 +1686,7 @@
 		}
 		syncMainCursor(clientX);
 		notifySelectionGestureEnd();
+		unlockEditDragScrollIfIdle();
 		return true;
 	}
 
@@ -1706,6 +1860,7 @@
 				/* already released / unsupported */
 			}
 		}
+		lockEditDragScroll();
 		return true;
 	}
 
@@ -1750,6 +1905,7 @@
 			if (preview) fitViewToRetainedBounds(preview);
 		}
 		syncMainCursor(clientX);
+		unlockEditDragScrollIfIdle();
 		return true;
 	}
 
@@ -1803,6 +1959,7 @@
 				/* already released / unsupported */
 			}
 		}
+		lockEditDragScroll();
 		return true;
 	}
 
@@ -1845,6 +2002,7 @@
 			});
 		}
 		syncMainCursor(clientX);
+		unlockEditDragScrollIfIdle();
 		return true;
 	}
 
@@ -2394,7 +2552,6 @@
 		void channels;
 		void peakCount;
 		void durationSeconds;
-		void currentTime;
 		void analyzing;
 		void error;
 		void chrome;
@@ -2410,7 +2567,25 @@
 		void normalizePreviewGain;
 		void trimDrag;
 		void detailPcm;
+		void scoutedRegions;
 		draw();
+	});
+
+	/** Canvas text paints with a fallback if Geist isn't ready yet — redraw once it is. */
+	$effect(() => {
+		void cssWidth;
+		void cssHeight;
+		if (typeof document === 'undefined' || !document.fonts || !frame) return;
+		let cancelled = false;
+		const font = canvasFont(11);
+		void document.fonts.load(font).then(() => {
+			if (cancelled) return;
+			draw();
+			drawNavigator();
+		});
+		return () => {
+			cancelled = true;
+		};
 	});
 
 	$effect(() => {
@@ -2418,7 +2593,6 @@
 		void channels;
 		void peakCount;
 		void durationSeconds;
-		void currentTime;
 		void analyzing;
 		void error;
 		void chrome;
@@ -2431,6 +2605,9 @@
 		void peakNormalization;
 		void normalizePreviewGain;
 		void trimDrag;
+		void scoutedRegions;
+		void selectionStart;
+		void selectionEnd;
 		drawNavigator();
 	});
 </script>
@@ -2481,6 +2658,13 @@
 			onpointercancel={onNavPointerUp}
 			onpointerleave={onNavPointerLeave}
 		></canvas>
+		{#if navPlayheadFrac != null}
+			<div
+				class="playhead"
+				aria-hidden="true"
+				style:left="{navPlayheadFrac * 100}%"
+			></div>
+		{/if}
 	</div>
 {/snippet}
 
@@ -2557,6 +2741,13 @@
 					onpointercancel={onMainPointerUp}
 					onpointerleave={onMainPointerLeave}
 				></canvas>
+				{#if mainPlayheadFrac != null}
+					<div
+						class="playhead"
+						aria-hidden="true"
+						style:left="{mainPlayheadFrac * 100}%"
+					></div>
+				{/if}
 			</div>
 
 			{#each visibleFadeHandles as handle (handle.key)}
@@ -2728,7 +2919,9 @@
 		/* Room for overhanging trim / selection grip tabs below the wave frame.
 		   Fade grips sit inside the frame at the top — no top padding.
 		   Do not set overflow-x here — mixed overflow axes compute y to clip too. */
-		padding-bottom: calc(var(--space-3) + var(--space-2));
+		padding-bottom: calc(var(--space-5) + var(--space-2));
+		overscroll-behavior: contain;
+		touch-action: none;
 	}
 
 	.chrome-stage .wave-stage {
@@ -2741,6 +2934,8 @@
 
 	.wave-frame-host {
 		position: relative;
+		overscroll-behavior: none;
+		touch-action: none;
 	}
 
 	.chrome-stage .wave-frame-host {
@@ -2751,6 +2946,7 @@
 	}
 
 	.wave-frame {
+		position: relative;
 		width: 100%;
 		height: calc((var(--space-7) + var(--space-5)) * 4);
 		border: 1px solid var(--line);
@@ -2760,15 +2956,31 @@
 		touch-action: none;
 	}
 
+	/* Decorative playhead — DOM overlay so rAF ticks skip canvas peak redraws. */
+	.playhead {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		width: 1px;
+		background: var(--ink);
+		pointer-events: none;
+		transform: translateX(-50%);
+		z-index: 1;
+	}
+
 	.fade-grip,
 	.selection-grip,
 	.trim-grip {
+		/* Larger than `--touch-min` for reliable mobile edge grabs. */
+		--grip-hit: calc(var(--touch-min) + var(--space-2));
+		--grip-tab-w: var(--space-6);
+		--grip-tab-h: var(--space-5);
 		box-sizing: border-box;
 		position: absolute;
 		z-index: 2;
 		display: flex;
-		width: var(--touch-min);
-		height: var(--touch-min);
+		width: var(--grip-hit);
+		height: var(--grip-hit);
 		margin: 0;
 		padding: 0;
 		border: none;
@@ -2779,14 +2991,15 @@
 
 	/* Fade tabs sit on the bottom edge of the time ruler (in the bottom pad). */
 	.fade-grip {
-		top: calc(var(--wave-ruler-h, 36px) - var(--touch-min));
+		top: calc(var(--wave-ruler-h, 46px) - var(--grip-hit));
 		flex-direction: column;
 		justify-content: flex-end;
 	}
 
 	.selection-grip,
 	.trim-grip {
-		top: 100%;
+		/* Overlap the 1px frame border so tabs meet the canvas boundary columns. */
+		top: calc(100% - 1px);
 		flex-direction: column;
 		justify-content: flex-start;
 	}
@@ -2827,8 +3040,8 @@
 	/* Selection: brand block tabs (match canvas selection edges). */
 	.selection-grip-tab {
 		display: block;
-		width: var(--space-5);
-		height: var(--space-4);
+		width: var(--grip-tab-w);
+		height: var(--grip-tab-h);
 		flex-shrink: 0;
 		background: var(--brand);
 	}
@@ -2845,13 +3058,32 @@
 		background: var(--line-strong);
 	}
 
-	/* Trim: signal block tabs (rectangle). */
+	/* Trim: signal block tabs (rectangle), flush with the 2px boundary column. */
 	.trim-grip-tab {
+		position: relative;
 		display: block;
-		width: var(--space-5);
-		height: var(--space-4);
+		width: var(--grip-tab-w);
+		height: var(--grip-tab-h);
 		flex-shrink: 0;
 		background: var(--signal);
+	}
+
+	/* 2px stem continues the canvas boundary marker through the frame border into the tab. */
+	.trim-grip-tab::before {
+		content: '';
+		position: absolute;
+		bottom: 100%;
+		width: 2px;
+		height: 2px;
+		background: inherit;
+	}
+
+	.trim-grip.edge-start .trim-grip-tab::before {
+		left: 0;
+	}
+
+	.trim-grip.edge-end .trim-grip-tab::before {
+		right: 0;
 	}
 
 	.trim-grip.edge-start .trim-grip-tab {
@@ -2870,8 +3102,8 @@
 	/* Fade: ink wedge tabs (ramp triangles), distinct from trim blocks. */
 	.fade-grip-tab {
 		display: block;
-		width: var(--space-5);
-		height: var(--space-4);
+		width: var(--grip-tab-w);
+		height: var(--grip-tab-h);
 		flex-shrink: 0;
 		background: var(--ink);
 		border-radius: 0;
@@ -2897,6 +3129,7 @@
 	}
 
 	.nav-frame {
+		position: relative;
 		width: 100%;
 		height: calc(var(--space-7) + var(--space-2));
 		border-radius: var(--radius-panel);

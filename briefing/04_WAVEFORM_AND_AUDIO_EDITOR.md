@@ -176,6 +176,10 @@ Selection contains:
 - Start handle
 - End handle
 
+Selection is temporary tooling for preview and for feeding **Trim**. It does not by itself enable **Collect** (Collect requires a usable retained trim).
+
+**Suggested Regions** ([`11_SUGGESTED_REGIONS.md`](11_SUGGESTED_REGIONS.md)) may jump the selection to a rough source range (brand selection chrome). While the user is navigating scouted regions, the main waveform and overview also show muted `--ink-muted` bands/ticks for **all** scouted candidates (not specimen neon, not `--signal` trim). Idle (count visible, not yet engaged) shows no multi-candidate overlay. Auto-fit after a scouted jump matches a completed manual selection gesture. Suggestions never invent decorative waveform content.
+
 Interaction:
 
 - Drag either handle

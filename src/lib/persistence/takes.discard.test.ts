@@ -6,6 +6,7 @@ import { sourcePath } from '$lib/persistence/paths';
 const takes = new Map<string, Take>();
 const sessions = new Map<string, CaptureSession>();
 const cleanupJobs = new Map<string, CleanupJob>();
+const suggestedRegions = new Map<string, unknown>();
 
 vi.mock('$lib/persistence/db', () => ({
 	getDatabase: () => ({
@@ -49,6 +50,11 @@ vi.mock('$lib/persistence/db', () => ({
 			},
 			toArray: async () => [...cleanupJobs.values()].map((j) => structuredClone(j))
 		},
+		suggestedRegions: {
+			delete: async (id: string) => {
+				suggestedRegions.delete(id);
+			}
+		},
 		transaction: async (_mode: string, ...args: unknown[]) => {
 			const fn = args[args.length - 1] as () => Promise<void>;
 			await fn();
@@ -68,6 +74,7 @@ function seedSavedTake() {
 	takes.clear();
 	sessions.clear();
 	cleanupJobs.clear();
+	suggestedRegions.clear();
 
 	const session = createSession('Field');
 	const draft = createTake({

@@ -163,6 +163,16 @@ Mitigation:
 - Keep real waveform generation unchanged and PCM-derived.
 - Limit delight to catalog rhythm and indexing; no XP, streaks, collectible cards, celebratory motion, or cloud implications.
 
+### Suggested Regions are mistaken for “AI found the samples”
+
+On-device envelope/onset heuristics can over-promise if copy or chrome implies taste, quality, or guaranteed crops.
+
+Mitigation:
+
+- Frame as rough suggested cuts only; selection → Trim → Collect stays user-owned ([`11_SUGGESTED_REGIONS.md`](11_SUGGESTED_REGIONS.md)).
+- Never invent regions on failure; never feed suggestions into specimen marks.
+- Prefer Worker analysis with honest empty/error states; no cloud inference.
+
 ### Long recordings exhaust memory
 
 Mitigation:
@@ -221,3 +231,5 @@ Mitigation:
 ## 6. Current implementation focus
 
 Phases 1–7 are implemented (capture through Audiotool upload queue); see `docs/STATUS.md`. Next is Phase 8 responsive / accessibility polish. Audiotool scopes/upload formats and Safari behavior remain validation risks.
+
+**Suggested Regions** (`11_SUGGESTED_REGIONS.md`) — product decisions locked 2026-07-27; implement S1→S3 next (priority ahead of Phase 8 polish).

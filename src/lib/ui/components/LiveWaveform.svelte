@@ -25,6 +25,18 @@
 		return value || fallback;
 	}
 
+	function canvasFont(sizePx: number, weight = 600): string {
+		/* Prefer computed font-family (inherits body Geist Mono) over the raw token string. */
+		const computed = frame ? getComputedStyle(frame).fontFamily.trim() : '';
+		const family =
+			computed ||
+			readCssVar(
+				'--font-mono',
+				"'Geist Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace"
+			);
+		return `${weight} ${sizePx}px ${family}`;
+	}
+
 	function draw() {
 		if (!canvas || cssWidth <= 0 || cssHeight <= 0) return;
 
@@ -58,7 +70,7 @@
 		const count = Math.max(0, Math.min(peakCount, peaks.length));
 		if (count === 0) {
 			ctx.fillStyle = muted;
-			ctx.font = '600 11px var(--font-mono), monospace';
+			ctx.font = canvasFont(11);
 			ctx.textAlign = 'center';
 			ctx.textBaseline = 'middle';
 			ctx.fillText(active ? 'Waiting for input…' : '—', cssWidth / 2, midY);

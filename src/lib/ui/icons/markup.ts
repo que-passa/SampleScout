@@ -3,9 +3,11 @@ import type { IconName } from './types';
 import account from '$lib/assets/ui-icons/account.svg?raw';
 import back from '$lib/assets/ui-icons/back.svg?raw';
 import check from '$lib/assets/ui-icons/check.svg?raw';
+import cleanup from '$lib/assets/ui-icons/cleanup.svg?raw';
 import close from '$lib/assets/ui-icons/close.svg?raw';
 import collection from '$lib/assets/ui-icons/collection.svg?raw';
 import fieldNotes from '$lib/assets/ui-icons/field-notes.svg?raw';
+import importIcon from '$lib/assets/ui-icons/import.svg?raw';
 import loop from '$lib/assets/ui-icons/loop.svg?raw';
 import pause from '$lib/assets/ui-icons/pause.svg?raw';
 import play from '$lib/assets/ui-icons/play.svg?raw';
@@ -20,9 +22,11 @@ export const ICON_MARKUP: Record<IconName, string> = {
 	account,
 	back,
 	check,
+	cleanup,
 	close,
 	collection,
 	'field-notes': fieldNotes,
+	import: importIcon,
 	loop,
 	pause,
 	play,

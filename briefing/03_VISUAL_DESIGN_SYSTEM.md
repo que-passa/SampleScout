@@ -81,8 +81,11 @@ Use `--signal` only for:
 - Critical failure
 - Trim / edit boundary markers on the waveform
 - Local File status chips (Collection take rows and take Status) — same record red, border + text
+- Collection take-row upload chip **failed** face — solid `--signal` fill (distinct weight from Local File outline)
 
-Use `--brand` / `--brand-soft` for primary CTA faces (`PrimaryButton`: Collect / Upload), compact action-toast chrome (success / confirm feedback), **and** active waveform selection fill/edges/grips. While dragging a trim edge, that grip and its boundary stroke also use `--brand` (idle trim stays `--signal`). Do not use `--signal` for those toasts, primary CTAs, or selection. Discarded (outside-trim) waveform regions use `--disabled` wash and peaks; retained audio stays normal `--ink` on paper.
+Use `--brand` / `--brand-soft` for primary CTA faces (`PrimaryButton`: Collect / Upload), compact action-toast chrome (success / confirm feedback), active waveform selection fill/edges/grips, **and** Collection take-row upload chip queued (armed) / uploaded (subtle) faces. While dragging a trim edge, that grip and its boundary stroke also use `--brand` (idle trim stays `--signal`). Do not use `--signal` for those toasts, primary CTAs, or selection. Discarded (outside-trim) waveform regions use `--disabled` wash and peaks; retained audio stays normal `--ink` on paper.
+
+**Collection upload status chip (`UploadStatusChip` on take rows only):** morph one pill across Local file → Queued (armed) → Busy (spinner, no label; sheet carries Encoding/Uploading/Processing) → Uploaded (subtle brand-soft + check, persists) / Failed (signal fill). Smooth width + color transitions; not a remounted label swap.
 
 Do not use signal or brand color for ordinary navigation or decoration (Account / Collection / Loop wells stay surface-faced; brand appears only as the latched LED or primary CTA face).
 
@@ -211,7 +214,7 @@ Use large pill shapes only for toggles, tags, or status where the shape has sema
 - Recessed well (`--surface-subtle` + inset depth) with a raised `--brand` face and `--ink` label
 - Clear hover (lighter well + slightly lifted brand face) and pressed (deeper well + darkened brand face) states
 - Minimum 44 px mobile height (`--touch-min`)
-- **Only Primary and Record use 3D well/face chrome**
+- **Only Primary, Record, and Playback use 3D well/face chrome**
 - Use `PrimaryButton` for take **Collect**, Collection footer **Upload**, upload-sheet confirm **Upload**, and other main commit CTAs
 
 ### Ghost
@@ -220,8 +223,8 @@ Use large pill shapes only for toggles, tags, or status where the shape has sema
 - Hover / sticky on / press: flat `--surface-subtle` well + `--surface` face (no inset shadows)
 - `:active` (while pressed): `--brand` for text/icon fill; destructive ghosts keep `--signal`
 - Optional `compact` (~30px) for waveform toolbar; optional brand **live** LED for connected Account / latched Loop
-- Use `GhostButton` / `BackButton` for Back, Account, Collection shortcut, Loop, Collection **Select** / **Import** / select-mode actions, take-editor **Reset** / **Play** / **Field Notes**, sheet close, cancel, and destructive confirm labels
-- Collection **Upload** and take **Collect** use **Primary**, not Ghost
+- Use `GhostButton` / `BackButton` for Back, Account, Collection shortcut, Loop, Collection **Select** / **Import** / select-mode actions, take-editor **Reset** / **Field Notes**, sheet close, cancel, and destructive confirm labels
+- Collection **Upload** and take **Collect** use **Primary**, not Ghost; take **Play** / **Pause** use **Playback**, not Ghost
 
 ### Destructive
 
@@ -244,6 +247,14 @@ Active:
 - Timer visible
 
 Avoid oversized decorative rings, pulsing halos, glowing effects, and floating drop shadows. Soft inset depth for the well is allowed.
+
+### Playback
+
+Take-editor transport control — same well/face language as Record, but smaller and not `--signal`.
+
+- Recessed `--surface-subtle` well + dark `--ink` rounded-square face + `--brand` play/pause glyph (icon-only; no label below)
+- Centered under the overview scrubber; Loop sits in the right column of a Capture-style `1fr auto 1fr` band
+- Field Notes (left) and Collect (right) sit on the row below
 
 ## 8. Iconography
 

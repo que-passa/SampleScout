@@ -29,6 +29,11 @@
 		type TakeMetadataPatch
 	} from '$lib/domain';
 	import { ensurePeaksForTake, type LoadedPeaks } from '$lib/audio/peaks';
+	import {
+		ensureSuggestedRegionsForTake,
+		isEligibleForSuggestedRegions
+	} from '$lib/audio/suggest/ensure';
+	import type { SuggestedRegion } from '$lib/audio/suggest/types';
 	import { readBinary } from '$lib/persistence/opfs';
 	import { decodeAudioPlanar, type DecodedPlanarAudio } from '$lib/audio/decode';
 	import { planarToAudioBuffer, renderRecipePlanar } from '$lib/audio/render';
@@ -54,6 +59,7 @@
 	import GhostButton from '$lib/ui/components/GhostButton.svelte';
 	import SheetOverlay from '$lib/ui/components/SheetOverlay.svelte';
 	import FieldNotesEditor from '$lib/ui/components/FieldNotesEditor.svelte';
+	import PlaybackControl from '$lib/ui/components/PlaybackControl.svelte';
 	import PrimaryButton from '$lib/ui/components/PrimaryButton.svelte';
 	import SpecimenMark from '$lib/ui/components/SpecimenMark.svelte';
 	import StatusLabel from '$lib/ui/components/StatusLabel.svelte';
@@ -96,6 +102,14 @@
 	let discardConfirmOpen = $state(false);
 	let discarding = $state(false);
 
+	type SuggestionStatus = 'idle' | 'running' | 'ready' | 'empty' | 'error';
+	let suggestionStatus = $state<SuggestionStatus>('idle');
+	let suggestions = $state.raw<SuggestedRegion[]>([]);
+	/** null until the user engages prev/next or the count control. */
+	let suggestionIndex = $state<number | null>(null);
+	let suggestGeneration = 0;
+	let showManualAnalyze = $state(false);
+
 	const uploadJob = $derived(take ? uploadQueue.byTakeId[take.id] : undefined);
 
 	const uploadLocked = $derived(
@@ -134,6 +148,105 @@
 	const hasUsableTrim = $derived(
 		currentRecipe != null && collectableRetainedBounds(currentRecipe, sourceDuration) != null
 	);
+
+	const suggestionEligible = $derived(isEligibleForSuggestedRegions(sourceDuration));
+	const suggestionCount = $derived(suggestions.length);
+	const showSuggestionChrome = $derived(suggestionStatus === 'ready' && suggestionCount > 0);
+	/** Next only after the user engages the scouted control (selects first). */
+	const showSuggestionNext = $derived(showSuggestionChrome && suggestionIndex != null);
+	const suggestionLabel = $derived.by(() => {
+		if (suggestionIndex == null) {
+			return suggestionCount === 1 ? '1 scouted' : `${suggestionCount} scouted`;
+		}
+		const current = String(suggestionIndex + 1).padStart(2, '0');
+		const total = String(suggestionCount).padStart(2, '0');
+		return `${current}/${total}`;
+	});
+	/** Map markers only while navigating scouted regions. */
+	const scoutedRegionsForWave = $derived(suggestionIndex != null ? suggestions : null);
+
+	function clearSuggestions() {
+		suggestGeneration += 1;
+		suggestionStatus = 'idle';
+		suggestions = [];
+		suggestionIndex = null;
+		showManualAnalyze = false;
+	}
+
+	function applySuggestionAt(index: number) {
+		if (uploadLocked) return;
+		const region = suggestions[index];
+		if (!region) return;
+		suggestionIndex = index;
+		selectionStart = region.startSeconds;
+		selectionEnd = region.endSeconds;
+		if (playing) {
+			playback?.pause();
+			playing = false;
+			stopPlayheadLoop();
+		}
+		onSeek(region.startSeconds);
+	}
+
+	/** First click engages: select scouted 0 and reveal Next. Click again exits scouted mode. */
+	function onSuggestionScoutedActivate() {
+		if (!showSuggestionChrome || suggestionCount === 0) return;
+		if (suggestionIndex != null) {
+			suggestionIndex = null;
+			return;
+		}
+		applySuggestionAt(0);
+	}
+
+	function onSuggestionNext() {
+		if (!showSuggestionNext || suggestionCount === 0 || suggestionIndex == null) return;
+		applySuggestionAt((suggestionIndex + 1) % suggestionCount);
+	}
+
+	async function runSuggestedRegions(options?: { force?: boolean }) {
+		const current = take;
+		if (!current || !suggestionEligible) {
+			clearSuggestions();
+			return;
+		}
+
+		const generation = ++suggestGeneration;
+		suggestionStatus = 'running';
+		showManualAnalyze = false;
+
+		try {
+			const pcm = await ensureDetailPcm();
+			if (generation !== suggestGeneration || take?.id !== current.id) return;
+
+			const result = await ensureSuggestedRegionsForTake(current, {
+				force: options?.force,
+				pcm
+			});
+			if (generation !== suggestGeneration || take?.id !== current.id) return;
+
+			suggestions = result.regions;
+			if (
+				suggestionIndex == null ||
+				suggestionIndex < 0 ||
+				suggestionIndex >= result.regions.length
+			) {
+				suggestionIndex = null;
+			}
+			if (result.regions.length === 0) {
+				suggestionStatus = 'empty';
+				showManualAnalyze = false;
+			} else {
+				suggestionStatus = 'ready';
+			}
+		} catch (cause) {
+			console.error('[SampleScout] suggested regions failed', cause);
+			if (generation !== suggestGeneration || take?.id !== current.id) return;
+			suggestions = [];
+			suggestionIndex = null;
+			suggestionStatus = 'error';
+			showManualAnalyze = suggestionEligible;
+		}
+	}
 
 	function bumpHistory() {
 		historyEpoch += 1;
@@ -327,7 +440,10 @@
 	}
 
 	async function loadTake(id: string) {
-		if (detailPcmTakeId && detailPcmTakeId !== id) clearDetailPcmCache();
+		if (detailPcmTakeId && detailPcmTakeId !== id) {
+			clearDetailPcmCache();
+			clearSuggestions();
+		}
 		const foundTake = await getTake(id);
 		if (foundTake && foundTake.lifecycleState === 'saved') {
 			take = foundTake;
@@ -337,10 +453,12 @@
 		} else if (foundTake) {
 			take = null;
 			clearHistory();
+			clearSuggestions();
 			error = 'Take is no longer available';
 		} else {
 			take = null;
 			clearHistory();
+			clearSuggestions();
 			error = 'Take not found';
 		}
 	}
@@ -354,6 +472,7 @@
 			if (loaded.asset && (!current.peaks || current.peaks.fileRef !== loaded.asset.fileRef)) {
 				take = { ...current, peaks: loaded.asset };
 			}
+			void runSuggestedRegions();
 		} catch (cause) {
 			peaks = null;
 			const detail =
@@ -364,6 +483,7 @@
 				? `Could not analyze waveform — ${detail}`
 				: 'Could not analyze waveform';
 			console.error('[SampleScout] peak analysis failed', cause);
+			clearSuggestions();
 		} finally {
 			peaksAnalyzing = false;
 		}
@@ -482,6 +602,7 @@
 	});
 
 	onDestroy(() => {
+		clearSuggestions();
 		disposePlayback();
 		clearHistory();
 		detailPcmCache = null;
@@ -809,6 +930,7 @@
 						bind:selectionStart
 						bind:selectionEnd
 						{retainedRanges}
+						scoutedRegions={scoutedRegionsForWave}
 						peakNormalization={currentRecipe?.peakNormalization}
 						{onSeek}
 						{onSelectionChange}
@@ -845,51 +967,90 @@
 						aria-label="Waveform navigation"
 					></div>
 					<div class="transport-bar">
-						<div class="transport-left">
-							<GhostButton
-								class="transport-play"
-								onclick={() => void togglePlayback()}
-								aria-keyshortcuts="Space"
-								title={playing ? 'Pause (Space)' : 'Play (Space)'}
-							>
-								<span class="transport-play-inner">
-									<Icon name={playing ? 'pause' : 'play'} size={18} />
-									<span class="transport-play-label">
-										<span class:active={!playing} aria-hidden={playing}>Play</span>
-										<span class:active={playing} aria-hidden={!playing}>Pause</span>
-									</span>
-								</span>
-							</GhostButton>
-							<GhostButton
-								icon
-								active={loopPreview}
-								aria-label="Loop"
-								aria-pressed={loopPreview}
-								title="Loop"
-								onclick={() => {
-									loopPreview = !loopPreview;
-								}}
-							>
-								<Icon name="loop" size={18} />
-							</GhostButton>
+						<div class="transport-row">
+							<div class="transport-side" aria-hidden="true"></div>
+							<div class="transport-center">
+								<PlaybackControl {playing} onclick={() => void togglePlayback()} />
+							</div>
+							<div class="transport-side transport-side-end">
+								<GhostButton
+									icon
+									active={loopPreview}
+									aria-label="Loop"
+									aria-pressed={loopPreview}
+									title="Loop"
+									onclick={() => {
+										loopPreview = !loopPreview;
+									}}
+								>
+									<Icon name="loop" size={18} />
+								</GhostButton>
+							</div>
 						</div>
-						<div class="transport-right">
-							<GhostButton
-								icon
-								active={fieldNotesSheetOpen}
-								onclick={toggleFieldNotesSheet}
-								aria-label="Field Notes"
-								aria-expanded={fieldNotesSheetOpen}
-								aria-haspopup="dialog"
-							>
-								<Icon name="field-notes" />
-							</GhostButton>
-							<PrimaryButton
-								disabled={uploadLocked || !hasUsableTrim}
-								onclick={() => void onCollect()}
-							>
-								Collect
-							</PrimaryButton>
+						<div class="action-row">
+							<div class="action-side">
+								{#if showSuggestionChrome}
+									<div class="suggest-nav" role="group" aria-label="Scouted regions">
+										<GhostButton
+											compact
+											active={suggestionIndex != null}
+											disabled={uploadLocked}
+											aria-pressed={suggestionIndex != null}
+											aria-label={
+												suggestionIndex == null
+													? suggestionLabel
+													: `Scouted region ${suggestionLabel}`
+											}
+											title={suggestionLabel}
+											onclick={onSuggestionScoutedActivate}
+										>
+											<span class="suggest-count-face">
+												<Icon name="collection" size={16} />
+												{suggestionLabel}
+											</span>
+										</GhostButton>
+										{#if showSuggestionNext}
+											<GhostButton
+												compact
+												disabled={uploadLocked}
+												aria-label="Next scouted region"
+												title="Next"
+												onclick={onSuggestionNext}
+											>
+												Next
+											</GhostButton>
+										{/if}
+									</div>
+								{:else if showManualAnalyze && suggestionEligible}
+									<GhostButton
+										icon
+										disabled={uploadLocked || suggestionStatus === 'running'}
+										aria-label="Analyze scouted regions"
+										title="Analyze"
+										onclick={() => void runSuggestedRegions({ force: true })}
+									>
+										<Icon name="collection" size={18} />
+									</GhostButton>
+								{/if}
+							</div>
+							<div class="action-side action-side-end">
+								<GhostButton
+									icon
+									active={fieldNotesSheetOpen}
+									onclick={toggleFieldNotesSheet}
+									aria-label="Field Notes"
+									aria-expanded={fieldNotesSheetOpen}
+									aria-haspopup="dialog"
+								>
+									<Icon name="field-notes" />
+								</GhostButton>
+								<PrimaryButton
+									disabled={uploadLocked || !hasUsableTrim}
+									onclick={() => void onCollect()}
+								>
+									Collect
+								</PrimaryButton>
+							</div>
 						</div>
 					</div>
 				</div>
@@ -1043,6 +1204,7 @@
 		display: grid;
 		grid-template-rows: auto 1fr auto;
 		overflow: hidden;
+		overscroll-behavior: none;
 		gap: 0;
 	}
 
@@ -1271,48 +1433,70 @@
 
 	.transport-bar {
 		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: var(--space-2);
+		flex-direction: column;
+		gap: var(--space-3);
 		padding: var(--space-2) var(--page-gutter);
 		padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom, 0px));
 		background: var(--paper);
 	}
 
-	.transport-left {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-	}
-
-	.transport-right {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-	}
-	:global(.transport-play .face) {
-		display: inline-flex;
-		flex-direction: row;
-		align-items: center;
-		gap: var(--space-2);
-	}
-
-	.transport-play-inner {
-		display: inline-flex;
-		align-items: center;
-		gap: var(--space-2);
-	}
-
-	.transport-play-label {
+	.transport-row {
 		display: grid;
+		grid-template-columns: 1fr auto 1fr;
+		align-items: start;
+		width: 100%;
 	}
 
-	.transport-play-label > span {
-		grid-area: 1 / 1;
-		visibility: hidden;
+	.transport-center {
+		display: flex;
+		justify-content: center;
 	}
 
-	.transport-play-label > span.active {
-		visibility: visible;
+	.transport-side {
+		display: grid;
+		align-items: center;
+		justify-items: start;
+		/* Match PlaybackControl height so Loop centers on the well. */
+		min-height: calc(var(--space-7) + var(--space-5) + var(--space-2) * 2);
+	}
+
+	.transport-side-end {
+		/* Sit just to the right of play — not at the page edge. */
+		justify-items: start;
+		padding-left: var(--space-3);
+	}
+
+	.suggest-nav {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		min-height: var(--touch-min);
+	}
+
+	.suggest-count-face {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+		font-variant-numeric: tabular-nums;
+		text-transform: lowercase;
+	}
+
+	.action-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-2);
+		width: 100%;
+	}
+
+	.action-side {
+		display: flex;
+		align-items: center;
+		justify-content: flex-start;
+	}
+
+	.action-side-end {
+		justify-content: flex-end;
+		gap: var(--space-2);
 	}
 </style>

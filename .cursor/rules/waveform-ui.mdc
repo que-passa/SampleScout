@@ -19,6 +19,7 @@ Collection specimen marks are separate deterministic catalog identities derived 
 - Interactive handles may be DOM/SVG; waveform body stays canvas
 - Trim grips hang below the wave frame (`--signal` block tabs idle; active drag uses `--brand` on grip + canvas boundary); fade grips sit on the bottom edge of the time ruler (`--ink` wedge tabs) and stay anchored to retained start/end — soften to 40% transparent while a trim edge is dragged
 - Selection uses `--brand-soft` fill and `--brand` edges/grips (not ink wash, not signal)
+- While navigating Suggested Regions (engaged), muted `--ink-muted` bands/ticks may mark all scouted ranges on main + navigator; current range stays brand selection — never specimen neon or signal trim language
 - Hit targets near half `--touch-min` on canvas edges; DOM grips at `--touch-min`. At zero fade: ruler band → fade; wave-body edge → trim
 - Fade visualization scales peaks by linear fade gain and draws a dashed `--ink` envelope diagonal (not signal)
 - While dragging trim or selection edge grips near the viewport left/right, auto-pan; tempo scales with zoom (visible span)

@@ -69,6 +69,7 @@
 	let uploadSheetOpen = $state(false);
 	let uploadMarkedIds = $state<string[]>([]);
 	let uploadPhase = $state<'confirm' | 'progress'>('confirm');
+	let uploadSettleHandled = $state(false);
 
 	const selectedCount = $derived(Object.keys(selectedIds).length);
 	const allTakes = $derived(sessions.flatMap((entry) => entry.takes));
@@ -87,6 +88,38 @@
 	// Upload sheet derived values
 	const uploadTakes = $derived(allTakes.filter((take) => uploadMarkedIds.includes(take.id)));
 	const progressActive = $derived(uploadPhase === 'progress');
+	const uploadAllSettled = $derived.by(() => {
+		if (uploadPhase !== 'progress' || uploadMarkedIds.length === 0) return false;
+		return uploadMarkedIds.every((takeId) => {
+			const job = uploadQueue.byTakeId[takeId];
+			return job?.state === 'completed' || job?.state === 'failed' || job?.state === 'canceled';
+		});
+	});
+	function formatUploadErrorText(error: { code?: string; message?: string } | undefined): string {
+		if (!error) return '';
+		const message = error.message?.trim() ?? '';
+		const code = error.code?.trim() ?? '';
+		if (message && code && !message.includes(code)) return `${code}: ${message}`;
+		return message || code;
+	}
+
+	const uploadFailureMessages = $derived.by(() => {
+		if (uploadPhase !== 'progress') return [];
+		const messages: { takeId: string; name: string; message: string }[] = [];
+		for (const takeId of uploadMarkedIds) {
+			const job = uploadQueue.byTakeId[takeId];
+			const take = allTakes.find((t) => t.id === takeId);
+			const message = formatUploadErrorText(job?.error ?? take?.lastError);
+			if (job?.state === 'failed' && message) {
+				messages.push({
+					takeId,
+					name: take?.metadata.displayName ?? takeId,
+					message
+				});
+			}
+		}
+		return messages;
+	});
 
 	// Get initial values for upload form
 	const uploadInitialStem = $derived.by(() => {
@@ -207,7 +240,7 @@
 
 	// Track upload completion
 	$effect(() => {
-		if (uploadPhase !== 'progress' || uploadMarkedIds.length === 0) return;
+		if (uploadPhase !== 'progress' || uploadMarkedIds.length === 0 || uploadSettleHandled) return;
 
 		const marked = [...uploadMarkedIds];
 		const allSettled = marked.every((takeId) => {
@@ -217,14 +250,35 @@
 
 		if (!allSettled) return;
 
+		uploadSettleHandled = true;
+
 		const completed = marked.filter(
 			(takeId) => uploadQueue.byTakeId[takeId]?.state === 'completed'
 		).length;
+		const failedIds = marked.filter((takeId) => uploadQueue.byTakeId[takeId]?.state === 'failed');
+		const firstFailure =
+			failedIds
+				.map((takeId) => {
+					const job = uploadQueue.byTakeId[takeId];
+					const take = allTakes.find((t) => t.id === takeId);
+					return formatUploadErrorText(job?.error ?? take?.lastError);
+				})
+				.find((message) => message.trim().length > 0) ?? '';
 
-		actionToast.show(completed === 1 ? 'Upload completed' : `${completed} uploads completed`);
-		uploadSheetOpen = false;
-		uploadMarkedIds = [];
-		uploadPhase = 'confirm';
+		if (failedIds.length === 0) {
+			actionToast.show(completed === 1 ? 'Upload completed' : `${completed} uploads completed`);
+			uploadSheetOpen = false;
+			uploadMarkedIds = [];
+			uploadPhase = 'confirm';
+			uploadSettleHandled = false;
+		} else {
+			// Keep sheet open so the real Audiotool/app error text can be screenshot.
+			actionToast.show(
+				failedIds.length === 1
+					? firstFailure || 'Upload failed'
+					: `${failedIds.length} uploads failed${firstFailure ? `: ${firstFailure}` : ''}`
+			);
+		}
 
 		if (selectMode && marked.some((id) => selectedIds[id])) {
 			selectedIds = {};
@@ -446,6 +500,7 @@
 		}
 		uploadMarkedIds = pendingUploadTakes.map((t) => t.id);
 		uploadPhase = 'confirm';
+		uploadSettleHandled = false;
 		uploadSheetOpen = true;
 	}
 
@@ -457,6 +512,7 @@
 		}
 		uploadMarkedIds = selectedPendingUploadTakes.map((t) => t.id);
 		uploadPhase = 'confirm';
+		uploadSettleHandled = false;
 		uploadSheetOpen = true;
 	}
 
@@ -515,6 +571,7 @@
 			}
 
 			uploadPhase = 'progress';
+			uploadSettleHandled = false;
 			void load();
 		} catch (cause) {
 			actionToast.show(causeMessage(cause, 'Could not start upload'));
@@ -534,12 +591,14 @@
 		uploadSheetOpen = false;
 		uploadMarkedIds = [];
 		uploadPhase = 'confirm';
+		uploadSettleHandled = false;
 	}
 
 	function onUploadRemove(takeId: string) {
 		uploadMarkedIds = uploadMarkedIds.filter((id) => id !== takeId);
 		if (uploadMarkedIds.length === 0) {
 			uploadSheetOpen = false;
+			uploadSettleHandled = false;
 		}
 	}
 
@@ -640,6 +699,11 @@
 									recordedAtLabel={formatShortDateTime(take.createdAt)}
 									specimenMark={deriveSpecimenMark(take)}
 									uploadState={take.uploadState === 'not-queued' ? undefined : take.uploadState}
+									errorMessage={take.uploadState === 'failed'
+										? formatUploadErrorText(
+												take.lastError ?? uploadQueue.byTakeId[take.id]?.error
+											) || undefined
+										: undefined}
 									takeId={take.id}
 									selectable={selectMode}
 									selected={Boolean(selectedIds[take.id])}
@@ -709,14 +773,21 @@
 							</PrimaryButton>
 						</div>
 					{:else}
-						<GhostButton onclick={openImportPicker} disabled={importing || uploading || discarding}>
-							Import
+						<GhostButton
+							icon
+							onclick={openImportPicker}
+							disabled={importing || uploading || discarding}
+							aria-label="Import"
+						>
+							<Icon name="import" />
 						</GhostButton>
 						<GhostButton
+							icon
 							onclick={requestCleanup}
 							disabled={importing || uploading || discarding || batchBusy}
+							aria-label="Cleanup"
 						>
-							Cleanup
+							<Icon name="cleanup" />
 						</GhostButton>
 						<PrimaryButton
 							onclick={uploadAllPending}
@@ -756,12 +827,13 @@
 	{#if uploadSheetOpen}
 		<SheetOverlay
 			title="Upload"
-			dismissible={!progressActive}
+			dismissible={!progressActive || uploadAllSettled}
 			onclose={() => {
-				if (!progressActive) {
+				if (!progressActive || uploadAllSettled) {
 					uploadSheetOpen = false;
 					uploadMarkedIds = [];
 					uploadPhase = 'confirm';
+					uploadSettleHandled = false;
 				}
 			}}
 		>
@@ -770,13 +842,18 @@
 				takes={uploadTakes}
 				busy={uploading}
 				{progressActive}
-				progressLabel={uploadProgress.current
-					? `Uploading ${uploadProgress.current}`
-					: 'Uploading...'}
+				progressLabel={uploadAllSettled
+					? uploadFailureMessages.length > 0
+						? 'Finished with failures'
+						: 'Upload complete'
+					: uploadProgress.current
+						? `Uploading ${uploadProgress.current}`
+						: 'Uploading...'}
 				progressFraction={uploadProgress.fraction}
 				progressCurrent={uploadProgress.current}
 				progressIndex={uploadProgress.index}
 				progressTotal={uploadProgress.total}
+				failureMessages={uploadFailureMessages}
 				initialStem={uploadInitialStem}
 				initialDescription={uploadInitialDescription}
 				initialTags={uploadInitialTags}

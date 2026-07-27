@@ -173,7 +173,7 @@ Discard is optimistic:
 
 ## Field Notes and metadata defaults
 
-**Field Notes** labels the existing take details/metadata surface. It does not add a new persisted notes field. On `/take/[takeId]`, Field Notes is its own sheet opened from the transport Field Notes icon (Discard at the bottom; Reset edits lives in the editor header).
+**Field Notes** labels the existing take details/metadata surface. It does not add a new persisted notes field. On `/take/[takeId]`, Field Notes is its own sheet opened from the action-row Field Notes icon immediately left of Collect (Discard at the bottom of the sheet; Reset edits lives in the editor header). Transport layout: overview scrubber → centered `PlaybackControl` with Loop on the right (Capture-style band); action row **left** reserved for **Scouted** (`collection` icon + `N scouted` → `01/N` + **Next` after engage) per [`11_SUGGESTED_REGIONS.md`](11_SUGGESTED_REGIONS.md); Field Notes + Collect on the right.
 
 Generate:
 

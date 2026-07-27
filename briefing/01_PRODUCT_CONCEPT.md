@@ -226,7 +226,7 @@ Files remain device-local. A phone’s local files do not automatically appear o
 
 - Audiotool-owned sample listing
 - Download, edit, and re-upload as a new sample
-- Silence detection
+- **Suggested Regions** — on-device rough region suggestions for take review (silence/energy or onset heuristics → selection navigator → existing Trim/Collect); see [`11_SUGGESTED_REGIONS.md`](11_SUGGESTED_REGIONS.md). Not automatic extraction or quality ranking.
 - Zero-crossing snapping
 - Loop-length tools
 - BPM estimation

@@ -236,7 +236,7 @@ export async function discardTake(takeId: TakeId): Promise<Take> {
 	const db = getDatabase();
 	const deletedAt = nowIso();
 
-	await db.transaction('rw', db.takes, db.sessions, db.cleanupJobs, async () => {
+	await db.transaction('rw', db.takes, db.sessions, db.cleanupJobs, db.suggestedRegions, async () => {
 		const deleted: Take = {
 			...take,
 			lifecycleState: 'deleted',
@@ -244,6 +244,7 @@ export async function discardTake(takeId: TakeId): Promise<Take> {
 		};
 		await putTake(deleted);
 		await removeTakeFromSession(take.sessionId, takeId);
+		await db.suggestedRegions.delete(takeId);
 		const fileRefs = await filterUnheldFileRefs(candidateRefs, takeId);
 		await enqueueCleanup(fileRefs, deletedAt);
 	});

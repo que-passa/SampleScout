@@ -1,13 +1,11 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import {
-		formatUploadStateLabel,
-		uploadStateTone,
 		type SpecimenMark as SpecimenMarkValue,
 		type TakeUploadState
 	} from '$lib/domain';
 	import SpecimenMark from './SpecimenMark.svelte';
-	import StatusLabel from './StatusLabel.svelte';
+	import UploadStatusChip from './UploadStatusChip.svelte';
 	import GhostButton from './GhostButton.svelte';
 	import { Icon } from '$lib/ui/icons';
 
@@ -18,6 +16,7 @@
 		recordedAtLabel = '',
 		specimenMark,
 		uploadState,
+		errorMessage = '',
 		playing = false,
 		takeId,
 		expanded = false,
@@ -36,6 +35,8 @@
 		recordedAtLabel?: string;
 		specimenMark: SpecimenMarkValue;
 		uploadState?: TakeUploadState | string;
+		/** Persisted upload failure text (wraps fully for mobile screenshots). */
+		errorMessage?: string;
 		playing?: boolean;
 		takeId?: string;
 		expanded?: boolean;
@@ -48,29 +49,15 @@
 		onselect?: (selected: boolean) => void;
 	} = $props();
 
+	const showError = $derived(Boolean(errorMessage?.trim()));
+
 	const takeHref = $derived(takeId ? (`/take/${takeId}` as `/take/${string}`) : undefined);
 	const openable = $derived(Boolean(takeHref));
 	const hasActions = $derived(Boolean(onplay || onretry || ondiscard));
-
-	function getStatusText(): string {
-		if (uploadState && uploadState !== 'not-queued') {
-			return formatUploadStateLabel(uploadState as TakeUploadState);
-		}
-		if (savedLocally) return 'LOCAL FILE';
-		return '';
-	}
-
-	function getStatusTone(): 'neutral' | 'ok' | 'signal' | 'muted' {
-		if (uploadState && uploadState !== 'not-queued') {
-			return uploadStateTone(uploadState as TakeUploadState);
-		}
-		if (savedLocally) return 'signal';
-		return 'muted';
-	}
-
-	const statusText = $derived(getStatusText());
-	const statusTone = $derived(getStatusTone());
-	const showTrailing = $derived(Boolean(statusText || hasActions));
+	const showStatusChip = $derived(
+		savedLocally || Boolean(uploadState && uploadState !== 'not-queued')
+	);
+	const showTrailing = $derived(showStatusChip || hasActions);
 </script>
 
 <div
@@ -79,6 +66,7 @@
 	class:openable={openable && !selectable}
 	class:selectable
 	class:selected
+	class:has-error={showError}
 >
 	{#if openable && takeHref && !selectable}
 		<a class="row-link" href={resolve(takeHref)} aria-label="Open {name}"></a>
@@ -118,13 +106,16 @@
 				<span class="recorded-at">{recordedAtLabel}</span>
 			{/if}
 		</div>
+		{#if showError}
+			<p class="error-message">{errorMessage.trim()}</p>
+		{/if}
 	</div>
 
 	{#if showTrailing}
 		<div class="actions">
-			{#if statusText}
+			{#if showStatusChip}
 				<span class="status-slot">
-					<StatusLabel tone={statusTone} density="compact">{statusText}</StatusLabel>
+					<UploadStatusChip {uploadState} {savedLocally} />
 				</span>
 			{/if}
 
@@ -187,6 +178,14 @@
 			inset 0 1px 0 color-mix(in srgb, var(--surface) 70%, transparent),
 			inset 0 -1px 0 color-mix(in srgb, var(--ink) 8%, transparent);
 		min-height: var(--touch-min);
+	}
+
+	.take-row.has-error {
+		align-items: flex-start;
+	}
+
+	.take-row.has-error .actions {
+		padding-top: var(--space-1);
 	}
 
 	.take-row.openable,
@@ -361,6 +360,18 @@
 	.recorded-at {
 		flex-shrink: 0;
 		white-space: nowrap;
+	}
+
+	.error-message {
+		margin: 0;
+		color: var(--signal);
+		font-size: var(--text-annotation);
+		font-weight: 500;
+		letter-spacing: 0.02em;
+		line-height: 1.35;
+		white-space: normal;
+		overflow-wrap: anywhere;
+		word-break: break-word;
 	}
 
 	.actions {

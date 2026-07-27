@@ -5,6 +5,8 @@ export const ICON_NAMES = [
 	'trash',
 	'reset',
 	'field-notes',
+	'import',
+	'cleanup',
 	'loop',
 	'zoom-in',
 	'zoom-out',

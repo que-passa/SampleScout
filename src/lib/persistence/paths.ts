@@ -1,6 +1,6 @@
 import type { SessionId, TakeId } from '$lib/domain/types';
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export function sessionDir(sessionId: SessionId): string {
 	return `sessions/${sessionId}`;
