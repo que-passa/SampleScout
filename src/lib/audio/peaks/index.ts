@@ -1,6 +1,6 @@
 import { createAppError, nowIso } from '$lib/domain/ids';
 import type { PeakAsset, Take } from '$lib/domain/types';
-import { decodeAudioPlanar } from '$lib/audio/decode';
+import { decodeAudioPlanar, decodeAudioSummary } from '$lib/audio/decode';
 import { peaksPath, updateTake } from '$lib/persistence';
 import { readBinary, writeBinary } from '$lib/persistence/opfs';
 import { framesPerPeakForLength, TARGET_OVERVIEW_PEAKS, type PeakComputeResult } from './compute';
@@ -107,9 +107,22 @@ export async function loadPersistedPeaks(take: Take): Promise<LoadedPeaks | null
 
 /**
  * Ensure peaks exist for a take: load from OPFS or generate.
+ * Regenerates when stored peak channel layout no longer matches decoded audio.
  */
 export async function ensurePeaksForTake(take: Take): Promise<LoadedPeaks> {
 	const existing = await loadPersistedPeaks(take);
-	if (existing && existing.peakCount > 0) return existing;
+	if (existing && existing.peakCount > 0 && take.source.fileRef) {
+		try {
+			const file = await readBinary(take.source.fileRef);
+			const summary = await decodeAudioSummary(file);
+			if (summary.channelCount === existing.channels) {
+				return existing;
+			}
+		} catch {
+			return existing;
+		}
+	} else if (existing && existing.peakCount > 0) {
+		return existing;
+	}
 	return generateAndPersistPeaks(take);
 }

@@ -139,6 +139,24 @@ export function getUploadJobSnapshot(takeId: TakeId): UploadJob | undefined {
 
 /** Enqueue a take for encode + Audiotool upload. Returns the job. */
 export async function enqueueTakeUpload(takeId: TakeId): Promise<UploadJob> {
+	const job = await enqueueTakeUploadInternal(takeId);
+	void processUploadQueue();
+	return job;
+}
+
+/** Enqueue many takes, then start one queue pump (avoids races between early jobs and later enqueues). */
+export async function enqueueBatchTakeUploads(takeIds: TakeId[]): Promise<UploadJob[]> {
+	const jobs: UploadJob[] = [];
+	for (const takeId of takeIds) {
+		jobs.push(await enqueueTakeUploadInternal(takeId));
+	}
+	if (jobs.length > 0) {
+		void processUploadQueue();
+	}
+	return jobs;
+}
+
+async function enqueueTakeUploadInternal(takeId: TakeId): Promise<UploadJob> {
 	const take = await getTake(takeId);
 	if (!take) {
 		throw createAppError('TAKE_NOT_FOUND', 'Take was not found.', {
@@ -160,7 +178,6 @@ export async function enqueueTakeUpload(takeId: TakeId): Promise<UploadJob> {
 	rememberJob(job);
 	await syncTakeUploadState(takeId, job);
 	await emitChange();
-	void processUploadQueue();
 	return job;
 }
 
@@ -225,8 +242,9 @@ async function processUploadQueue(): Promise<void> {
 	} finally {
 		processing = false;
 		uploadQueue.busy = false;
-		if (!uploadQueue.activeJobId) {
-			/* leave cleared by rememberJob */
+		const remaining = await listQueuedUploadJobs();
+		if (remaining.length > 0) {
+			void processUploadQueue();
 		}
 	}
 }

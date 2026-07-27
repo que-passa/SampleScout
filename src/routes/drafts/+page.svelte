@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { listSessions, listTakesForSession } from '$lib/persistence';
+	import { listSessions, listTakesForSession, getTake } from '$lib/persistence';
 	import {
 		batchSaveTakeMetadata,
 		discardLocalDraft,
@@ -10,7 +10,7 @@
 		onTakeInventoryChanged,
 		openAccountOverlay,
 		retryTakeUpload,
-		enqueueTakeUpload,
+		enqueueBatchTakeUploads,
 		cancelTakeUpload,
 		uploadQueue,
 		audiotoolAuth
@@ -463,22 +463,25 @@
 				}
 			}
 
-			let enqueued = 0;
+			const takeIdsToUpload: TakeId[] = [];
 			for (const takeId of uploadMarkedIds) {
-				const take = allTakes.find((t) => t.id === takeId);
+				const take = await getTake(takeId);
 				if (!take) continue;
 				if (isActiveTakeUploadState(take.uploadState)) continue;
 				const validation = validateTakeForUpload(take);
 				if (validation) continue;
-				try {
-					await enqueueTakeUpload(takeId);
-					enqueued += 1;
-				} catch (cause) {
-					console.error('Failed to enqueue upload:', takeId, cause);
-				}
+				takeIdsToUpload.push(takeId);
 			}
 
-			if (enqueued === 0) {
+			if (takeIdsToUpload.length === 0) {
+				batchError = 'Could not queue uploads.';
+				return;
+			}
+
+			try {
+				await enqueueBatchTakeUploads(takeIdsToUpload);
+			} catch (cause) {
+				console.error('Failed to enqueue uploads:', cause);
 				batchError = 'Could not queue uploads.';
 				return;
 			}

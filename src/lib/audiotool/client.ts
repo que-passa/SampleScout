@@ -32,6 +32,8 @@ export interface AudiotoolUploadRequest {
 let authResult: BrowserAuthResult | undefined;
 let initPromise: Promise<BrowserAuthResult | undefined> | undefined;
 let cachedProfile: Pick<AudiotoolAuthStatus, 'avatarUrl' | 'displayName'> | undefined;
+/** Serialize Audiotool uploads so server-side slots always settle before the next createSample. */
+let uploadChain: Promise<unknown> = Promise.resolve();
 
 function scopeString(): string {
 	const scopes = getPublicAppConfig().audiotool.scopes;
@@ -218,81 +220,92 @@ export async function uploadSample(request: AudiotoolUploadRequest): Promise<{
 	sampleName?: string;
 	ready: boolean;
 }> {
-	await initAudiotoolClient();
-	if (!authResult || authResult.status !== 'authenticated') {
-		throw createAppError(
-			'AUDIOTOOL_AUTH_FAILED',
-			'Connect to Audiotool before uploading samples.',
-			{ recoverable: true }
+	const run = async (): Promise<{ sampleName?: string; ready: boolean }> => {
+		await initAudiotoolClient();
+		if (!authResult || authResult.status !== 'authenticated') {
+			throw createAppError(
+				'AUDIOTOOL_AUTH_FAILED',
+				'Connect to Audiotool before uploading samples.',
+				{ recoverable: true }
+			);
+		}
+
+		if (request.signal?.aborted) {
+			throw createAppError('UPLOAD_CANCELED', 'Upload canceled.', { recoverable: true });
+		}
+
+		const upload = await authResult.samples.upload(
+			{
+				file: request.file,
+				displayName: request.metadata.displayName.trim(),
+				description: request.metadata.description,
+				tags: request.metadata.tags.length > 0 ? request.metadata.tags : ['recording'],
+				kind: request.metadata.kind,
+				visibility: request.metadata.visibility ?? 'unlisted',
+				bpm: request.metadata.bpm,
+				// App-level acquirePreventUnload already guards tab close during queue work.
+				preventTabClose: false
+			},
+			request.signal
 		);
-	}
 
-	if (request.signal?.aborted) {
-		throw createAppError('UPLOAD_CANCELED', 'Upload canceled.', { recoverable: true });
-	}
-
-	const upload = await authResult.samples.upload(
-		{
-			file: request.file,
-			displayName: request.metadata.displayName.trim(),
-			description: request.metadata.description,
-			tags: request.metadata.tags.length > 0 ? request.metadata.tags : ['recording'],
-			kind: request.metadata.kind,
-			visibility: request.metadata.visibility ?? 'unlisted',
-			bpm: request.metadata.bpm,
-			preventTabClose: true
-		},
-		request.signal
-	);
-
-	if (upload instanceof Error) {
-		if (request.signal?.aborted) {
-			throw createAppError('UPLOAD_CANCELED', 'Upload canceled.', {
+		if (upload instanceof Error) {
+			if (request.signal?.aborted) {
+				throw createAppError('UPLOAD_CANCELED', 'Upload canceled.', {
+					cause: upload,
+					recoverable: true
+				});
+			}
+			throw createAppError('UPLOAD_FAILED', upload.message, {
 				cause: upload,
-				recoverable: true
+				recoverable: true,
+				context: { displayName: request.metadata.displayName }
 			});
 		}
-		throw createAppError('UPLOAD_FAILED', upload.message, {
-			cause: upload,
-			recoverable: true,
-			context: { displayName: request.metadata.displayName }
-		});
-	}
 
-	const uploaded = await upload.uploaded;
-	if (uploaded instanceof Error) {
-		if (request.signal?.aborted) {
-			throw createAppError('UPLOAD_CANCELED', 'Upload canceled.', {
-				cause: uploaded,
-				recoverable: true
-			});
+		const uploaded = await upload.uploaded;
+		let uploadError: AppError | undefined;
+		if (uploaded instanceof Error) {
+			uploadError = request.signal?.aborted
+				? createAppError('UPLOAD_CANCELED', 'Upload canceled.', {
+						cause: uploaded,
+						recoverable: true
+					})
+				: createAppError('UPLOAD_FAILED', uploaded.message, {
+						cause: uploaded,
+						recoverable: true
+					});
+		} else {
+			await request.onBytesUploaded?.();
+			await request.onProcessing?.();
 		}
-		throw createAppError('UPLOAD_FAILED', uploaded.message, {
-			cause: uploaded,
-			recoverable: true
-		});
-	}
 
-	await request.onBytesUploaded?.();
-	await request.onProcessing?.();
+		// Always settle the Nexus handle (including cancelSampleUpload on failure)
+		// before the next upload starts — otherwise server rate-limit slots leak.
+		const ready = await upload.ready;
+		if (uploadError) throw uploadError;
 
-	const ready = await upload.ready;
-	if (ready instanceof Error) {
-		if (request.signal?.aborted) {
-			throw createAppError('UPLOAD_CANCELED', 'Upload canceled.', {
+		if (ready instanceof Error) {
+			if (request.signal?.aborted) {
+				throw createAppError('UPLOAD_CANCELED', 'Upload canceled.', {
+					cause: ready,
+					recoverable: true
+				});
+			}
+			throw createAppError('UPLOAD_FAILED', ready.message, {
 				cause: ready,
 				recoverable: true
 			});
 		}
-		throw createAppError('UPLOAD_FAILED', ready.message, {
-			cause: ready,
-			recoverable: true
-		});
-	}
 
-	return {
-		sampleName:
-			typeof ready === 'object' && ready && 'name' in ready ? String(ready.name) : undefined,
-		ready: true
+		return {
+			sampleName:
+				typeof ready === 'object' && ready && 'name' in ready ? String(ready.name) : undefined,
+			ready: true
+		};
 	};
+
+	const result = uploadChain.then(run, run);
+	uploadChain = result.catch(() => undefined);
+	return result;
 }

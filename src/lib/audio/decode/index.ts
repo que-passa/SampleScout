@@ -1,3 +1,4 @@
+import { normalizeChannelLayout } from '$lib/audio/channels';
 import { createAppError } from '$lib/domain/ids';
 
 function getAudioContextCtor(): typeof AudioContext | undefined {
@@ -81,9 +82,14 @@ async function decodeArrayBuffer(buffer: ArrayBuffer): Promise<AudioBuffer> {
 export async function decodeAudioSummary(blob: Blob): Promise<DecodedAudioSummary> {
 	const audioBuffer = await decodeArrayBuffer(await blob.arrayBuffer());
 	try {
+		const channels: Float32Array[] = [];
+		for (let ch = 0; ch < audioBuffer.numberOfChannels; ch += 1) {
+			channels.push(audioBuffer.getChannelData(ch));
+		}
+		const { channelCount } = normalizeChannelLayout(channels);
 		return {
 			durationSeconds: audioBuffer.duration,
-			channelCount: audioBuffer.numberOfChannels,
+			channelCount,
 			sampleRate: audioBuffer.sampleRate
 		};
 	} finally {
@@ -118,11 +124,12 @@ export async function decodeAudioPlanar(
 				for (let ch = 0; ch < audioBuffer.numberOfChannels; ch += 1) {
 					channels.push(new Float32Array(audioBuffer.getChannelData(ch)));
 				}
+				const normalized = normalizeChannelLayout(channels);
 				return {
-					channels,
+					channels: normalized.channels,
 					frameCount: audioBuffer.length,
 					durationSeconds: audioBuffer.duration,
-					channelCount: audioBuffer.numberOfChannels,
+					channelCount: normalized.channelCount,
 					sampleRate: audioBuffer.sampleRate
 				};
 			} finally {

@@ -24,6 +24,7 @@ import { importAudioFile, importAudioFiles } from './import-take';
 import { closeAccountOverlay, isAccountOverlayOpen, openAccountOverlay } from './account-overlay';
 import {
 	cancelTakeUpload,
+	enqueueBatchTakeUploads,
 	enqueueTakeUpload,
 	getUploadJobSnapshot,
 	hydrateUploadQueue,
@@ -56,6 +57,7 @@ export type { ImportAudioFilesResult } from './import-take';
 export { closeAccountOverlay, isAccountOverlayOpen, openAccountOverlay };
 export {
 	cancelTakeUpload,
+	enqueueBatchTakeUploads,
 	enqueueTakeUpload,
 	getUploadJobSnapshot,
 	hydrateUploadQueue,
