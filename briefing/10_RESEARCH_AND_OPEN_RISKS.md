@@ -122,7 +122,7 @@ Current behavior:
 - Keep job locally.
 - Restart or retry when app is open.
 
-### Cross-device drafts
+### Cross-device files
 
 OPFS and IndexedDB are origin- and device-local.
 
@@ -144,11 +144,11 @@ There is no Node fallback if Nexus does not function in Safari.
 
 ## 4. Product risks
 
-### Users mistake local drafts for backup
+### Users mistake local files for backup
 
 Mitigation:
 
-- Use `Local Draft` with `Saved on this device` supporting copy.
+- Use `Local File` with supporting copy that it is not uploaded and only on this device.
 - Show storage origin/device language.
 - Explain clearing browser data.
 - Offer delete-after-upload preference.
@@ -193,7 +193,7 @@ Mitigation:
 - No smoothing into decorative shapes.
 - Show analysis state rather than placeholder art.
 
-### GitHub custom-domain migration loses apparent access to drafts
+### GitHub custom-domain migration loses apparent access to files
 
 Browser storage is bound to the old origin.
 

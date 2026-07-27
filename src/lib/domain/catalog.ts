@@ -1,8 +1,8 @@
 import type { AudioSource, Take } from './types';
+import { DEFAULT_SESSION_NAME } from './session-name';
 
 const CATALOG_PREFIX = 'FS';
 const CATALOG_ID_LENGTH = 6;
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export const SPECIMEN_MARK_SIZE = 12;
 
@@ -40,14 +40,10 @@ export function deriveCatalogReference({ sessionId, sequence }: CatalogReference
 	return `${CATALOG_PREFIX}-${sessionToken}-${sequenceToken}`;
 }
 
-export function formatFieldSessionName(date = new Date()): string {
-	const day = String(date.getDate()).padStart(2, '0');
-	const month = MONTHS[date.getMonth()];
-	const year = date.getFullYear();
-	const hours = String(date.getHours()).padStart(2, '0');
-	const minutes = String(date.getMinutes()).padStart(2, '0');
-
-	return `Field Session · ${day} ${month} ${year} · ${hours}:${minutes}`;
+/** Default Field Session title. Date arg kept for call-site compatibility; unused. */
+export function formatFieldSessionName(_date = new Date()): string {
+	void _date;
+	return DEFAULT_SESSION_NAME;
 }
 
 /**

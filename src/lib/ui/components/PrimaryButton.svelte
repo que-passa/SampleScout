@@ -41,7 +41,7 @@
 		font-size: var(--text-button);
 		font-weight: 600;
 		letter-spacing: 0.04em;
-		cursor: pointer;
+		cursor: default;
 	}
 
 	.ss-primary-button:focus-visible {

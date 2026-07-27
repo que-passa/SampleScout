@@ -32,7 +32,7 @@ export interface CapabilityReport {
 	};
 	errors: AppError[];
 	canRecord: boolean;
-	canPersistDrafts: boolean;
+	canPersistFiles: boolean;
 }
 
 const MIME_CANDIDATES = [
@@ -167,7 +167,7 @@ export async function detectCapabilities(): Promise<CapabilityReport> {
 		mediaRecorder &&
 		mediaRecorderMimes.some((entry) => entry.supported);
 
-	const canPersistDrafts = opfs && indexedDb;
+	const canPersistFiles = opfs && indexedDb;
 
 	return {
 		checkedAt: new Date().toISOString(),
@@ -185,7 +185,7 @@ export async function detectCapabilities(): Promise<CapabilityReport> {
 		persistentStorage,
 		errors,
 		canRecord,
-		canPersistDrafts
+		canPersistFiles
 	};
 }
 

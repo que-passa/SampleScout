@@ -62,4 +62,4 @@ Explain why a new dependency is needed before adding it. Prefer browser APIs and
 
 ## Scope boundaries
 
-SampleScout is capture-first and local-first. Do not add cross-device sync, cloud draft backup, or uploads that continue after the tab is closed without an explicit product + ADR change.
+SampleScout is capture-first and local-first. Do not add cross-device sync, cloud backup of local files, or uploads that continue after the tab is closed without an explicit product + ADR change.

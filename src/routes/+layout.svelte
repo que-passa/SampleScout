@@ -44,18 +44,18 @@
 	.toast-host {
 		position: fixed;
 		inset: 0;
-		z-index: 40;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: var(--space-2);
+		/* Above SheetOverlay (50) and ConfirmDialog (60) so outcomes stay visible over sheets. */
+		z-index: 70;
+		/* Single grid cell so any concurrent intro/outro toasts occupy the same spot. */
+		display: grid;
+		place-items: center;
 		padding-inline: var(--space-5);
 		pointer-events: none;
 		overflow: visible;
 	}
 
 	.toast-host :global(.toast) {
+		grid-area: 1 / 1;
 		pointer-events: auto;
 	}
 </style>

@@ -81,9 +81,7 @@
 		<GhostButton compact onclick={onclear} disabled={busy}>Clear</GhostButton>
 	</header>
 
-	<p class="hint">
-		Only checked fields are applied. Manual values on each take are overwritten by this batch.
-	</p>
+	<p class="hint">Checked fields overwrite selected takes.</p>
 
 	<label class="toggle-row">
 		<input type="checkbox" bind:checked={applyDescription} disabled={busy} />
@@ -187,7 +185,7 @@
 	{/if}
 
 	<PrimaryButton type="submit" disabled={!canApply}>
-		{busy ? 'Applying…' : 'Apply to selected'}
+		{busy ? 'Applying…' : 'Apply'}
 	</PrimaryButton>
 </form>
 
@@ -232,7 +230,7 @@
 		align-items: center;
 		gap: var(--space-2);
 		min-height: var(--touch-min);
-		cursor: pointer;
+		cursor: default;
 	}
 
 	.toggle-row.nested {
@@ -329,7 +327,7 @@
 		font-weight: 600;
 		letter-spacing: 0.04em;
 		text-transform: lowercase;
-		cursor: pointer;
+		cursor: default;
 		box-shadow: none;
 	}
 

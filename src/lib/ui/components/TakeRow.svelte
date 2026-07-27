@@ -15,6 +15,7 @@
 		name,
 		savedLocally,
 		catalogReference,
+		recordedAtLabel = '',
 		specimenMark,
 		uploadState,
 		playing = false,
@@ -31,6 +32,8 @@
 		name: string;
 		savedLocally: boolean;
 		catalogReference: string;
+		/** Short date/time next to the catalog reference (e.g. `27/07/17:41`). */
+		recordedAtLabel?: string;
 		specimenMark: SpecimenMarkValue;
 		uploadState?: TakeUploadState | string;
 		playing?: boolean;
@@ -53,7 +56,7 @@
 		if (uploadState && uploadState !== 'not-queued') {
 			return formatUploadStateLabel(uploadState as TakeUploadState);
 		}
-		if (savedLocally) return 'LOCAL DRAFT';
+		if (savedLocally) return 'LOCAL FILE';
 		return '';
 	}
 
@@ -109,7 +112,12 @@
 		<div class="title-row">
 			<span class="name">{name}</span>
 		</div>
-		<span class="catalog-reference">{catalogReference}</span>
+		<div class="meta-row">
+			<span class="catalog-reference">{catalogReference}</span>
+			{#if recordedAtLabel}
+				<span class="recorded-at">{recordedAtLabel}</span>
+			{/if}
+		</div>
 	</div>
 
 	{#if showTrailing}
@@ -171,20 +179,19 @@
 		padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1);
 		border: none;
 		border-radius: var(--radius-panel);
-		/* Brighter card face on paper — pure surface, lighter depth so it stays clean. */
 		background: var(--surface);
-		/* Subtle raised card — quiet face depth + soft lift (not a hard outline). */
+		/* Raised card — tighter lift so rows read against paper without a soft fog. */
 		box-shadow:
-			0 1px var(--space-1) color-mix(in srgb, var(--ink) 6%, transparent),
-			0 var(--space-1) var(--space-3) color-mix(in srgb, var(--ink) 8%, transparent),
+			0 1px 0 color-mix(in srgb, var(--ink) 10%, transparent),
+			0 1px var(--space-1) color-mix(in srgb, var(--ink) 12%, transparent),
 			inset 0 1px 0 color-mix(in srgb, var(--surface) 70%, transparent),
-			inset 0 -1px 0 color-mix(in srgb, var(--ink) 6%, transparent);
+			inset 0 -1px 0 color-mix(in srgb, var(--ink) 8%, transparent);
 		min-height: var(--touch-min);
 	}
 
 	.take-row.openable,
 	.take-row.selectable {
-		cursor: pointer;
+		cursor: default;
 	}
 
 	@media (prefers-reduced-motion: no-preference) {
@@ -238,7 +245,7 @@
 		padding: 0;
 		border: none;
 		background: transparent;
-		cursor: pointer;
+		cursor: default;
 	}
 
 	.row-link:focus,
@@ -331,15 +338,28 @@
 		pointer-events: none;
 	}
 
-	.catalog-reference {
+	.meta-row {
+		display: flex;
+		align-items: baseline;
+		gap: var(--space-3);
+		min-width: 0;
 		max-width: 100%;
-		overflow: hidden;
 		color: var(--ink-muted);
 		font-size: var(--text-annotation);
 		font-weight: 600;
 		letter-spacing: 0.04em;
 		line-height: 1;
+	}
+
+	.catalog-reference {
+		min-width: 0;
+		overflow: hidden;
 		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.recorded-at {
+		flex-shrink: 0;
 		white-space: nowrap;
 	}
 

@@ -26,10 +26,10 @@ export function collectableRetainedBounds(
 }
 
 /**
- * Build a new Local Draft from a parent retained trim (Collect). Shares the
+ * Build a new Local File from a parent retained trim (Collect). Shares the
  * parent source binary; recipe retains only the trim bounds. Does not write storage.
  */
-export function buildExtractTakeDraft(input: {
+export function buildExtractTake(input: {
 	parent: Take;
 	session: CaptureSession;
 	sequence: number;
@@ -41,7 +41,7 @@ export function buildExtractTakeDraft(input: {
 }): Take {
 	const { parent, session, sequence } = input;
 	if (parent.lifecycleState !== 'saved') {
-		throw new Error('Only a saved Local Draft can be collected from.');
+		throw new Error('Only a saved Local File can be collected from.');
 	}
 
 	const start = Math.min(input.startSeconds, input.endSeconds);

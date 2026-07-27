@@ -179,6 +179,26 @@ export function formatRecordingDate(isoDate: string): string {
 	}).format(date);
 }
 
+/** Compact Collection session stamp, e.g. `27/07`. */
+export function formatShortDate(isoDate: string): string {
+	const date = new Date(isoDate);
+	if (Number.isNaN(date.getTime())) return '';
+	const day = String(date.getDate()).padStart(2, '0');
+	const month = String(date.getMonth() + 1).padStart(2, '0');
+	return `${day}/${month}`;
+}
+
+/** Compact Collection row stamp, e.g. `27/07/17:41`. */
+export function formatShortDateTime(isoDate: string): string {
+	const date = new Date(isoDate);
+	if (Number.isNaN(date.getTime())) return '';
+	const day = String(date.getDate()).padStart(2, '0');
+	const month = String(date.getMonth() + 1).padStart(2, '0');
+	const hours = String(date.getHours()).padStart(2, '0');
+	const minutes = String(date.getMinutes()).padStart(2, '0');
+	return `${day}/${month}/${hours}:${minutes}`;
+}
+
 /** Strip em/en dashes and collapse whitespace for display-name stems. */
 export function sanitizeDisplayNameStem(raw: string): string {
 	return raw
@@ -188,8 +208,8 @@ export function sanitizeDisplayNameStem(raw: string): string {
 }
 
 /**
- * Short stem from a Field Session title. Default “Field Session · …” names
- * compress to day+month; user-renamed sessions keep the cleaned title.
+ * Short stem from a Field Session title. Legacy “Field Session · …” names
+ * compress to day+month; default `Session` and user titles keep the cleaned name.
  */
 export function stemFromSessionName(sessionName: string): string {
 	const cleaned = sanitizeDisplayNameStem(sessionName);
@@ -304,7 +324,7 @@ export function generateTakeMetadata(input: {
 	};
 }
 
-export function createTakeDraft(input: {
+export function createTake(input: {
 	session: CaptureSession;
 	sequence: number;
 	source: Take['source'];
@@ -341,7 +361,7 @@ export function isTakeSavedLocally(take: Take): boolean {
 }
 
 /** Locally persisted take that has not finished uploading to Audiotool (ignores children). */
-export function isPendingDraftTake(take: Take): boolean {
+export function isPendingFileTake(take: Take): boolean {
 	return isTakeSavedLocally(take) && take.uploadState !== 'uploaded';
 }
 
@@ -351,9 +371,9 @@ export function takeHasCollectedChildren(takeId: Take['id'], allTakes: readonly 
 }
 
 /**
- * Upload-pending: Local Draft, not uploaded, and no collected children.
+ * Upload-pending: Local File, not uploaded, and no collected children.
  * Lone parents stay pending; parents with children are source-only for shipping.
  */
 export function isUploadPendingTake(take: Take, allTakes: readonly Take[]): boolean {
-	return isPendingDraftTake(take) && !takeHasCollectedChildren(take.id, allTakes);
+	return isPendingFileTake(take) && !takeHasCollectedChildren(take.id, allTakes);
 }

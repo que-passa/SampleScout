@@ -28,7 +28,9 @@
 					<Icon name="stop" size={48} />
 				</span>
 			{:else}
-				<span class="glyph-mark"></span>
+				<span class="glyph-mark">
+					<Icon name="record" size={48} />
+				</span>
 			{/if}
 		</span>
 	</span>
@@ -53,7 +55,7 @@
 		letter-spacing: 0.06em;
 		text-transform: uppercase;
 		box-sizing: border-box;
-		cursor: pointer;
+		cursor: default;
 	}
 
 	.record:disabled {
@@ -175,20 +177,16 @@
 	.glyph-mark {
 		display: grid;
 		place-items: center;
-		width: 0;
-		height: 0;
+		width: var(--space-7);
+		height: var(--space-7);
 		border-radius: var(--radius-control);
 		background: transparent;
-		color: var(--signal);
-		overflow: hidden;
+		color: var(--paper);
+		overflow: visible;
 	}
 
 	.recording .glyph-mark {
-		width: var(--space-7);
-		height: var(--space-7);
-		background: transparent;
 		color: var(--signal);
-		overflow: visible;
 	}
 
 	.label {

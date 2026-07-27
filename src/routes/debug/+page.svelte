@@ -24,7 +24,7 @@
 					['Workers', capabilities.workers],
 					['Canvas', capabilities.canvas],
 					['Can record', capabilities.canRecord],
-					['Can save Local Drafts', capabilities.canPersistDrafts]
+					['Can save Local Files', capabilities.canPersistFiles]
 				]
 			: []
 	);

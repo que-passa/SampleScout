@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { createSession, createTakeDraft, createInitialEditRecipe } from './metadata';
+import { createSession, createTake, createInitialEditRecipe } from './metadata';
 import { trimToSelection } from './edit-recipe';
-import { buildExtractTakeDraft, collectableRetainedBounds } from './extract';
+import { buildExtractTake, collectableRetainedBounds } from './extract';
 
 describe('collectableRetainedBounds', () => {
 	it('returns null for a full-source identity recipe', () => {
@@ -21,10 +21,10 @@ describe('collectableRetainedBounds', () => {
 	});
 });
 
-describe('buildExtractTakeDraft', () => {
+describe('buildExtractTake', () => {
 	it('shares source and retains only the selection with numbered name', () => {
 		const session = createSession('Field');
-		const parentDraft = createTakeDraft({
+		const parentDraft = createTake({
 			session,
 			sequence: 1,
 			source: {
@@ -37,7 +37,7 @@ describe('buildExtractTakeDraft', () => {
 		});
 		const parent = { ...parentDraft, lifecycleState: 'saved' as const };
 
-		const extract = buildExtractTakeDraft({
+		const extract = buildExtractTake({
 			parent,
 			session,
 			sequence: 2,
@@ -59,7 +59,7 @@ describe('buildExtractTakeDraft', () => {
 	it('rejects a too-short selection', () => {
 		const session = createSession('Field');
 		const parent = {
-			...createTakeDraft({
+			...createTake({
 				session,
 				sequence: 1,
 				source: {
@@ -74,7 +74,7 @@ describe('buildExtractTakeDraft', () => {
 		};
 
 		expect(() =>
-			buildExtractTakeDraft({
+			buildExtractTake({
 				parent,
 				session,
 				sequence: 2,

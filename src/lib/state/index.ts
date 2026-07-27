@@ -8,10 +8,10 @@ import { audiotoolAuth, connect, disconnect, hydrateAudiotoolAuth } from './audi
 import { actionToast, getActionToastSnapshot } from './action-toast';
 import {
 	batchSaveTakeMetadata,
-	collectSelectionAsLocalDraft,
-	discardLocalDraft,
-	discardLocalDrafts,
-	extractSelectionAsLocalDraft,
+	collectSelectionAsLocalFile,
+	discardLocalFile,
+	discardLocalFiles,
+	extractSelectionAsLocalFile,
 	notifyTakeInventoryChanged,
 	onTakeInventoryChanged,
 	renameTakeDisplayName,
@@ -40,10 +40,10 @@ export { actionToast, getActionToastSnapshot };
 export type { ActionToastEntry, ActionToastShowOptions } from './action-toast';
 export {
 	batchSaveTakeMetadata,
-	collectSelectionAsLocalDraft,
-	discardLocalDraft,
-	discardLocalDrafts,
-	extractSelectionAsLocalDraft,
+	collectSelectionAsLocalFile,
+	discardLocalFile,
+	discardLocalFiles,
+	extractSelectionAsLocalFile,
 	notifyTakeInventoryChanged,
 	onTakeInventoryChanged,
 	renameTakeDisplayName,

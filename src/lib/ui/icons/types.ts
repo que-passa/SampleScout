@@ -12,7 +12,8 @@ export const ICON_NAMES = [
 	'check',
 	'play',
 	'pause',
-	'stop'
+	'stop',
+	'record'
 ] as const;
 
 export type IconName = (typeof ICON_NAMES)[number];

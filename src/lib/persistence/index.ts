@@ -18,7 +18,8 @@ import {
 	listSessions,
 	putSession,
 	removeTakeFromSession,
-	renameSession
+	renameSession,
+	applyActiveSessionName
 } from './sessions';
 import {
 	checkStorageForImport,
@@ -32,8 +33,8 @@ import {
 	formatTakeLabel,
 	getTake,
 	listSavedTakesNewestFirst,
-	countCollectionDrafts,
-	countPendingDraftTakes,
+	countCollectionFiles,
+	countPendingFileTakes,
 	listDisplayNamesForSession,
 	listTakesForSession,
 	nextSequenceForSession,
@@ -69,6 +70,7 @@ import {
 	setUploadJobState,
 	updateUploadJob
 } from './upload-jobs';
+import { getAppSettings, putAppSettings, putSessionNamePresets } from './settings';
 
 export {
 	clearAllMetadata,
@@ -93,6 +95,7 @@ export {
 	putSession,
 	removeTakeFromSession,
 	renameSession,
+	applyActiveSessionName,
 	checkStorageForImport,
 	checkStorageForRecording,
 	estimateMaxRecordingBytes,
@@ -102,8 +105,8 @@ export {
 	formatTakeLabel,
 	getTake,
 	listSavedTakesNewestFirst,
-	countCollectionDrafts,
-	countPendingDraftTakes,
+	countCollectionFiles,
+	countPendingFileTakes,
 	listDisplayNamesForSession,
 	listTakesForSession,
 	nextSequenceForSession,
@@ -133,7 +136,10 @@ export {
 	patchUploadJob,
 	putUploadJob,
 	setUploadJobState,
-	updateUploadJob
+	updateUploadJob,
+	getAppSettings,
+	putAppSettings,
+	putSessionNamePresets
 };
 
 export async function deleteAllLocalData(): Promise<void> {

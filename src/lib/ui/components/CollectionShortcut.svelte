@@ -18,7 +18,7 @@
 <a
 	class="collection-shortcut"
 	class:slot-hidden={hidden}
-	href={resolve('/drafts')}
+	href={resolve('/collection')}
 	tabindex={hidden ? -1 : undefined}
 	aria-hidden={hidden}
 	aria-label={ariaLabel}
@@ -55,7 +55,7 @@
 		text-decoration: none;
 		font-size: var(--text-meta);
 		font-weight: 600;
-		cursor: pointer;
+		cursor: default;
 	}
 
 	.collection-shortcut:focus-visible {

@@ -6,7 +6,7 @@ Accepted — 2026-07-25
 
 ## Context
 
-SampleScout must run as a phone-friendly capture tool hosted on GitHub Pages, authenticate directly with Audiotool, and keep drafts locally. Building a custom backend would add cost, secrets handling, and operational scope outside the product brief.
+SampleScout must run as a phone-friendly capture tool hosted on GitHub Pages, authenticate directly with Audiotool, and keep files locally. Building a custom backend would add cost, secrets handling, and operational scope outside the product brief.
 
 ## Decision
 
@@ -19,7 +19,7 @@ SampleScout must run as a phone-friendly capture tool hosted on GitHub Pages, au
 
 ## Consequences
 
-- No cross-device draft sync or cloud backup
+- No cross-device file sync or cloud backup
 - Uploads cannot reliably continue after the tab is closed
 - MP3 encoding and rendering must happen on-device
 - Capability gaps (especially Safari) must be surfaced honestly

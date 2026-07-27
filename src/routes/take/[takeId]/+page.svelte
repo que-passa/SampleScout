@@ -39,8 +39,8 @@
 	} from '$lib/audio/playback';
 	import {
 		actionToast,
-		discardLocalDraft,
-		collectSelectionAsLocalDraft,
+		discardLocalFile,
+		collectSelectionAsLocalFile,
 		onTakeInventoryChanged,
 		onUploadQueueChanged,
 		renameTakeDisplayName,
@@ -90,9 +90,7 @@
 	let historyEpoch = $state(0);
 	let selectionStart = $state<number | null>(null);
 	let selectionEnd = $state<number | null>(null);
-	let editError = $state<string | null>(null);
 	let savingFieldNotes = $state(false);
-	let fieldNotesError = $state<string | null>(null);
 	let fieldNotesSheetOpen = $state(false);
 	let loopPreview = $state(false);
 	let discardConfirmOpen = $state(false);
@@ -235,7 +233,6 @@
 		feedback?: string
 	): Promise<boolean> {
 		if (!take || !editHistory || uploadLocked) return false;
-		editError = null;
 		try {
 			const next = mutate(editHistory.current);
 			const committed = editHistory.commit(next);
@@ -244,8 +241,9 @@
 			if (feedback) actionToast.show(feedback);
 			return true;
 		} catch (cause) {
-			editError =
-				cause instanceof Error && cause.message.trim() ? cause.message : 'Could not apply edit.';
+			const message =
+				cause instanceof Error && cause.message.trim() ? cause.message : 'Could not apply edit';
+			actionToast.show(message);
 			return false;
 		}
 	}
@@ -287,9 +285,8 @@
 		if (!take || !editHistory || !currentRecipe || sourceDuration <= 0) return;
 		const bounds = collectableRetainedBounds(currentRecipe, sourceDuration);
 		if (!bounds) return;
-		editError = null;
 		try {
-			await collectSelectionAsLocalDraft({
+			await collectSelectionAsLocalFile({
 				parentTakeId: take.id,
 				startSeconds: bounds.start,
 				endSeconds: bounds.end
@@ -306,9 +303,8 @@
 					? String((cause as { message: string }).message)
 					: cause instanceof Error
 						? cause.message
-						: 'Could not collect trim.';
-			editError = message.trim() || 'Could not collect trim.';
-			actionToast.show(editError);
+						: 'Could not collect trim';
+			actionToast.show(message.trim() || 'Could not collect trim');
 		}
 	}
 
@@ -318,7 +314,6 @@
 
 	async function onResetEdits() {
 		if (!take || !editHistory || sourceDuration <= 0 || uploadLocked) return;
-		editError = null;
 		try {
 			const next = editHistory.resetToIdentity(sourceDuration);
 			bumpHistory();
@@ -326,8 +321,7 @@
 			actionToast.show('Edits reset');
 		} catch (cause) {
 			const message =
-				cause instanceof Error && cause.message.trim() ? cause.message : 'Could not reset edits.';
-			editError = message;
+				cause instanceof Error && cause.message.trim() ? cause.message : 'Could not reset edits';
 			actionToast.show(message);
 		}
 	}
@@ -618,6 +612,26 @@
 		}
 	}
 
+	function isEditableKeyboardTarget(target: EventTarget | null): boolean {
+		if (!(target instanceof Element)) return false;
+		if (target instanceof HTMLElement && target.isContentEditable) return true;
+		return Boolean(target.closest('input, textarea, select, [contenteditable="true"]'));
+	}
+
+	/** Space toggles play/pause unless focus is in a field, control, or modal surface. */
+	function onWindowKeydown(event: KeyboardEvent) {
+		if (event.code !== 'Space' && event.key !== ' ') return;
+		if (event.repeat || event.metaKey || event.ctrlKey || event.altKey) return;
+		if (loading || !take?.source.fileRef) return;
+		if (editingName || fieldNotesSheetOpen || discardConfirmOpen) return;
+		if (isEditableKeyboardTarget(event.target)) return;
+		const el = event.target instanceof Element ? event.target : null;
+		if (el?.closest('button, [role="button"], a, summary')) return;
+
+		event.preventDefault();
+		void togglePlayback();
+	}
+
 	function onSeek(seconds: number) {
 		void (async () => {
 			try {
@@ -680,10 +694,10 @@
 			disposePlayback();
 			clearHistory();
 			const id = take.id;
-			await discardLocalDraft(id);
+			await discardLocalFile(id);
 			discardConfirmOpen = false;
 			fieldNotesSheetOpen = false;
-			await goto(resolve('/drafts'));
+			await goto(resolve('/collection'));
 		} finally {
 			discarding = false;
 		}
@@ -692,16 +706,16 @@
 	async function onSaveFieldNotes(patch: TakeMetadataPatch) {
 		if (!take || savingFieldNotes || uploadLocked) return;
 		savingFieldNotes = true;
-		fieldNotesError = null;
 		try {
 			take = await saveTakeMetadata(take.id, patch);
 			draftName = take.metadata.displayName;
 			actionToast.show('Field Notes saved');
 		} catch (cause) {
-			fieldNotesError =
+			const message =
 				cause && typeof cause === 'object' && 'message' in cause
 					? String((cause as { message: string }).message)
-					: 'Could not save Field Notes.';
+					: 'Could not save Field Notes';
+			actionToast.show(message.trim() || 'Could not save Field Notes');
 		} finally {
 			savingFieldNotes = false;
 		}
@@ -713,6 +727,8 @@
 <svelte:head>
 	<title>{displayName} · SampleScout</title>
 </svelte:head>
+
+<svelte:window onkeydown={onWindowKeydown} />
 
 <AppShell>
 	{#if loading}
@@ -726,7 +742,7 @@
 				body={error}
 				actionLabel="Back to Collection"
 				onaction={() => {
-					window.location.assign(resolve('/drafts'));
+					window.location.assign(resolve('/collection'));
 				}}
 			/>
 		</section>
@@ -734,7 +750,7 @@
 		<section class="workspace">
 			<header class="editor-header">
 				<div class="header-start">
-					<BackButton href={resolve('/drafts')} label="Collection" />
+					<BackButton href={resolve('/collection')} label="Collection" />
 					<SpecimenMark mark={deriveSpecimenMark(take)} size="editor" />
 				</div>
 				<div class="title-slot">
@@ -830,7 +846,12 @@
 					></div>
 					<div class="transport-bar">
 						<div class="transport-left">
-							<GhostButton class="transport-play" onclick={() => void togglePlayback()}>
+							<GhostButton
+								class="transport-play"
+								onclick={() => void togglePlayback()}
+								aria-keyshortcuts="Space"
+								title={playing ? 'Pause (Space)' : 'Play (Space)'}
+							>
 								<span class="transport-play-inner">
 									<Icon name={playing ? 'pause' : 'play'} size={18} />
 									<span class="transport-play-label">
@@ -878,10 +899,6 @@
 		{#if fieldNotesSheetOpen}
 			<SheetOverlay title="Field Notes" onclose={() => (fieldNotesSheetOpen = false)}>
 				<div class="editor-tools">
-					{#if editError}
-						<p class="edit-error" role="alert">{editError}</p>
-					{/if}
-
 					<section class="field-notes-section" aria-label="Field Notes">
 						<div class="catalog-summary">
 							<SpecimenMark mark={deriveSpecimenMark(take)} />
@@ -897,9 +914,6 @@
 							saving={savingFieldNotes}
 							onsave={onSaveFieldNotes}
 						/>
-						{#if fieldNotesError}
-							<p class="edit-error" role="alert">{fieldNotesError}</p>
-						{/if}
 
 						<div class="metadata-grid">
 							<div class="metadata-item">
@@ -976,7 +990,7 @@
 									</StatusLabel>
 								{:else}
 									<StatusLabel tone={isTakeSavedLocally(take) ? 'signal' : 'muted'}>
-										{isTakeSavedLocally(take) ? 'LOCAL DRAFT · THIS DEVICE' : 'Not saved'}
+										{isTakeSavedLocally(take) ? 'LOCAL FILE · THIS DEVICE' : 'Not saved'}
 									</StatusLabel>
 								{/if}
 							</div>
@@ -1087,7 +1101,7 @@
 		border: none;
 		background: transparent;
 		color: inherit;
-		cursor: pointer;
+		cursor: default;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
@@ -1186,13 +1200,6 @@
 		border-top: 1px solid var(--line);
 	}
 
-	.edit-error {
-		margin: 0;
-		font-size: var(--text-meta);
-		font-weight: 600;
-		color: var(--signal);
-	}
-
 	.catalog-summary {
 		display: flex;
 		align-items: center;
@@ -1275,7 +1282,7 @@
 	.transport-left {
 		display: flex;
 		align-items: center;
-		gap: var(--space-1);
+		gap: var(--space-2);
 	}
 
 	.transport-right {

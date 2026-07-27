@@ -69,9 +69,9 @@ Keep browser APIs behind typed adapters so they can be tested.
 
 ### Product vocabulary versus domain vocabulary
 
-The UI labels the `/drafts` destination **Collection**, session groups **Field Sessions**, and the existing metadata/details surface **Field Notes**. Keep `Session`, `CaptureSession`, `Take`, `TakeMetadata`, table names, and routes unchanged internally. Do not add a persisted notes field for the Field Notes label.
+The UI labels the `/collection` destination **Collection**, session groups **Field Sessions**, and the existing metadata/details surface **Field Notes**. Keep `Session`, `CaptureSession`, `Take`, `TakeMetadata`, and table names unchanged internally. Legacy `/drafts` redirects to `/collection`. Do not add a persisted notes field for the Field Notes label.
 
-`Local Draft` is a presentation status for a take that passed the existing OPFS source + IndexedDB metadata commit gate; it is not a new lifecycle state. A specimen mark is a deterministic projection of already-persisted take/source facts and does not require audio analysis, fingerprinting, scoring, randomness, or a new binary asset.
+`Local File` is a presentation status for a take that passed the existing OPFS source + IndexedDB metadata commit gate; it is not a new lifecycle state. A specimen mark is a deterministic projection of already-persisted take/source facts and does not require audio analysis, fingerprinting, scoring, randomness, or a new binary asset.
 
 ## 4. Suggested source structure
 
@@ -98,7 +98,7 @@ src/
 │   ├── +layout.svelte
 │   ├── +page.svelte
 │   ├── capture/
-│   ├── drafts/
+│   ├── collection/
 │   ├── take/[takeId]/
 │   └── account/
 └── service-worker.ts
@@ -192,7 +192,7 @@ Before recording:
 - Check against the maximum take policy.
 - Block capture if safe storage cannot be guaranteed.
 
-Request persistent storage when the user first chooses to keep drafts, but treat denial as normal.
+Request persistent storage when the user first chooses to keep files, but treat denial as normal.
 
 ## 7. Audio decoding and rendering
 

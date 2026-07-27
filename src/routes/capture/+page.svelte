@@ -1,18 +1,25 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import {
+		actionToast,
 		captureController,
 		getCaptureSnapshot,
 		importAudioFiles,
 		onTakeInventoryChanged
 	} from '$lib/state';
+	import {
+		DEFAULT_SESSION_NAME,
+		normalizeSessionName,
+		rememberSessionNamePreset
+	} from '$lib/domain';
 	import { detectCapabilities } from '$lib/capabilities';
-	import { countCollectionDrafts } from '$lib/persistence';
+	import { countCollectionFiles, getAppSettings, putSessionNamePresets } from '$lib/persistence';
 	import CaptureTimer from '$lib/ui/components/CaptureTimer.svelte';
 	import CollectionShortcut from '$lib/ui/components/CollectionShortcut.svelte';
 	import GhostButton from '$lib/ui/components/GhostButton.svelte';
 	import LiveWaveform from '$lib/ui/components/LiveWaveform.svelte';
 	import RecordControl from '$lib/ui/components/RecordControl.svelte';
+	import SessionNameSheet from '$lib/ui/components/SessionNameSheet.svelte';
 	import StandbyPlot from '$lib/ui/components/StandbyPlot.svelte';
 	import AppShell from '$lib/ui/layouts/AppShell.svelte';
 	import { Icon } from '$lib/ui/icons';
@@ -21,41 +28,41 @@
 	let capabilities = $state<CapabilityReport | null>(null);
 	const initialSnap = getCaptureSnapshot();
 	let snap = $state(initialSnap);
-	const initialSessionName = initialSnap.session?.name ?? 'Field Session';
+	const initialSessionName = initialSnap.session?.name ?? DEFAULT_SESSION_NAME;
 	let sessionName = $state(initialSessionName);
-	let editingTitle = $state(false);
-	let draftTitle = $state(initialSessionName);
-	let titleBeforeEdit = $state(initialSessionName);
+	let nameSheetOpen = $state(false);
+	let userPresets = $state<string[]>([]);
 	let syncedSessionName = $state<string | null>(initialSnap.session?.name ?? null);
-	let pendingDraftCount = $state(0);
-	let totalDraftCount = $state(0);
+	let pendingFileCount = $state(0);
+	let totalFileCount = $state(0);
 	let importing = $state(false);
-	let importStatus = $state<string | null>(null);
-	let importError = $state<string | null>(null);
 	let fileInput = $state<HTMLInputElement | null>(null);
-
-	function autofocusTitle(node: HTMLInputElement) {
-		node.focus();
-		node.select();
-	}
 
 	function syncSessionNameFromSnap() {
 		const name = snap.session?.name;
-		if (name && name !== syncedSessionName && !editingTitle) {
+		if (name && name !== syncedSessionName && !nameSheetOpen) {
 			syncedSessionName = name;
 			sessionName = name;
-			draftTitle = name;
 		}
 	}
 
-	async function refreshPendingDraftCount() {
+	async function refreshCollectionCounts() {
 		try {
-			const counts = await countCollectionDrafts();
-			pendingDraftCount = counts.pending;
-			totalDraftCount = counts.total;
+			const counts = await countCollectionFiles();
+			pendingFileCount = counts.pending;
+			totalFileCount = counts.total;
 		} catch {
-			pendingDraftCount = 0;
-			totalDraftCount = 0;
+			pendingFileCount = 0;
+			totalFileCount = 0;
+		}
+	}
+
+	async function loadUserPresets() {
+		try {
+			const settings = await getAppSettings();
+			userPresets = settings.sessionNamePresets;
+		} catch {
+			userPresets = [];
 		}
 	}
 
@@ -63,9 +70,9 @@
 		const unsub = captureController.subscribe(() => {
 			snap = getCaptureSnapshot();
 			syncSessionNameFromSnap();
-			void refreshPendingDraftCount();
+			void refreshCollectionCounts();
 		});
-		const unsubInventory = onTakeInventoryChanged(() => refreshPendingDraftCount());
+		const unsubInventory = onTakeInventoryChanged(() => refreshCollectionCounts());
 		// hydrate() is a no-op notify when already ready — sync from current snapshot on remount.
 		snap = getCaptureSnapshot();
 		syncSessionNameFromSnap();
@@ -73,7 +80,8 @@
 			snap = getCaptureSnapshot();
 			syncSessionNameFromSnap();
 		});
-		void refreshPendingDraftCount();
+		void refreshCollectionCounts();
+		void loadUserPresets();
 		void detectCapabilities().then((report) => {
 			capabilities = report;
 		});
@@ -96,44 +104,40 @@
 			snap.phase === 'requesting' ||
 			snap.phase === 'blocked'
 	);
-	const showDraftsLink = $derived(!isRecording);
+	const showCollectionLink = $derived(!isRecording);
 	const collectionAriaLabel = $derived(
-		totalDraftCount > 0
-			? pendingDraftCount > 0
-				? `${pendingDraftCount} pending of ${totalDraftCount} Local Draft${totalDraftCount === 1 ? '' : 's'} in Collection`
-				: `${totalDraftCount} Local Draft${totalDraftCount === 1 ? '' : 's'} in Collection`
+		totalFileCount > 0
+			? pendingFileCount > 0
+				? `${pendingFileCount} pending of ${totalFileCount} Local File${totalFileCount === 1 ? '' : 's'} in Collection`
+				: `${totalFileCount} Local File${totalFileCount === 1 ? '' : 's'} in Collection`
 			: 'Open Collection'
 	);
 
-	function startTitleEdit() {
-		titleBeforeEdit = sessionName;
-		draftTitle = sessionName;
-		editingTitle = true;
+	function openNameSheet() {
+		nameSheetOpen = true;
 	}
 
-	async function commitTitle() {
-		if (!editingTitle) return;
-		editingTitle = false;
-		const next = draftTitle.trim() || titleBeforeEdit;
+	function closeNameSheet() {
+		nameSheetOpen = false;
+	}
+
+	async function applySessionName(raw: string) {
+		const next = normalizeSessionName(raw);
 		sessionName = next;
-		draftTitle = next;
 		syncedSessionName = next;
-		await captureController.setSessionName(sessionName);
-	}
-
-	function cancelTitle() {
-		draftTitle = titleBeforeEdit;
-		sessionName = titleBeforeEdit;
-		editingTitle = false;
-	}
-
-	function onTitleKeydown(event: KeyboardEvent) {
-		if (event.key === 'Enter') {
-			event.preventDefault();
-			void commitTitle();
-		} else if (event.key === 'Escape') {
-			event.preventDefault();
-			cancelTitle();
+		nameSheetOpen = false;
+		await captureController.setSessionName(next);
+		const remembered = rememberSessionNamePreset(userPresets, next);
+		if (
+			remembered.length !== userPresets.length ||
+			remembered.some((value, index) => value !== userPresets[index])
+		) {
+			userPresets = remembered;
+			try {
+				await putSessionNamePresets(remembered);
+			} catch {
+				// Session rename still applies if preset persistence fails.
+			}
 		}
 	}
 
@@ -146,7 +150,6 @@
 
 	function openImportPicker() {
 		if (importing) return;
-		importError = null;
 		fileInput?.click();
 	}
 
@@ -157,31 +160,28 @@
 		if (files.length === 0) return;
 
 		importing = true;
-		importError = null;
-		importStatus = 'Importing…';
+		actionToast.show(`Importing ${files.length} file${files.length === 1 ? '' : 's'}…`);
 
 		try {
 			const result = await importAudioFiles(files);
 			const ok = result.imported.length;
 			const fail = result.errors.length;
 			if (ok > 0) {
-				await refreshPendingDraftCount();
+				await refreshCollectionCounts();
 			}
 			if (ok > 0 && fail === 0) {
-				importStatus = `Imported ${ok}.`;
+				actionToast.show(`Imported ${ok} Local File${ok === 1 ? '' : 's'}`);
 			} else if (ok > 0 && fail > 0) {
-				importStatus = `${ok} imported, ${fail} failed.`;
-				importError = result.errors.map((error) => error.message).join(' ');
+				actionToast.show(`Imported ${ok}; ${fail} failed`);
 			} else {
-				importStatus = null;
-				importError = result.errors.map((error) => error.message).join(' ') || 'Import failed.';
+				actionToast.show(result.errors[0]?.message || 'Import failed');
 			}
 		} catch (cause) {
-			importStatus = null;
-			importError =
+			actionToast.show(
 				cause && typeof cause === 'object' && 'message' in cause
 					? String((cause as { message: string }).message)
-					: 'Import failed.';
+					: 'Import failed.'
+			);
 		} finally {
 			importing = false;
 		}
@@ -213,6 +213,13 @@
 					{/if}
 				</div>
 				<div class="wave-row">
+					<!-- Subtle corner slices — instrument frame, idle ↔ recording. -->
+					<div class="wave-corners" aria-hidden="true">
+						<span class="wave-corner tl"></span>
+						<span class="wave-corner tr"></span>
+						<span class="wave-corner bl"></span>
+						<span class="wave-corner br"></span>
+					</div>
 					{#if showTimer}
 						<LiveWaveform
 							peaks={snap.livePeaks}
@@ -253,42 +260,29 @@
 					</div>
 					<div class="record-side record-side-end">
 						<CollectionShortcut
-							totalCount={totalDraftCount}
-							pendingCount={pendingDraftCount}
-							hidden={!showDraftsLink}
+							totalCount={totalFileCount}
+							pendingCount={pendingFileCount}
+							hidden={!showCollectionLink}
 							ariaLabel={collectionAriaLabel}
 						/>
 					</div>
 				</div>
 
 				<div class="session-title">
-					{#if editingTitle}
-						<input
-							{@attach autofocusTitle}
-							type="text"
-							class="session-input"
-							bind:value={draftTitle}
-							onblur={() => void commitTitle()}
-							onkeydown={onTitleKeydown}
-							placeholder="Field Session name"
-							aria-label="Field Session name"
-						/>
-					{:else}
-						<button type="button" class="session-display" onclick={startTitleEdit}>
-							{sessionName}
-						</button>
-					{/if}
+					<button
+						type="button"
+						class="session-display"
+						onclick={openNameSheet}
+						aria-haspopup="dialog"
+						aria-label="Field Session name"
+					>
+						{sessionName}
+					</button>
 				</div>
 
 				<div class="status-slot" aria-live="polite">
 					{#if snap.statusMessage}
 						<p class="status-hint">{snap.statusMessage}</p>
-					{/if}
-					{#if importStatus}
-						<p class="import-status" role="status">{importStatus}</p>
-					{/if}
-					{#if importError}
-						<p class="import-error" role="alert">{importError}</p>
 					{/if}
 				</div>
 
@@ -303,7 +297,7 @@
 			</div>
 
 			<!-- Overlay so capability/error banners never shift the record + title band. -->
-			{#if snap.error || (capabilities && (!canRecord || !capabilities.canPersistDrafts))}
+			{#if snap.error || (capabilities && (!canRecord || !capabilities.canPersistFiles))}
 				<div class="capture-alerts">
 					{#if snap.error}
 						<div class="error-banner">
@@ -318,7 +312,7 @@
 								Recording requires a secure context, microphone permission, and MediaRecorder
 								support.
 							</p>
-							{#if capabilities.canPersistDrafts}
+							{#if capabilities.canPersistFiles}
 								<GhostButton onclick={openImportPicker} disabled={importing}>
 									Import audio instead
 								</GhostButton>
@@ -326,9 +320,9 @@
 						</div>
 					{/if}
 
-					{#if capabilities && !capabilities.canPersistDrafts}
+					{#if capabilities && !capabilities.canPersistFiles}
 						<div class="warning-banner">
-							Local storage is not available. Takes cannot be saved as Local Drafts on this device.
+							Local storage is not available. Takes cannot be saved as Local Files on this device.
 						</div>
 					{/if}
 				</div>
@@ -336,6 +330,14 @@
 		</div>
 	</section>
 </AppShell>
+
+<SessionNameSheet
+	open={nameSheetOpen}
+	name={sessionName}
+	{userPresets}
+	onclose={closeNameSheet}
+	onapply={applySessionName}
+/>
 
 <style>
 	.capture {
@@ -409,9 +411,59 @@
 	}
 
 	.wave-row {
+		position: relative;
 		flex: 1;
 		min-height: 0;
 		width: 100%;
+		/* Nudge plot + corners up; timer / record band stay put. */
+		transform: translateY(calc(-1 * var(--space-3)));
+	}
+
+	/* Corner slices of a rectangle — soft like standby scan chrome. */
+	.wave-corners {
+		position: absolute;
+		inset-block: 0;
+		inset-inline: var(--space-6);
+		z-index: 1;
+		pointer-events: none;
+	}
+
+	.wave-corner {
+		position: absolute;
+		box-sizing: border-box;
+		width: var(--space-5);
+		height: var(--space-5);
+		border-color: color-mix(in srgb, var(--line-strong) 70%, transparent);
+		border-style: solid;
+		border-width: 0;
+	}
+
+	.wave-corner.tl {
+		top: 0;
+		left: 0;
+		border-top-width: 1px;
+		border-left-width: 1px;
+	}
+
+	.wave-corner.tr {
+		top: 0;
+		right: 0;
+		border-top-width: 1px;
+		border-right-width: 1px;
+	}
+
+	.wave-corner.bl {
+		bottom: 0;
+		left: 0;
+		border-bottom-width: 1px;
+		border-left-width: 1px;
+	}
+
+	.wave-corner.br {
+		bottom: 0;
+		right: 0;
+		border-bottom-width: 1px;
+		border-right-width: 1px;
 	}
 
 	.lower {
@@ -505,66 +557,73 @@
 		gap: var(--space-1);
 	}
 
-	.session-display,
-	.session-input {
+	.session-display {
 		box-sizing: border-box;
-		width: 100%;
-		max-width: 24rem;
-		min-height: var(--touch-min);
-		padding: var(--space-2) var(--space-3);
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: auto;
+		max-width: min(100%, 24rem);
+		min-height: calc(var(--touch-min) + var(--space-2));
+		padding: var(--space-3) var(--space-6);
 		border: none;
-		border-radius: var(--radius-control);
+		border-radius: var(--radius-round);
 		font-family: var(--font-mono);
 		font-size: var(--text-screen);
 		font-weight: 600;
 		line-height: 1.25;
 		text-align: center;
 		color: var(--ink);
+		background: var(--surface);
+		/* Match TakeRow default raised card. */
+		box-shadow:
+			0 1px 0 color-mix(in srgb, var(--ink) 10%, transparent),
+			0 1px var(--space-1) color-mix(in srgb, var(--ink) 12%, transparent),
+			inset 0 1px 0 color-mix(in srgb, var(--surface) 70%, transparent),
+			inset 0 -1px 0 color-mix(in srgb, var(--ink) 8%, transparent);
+		cursor: default;
 	}
 
-	.session-display {
-		background: transparent;
-		box-shadow: inset 0 -1px 0 var(--line);
-		cursor: pointer;
+	@media (prefers-reduced-motion: no-preference) {
+		.session-display {
+			transition:
+				background-color 140ms ease,
+				box-shadow 140ms ease,
+				transform 140ms ease;
+		}
 	}
 
-	.session-display:hover {
-		box-shadow: inset 0 -1px 0 var(--ink-muted);
+	@media (hover: hover) {
+		.session-display:hover {
+			box-shadow:
+				0 var(--space-1) var(--space-2) color-mix(in srgb, var(--ink) 8%, transparent),
+				0 var(--space-2) var(--space-4) color-mix(in srgb, var(--ink) 10%, transparent),
+				inset 0 1px 0 var(--surface),
+				inset 0 -1px 0 color-mix(in srgb, var(--ink) 5%, transparent);
+		}
+	}
+
+	@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+		.session-display:hover {
+			transform: translateY(-1px);
+		}
+	}
+
+	.session-display:active {
+		background: var(--surface);
+		/* Match SessionNameSheet `.control:focus-visible` outline. */
+		outline: 2px solid var(--ink);
+		outline-offset: 2px;
+		box-shadow:
+			0 1px 0 color-mix(in srgb, var(--ink) 8%, transparent),
+			inset 0 1px var(--space-1) color-mix(in srgb, var(--ink) 10%, transparent),
+			inset 0 -1px 0 color-mix(in srgb, var(--surface) 60%, transparent);
+		transform: none;
 	}
 
 	.session-display:focus-visible {
 		outline: 2px solid var(--ink);
 		outline-offset: 2px;
-	}
-
-	.session-input {
-		background: var(--surface);
-		/* Raised card face — same language as Field Notes sheet inputs. */
-		box-shadow:
-			0 1px var(--space-1) color-mix(in srgb, var(--ink) 6%, transparent),
-			0 var(--space-1) var(--space-2) color-mix(in srgb, var(--ink) 8%, transparent),
-			inset 0 1px 0 color-mix(in srgb, var(--surface) 80%, transparent),
-			inset 0 -1px 0 color-mix(in srgb, var(--ink) 6%, transparent);
-	}
-
-	@media (prefers-reduced-motion: no-preference) {
-		.session-input {
-			transition: box-shadow 140ms ease;
-		}
-	}
-
-	.session-input:focus {
-		outline: none;
-	}
-
-	.session-input:focus-visible {
-		outline: 2px solid var(--ink);
-		outline-offset: 2px;
-		box-shadow:
-			0 var(--space-1) var(--space-2) color-mix(in srgb, var(--ink) 8%, transparent),
-			0 var(--space-2) var(--space-3) color-mix(in srgb, var(--ink) 10%, transparent),
-			inset 0 1px 0 var(--surface),
-			inset 0 -1px 0 color-mix(in srgb, var(--ink) 5%, transparent);
 	}
 
 	.status-hint {
@@ -600,20 +659,6 @@
 		margin-top: var(--space-3);
 	}
 
-	.import-status {
-		margin: 0;
-		font-size: var(--text-meta);
-		color: var(--ink-muted);
-		text-align: center;
-	}
-
-	.import-error {
-		margin: 0;
-		font-size: var(--text-meta);
-		color: var(--ink);
-		text-align: center;
-	}
-
 	.file-input {
 		position: absolute;
 		width: 1px;
@@ -634,6 +679,10 @@
 		.meters-header,
 		.lower {
 			padding-inline: var(--space-5);
+		}
+
+		.wave-corners {
+			inset-inline: var(--space-7);
 		}
 	}
 </style>

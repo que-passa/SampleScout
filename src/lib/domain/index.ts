@@ -13,13 +13,22 @@ export type {
 	SpecimenMarkSourceFacts
 } from './catalog';
 export {
+	DEFAULT_SESSION_NAME,
+	SESSION_NAME_PRESETS,
+	SESSION_NAME_PRESET_LIMIT,
+	isBuiltInSessionPreset,
+	normalizeSessionName,
+	rememberSessionNamePreset
+} from './session-name';
+export type { SessionNamePreset } from './session-name';
+export {
 	createSession,
 	createSessionDefaults,
 	createInitialEditRecipe,
 	generateTakeMetadata,
-	createTakeDraft,
+	createTake,
 	isTakeSavedLocally,
-	isPendingDraftTake,
+	isPendingFileTake,
 	isUploadPendingTake,
 	takeHasCollectedChildren,
 	sanitizeDisplayNameStem,
@@ -29,6 +38,8 @@ export {
 	nextNumberedDisplayName,
 	assignNumberedDisplayNames,
 	formatRecordingDate,
+	formatShortDate,
+	formatShortDateTime,
 	applyTakeMetadataPatch,
 	formatMetadataOrigin,
 	formatTagList,
@@ -36,7 +47,7 @@ export {
 } from './metadata';
 export type { TakeMetadataPatch } from './metadata';
 export {
-	buildExtractTakeDraft,
+	buildExtractTake,
 	collectableRetainedBounds,
 	formatExtractClock,
 	formatExtractDisplayName

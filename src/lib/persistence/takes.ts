@@ -1,5 +1,5 @@
 import { createAppError, formatSequence, nowIso } from '$lib/domain/ids';
-import { buildExtractTakeDraft } from '$lib/domain/extract';
+import { buildExtractTake } from '$lib/domain/extract';
 import {
 	applyTakeMetadataPatch,
 	isUploadPendingTake,
@@ -33,14 +33,14 @@ export async function listSavedTakesNewestFirst(): Promise<Take[]> {
 		.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-/** Count of Local Drafts that belong in the default Collection upload set. */
-export async function countPendingDraftTakes(): Promise<number> {
-	const { pending } = await countCollectionDrafts();
+/** Count of Local Files that belong in the default Collection upload set. */
+export async function countPendingFileTakes(): Promise<number> {
+	const { pending } = await countCollectionFiles();
 	return pending;
 }
 
-/** Saved Local Drafts: total inventory + upload-pending subset. */
-export async function countCollectionDrafts(): Promise<{ pending: number; total: number }> {
+/** Saved Local Files: total inventory + upload-pending subset. */
+export async function countCollectionFiles(): Promise<{ pending: number; total: number }> {
 	const takes = await listSavedTakesNewestFirst();
 	return {
 		total: takes.length,
@@ -260,7 +260,7 @@ export async function discardTake(takeId: TakeId): Promise<Take> {
 }
 
 /**
- * Create a Local Draft from a selection on an existing take.
+ * Create a Local File from a selection on an existing take.
  * Shares the parent OPFS source; commits metadata only (source already on disk).
  */
 export async function extractTakeFromSelection(input: {
@@ -288,7 +288,7 @@ export async function extractTakeFromSelection(input: {
 	try {
 		const sequence = await nextSequenceForSession(session.id);
 		const existingDisplayNames = await listDisplayNamesForSession(session.id);
-		draft = buildExtractTakeDraft({
+		draft = buildExtractTake({
 			parent,
 			session,
 			sequence,

@@ -214,6 +214,8 @@ Zoom must preserve the time position under the pointer or gesture center when pr
 
 After a selection gesture completes, the view auto-fits to that selection (same padding as “Fit selection”). After a trim-edge adjust commits — or retained bounds change via Trim / Collect / Reset / open — the view auto-fits to the retained region (same as “Fit trimmed region”). Auto-fit is suppressed while the corresponding drag is in progress so the wave does not chase the pointer.
 
+While dragging a **trim** or **selection edge grip** near the left or right of the main waveform viewport, the view auto-pans so the grip can keep moving past the visible edge. Scroll tempo scales with zoom (visible span): deeper zoom pans less absolute time per second so visual scroll speed stays consistent.
+
 Single-finger / primary-button drag on the main waveform remains selection (tap seeks). Do not use a Select/Pan mode toggle.
 
 ## 9. Playback
@@ -226,6 +228,7 @@ Support:
 - Return to selection start
 - Loop selection during preview
 - Stop at selection end when selection-play mode is active
+- **Space** toggles play/pause on the take editor (desktop). Ignore when typing in a field, when focus is on a button/link, or while Field Notes / confirm sheets are open.
 
 The playhead must be based on audio clock timing, not only animation-frame accumulation.
 
@@ -254,7 +257,7 @@ Do not rewrite the source file after every edit.
 
 ### Trim
 
-Retain the region between start and end **on the current take**. Successful Trim clears the temporary selection. Trim also **enables peak normalize** on the new retained bounds so gain is recalculated for that section (not the discarded source). Trim shapes the current draft; it does not mint a new Collection item.
+Retain the region between start and end **on the current take**. Successful Trim clears the temporary selection. Trim also **enables peak normalize** on the new retained bounds so gain is recalculated for that section (not the discarded source). Trim shapes the current file; it does not mint a new Collection item.
 
 ### Cut
 
@@ -273,7 +276,7 @@ For MVP performance, the edited overview may be generated from retained source p
 
 ### Collect
 
-Create a **new Local Draft** from the current retained trim:
+Create a **new Local File** from the current retained trim:
 
 - Requires a usable retained trim narrower than the full source (same minimum length as trim); does **not** depend on temporary selection
 - Parent source stays intact; parent recipe resets to full-source identity after Collect
@@ -411,6 +414,6 @@ If peak analysis fails:
 - Selection values match visible boundaries.
 - Playback begins at the displayed playhead within practical UI tolerance.
 - Trimmed/cut output duration matches the edit recipe.
-- Collect creates a new Local Draft from the retained trim; parent recipe resets to identity afterward.
+- Collect creates a new Local File from the retained trim; parent recipe resets to identity afterward.
 - Normalization does not exceed the configured peak target.
 - No fake waveform is shown after real audio exists.

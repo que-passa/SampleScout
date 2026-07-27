@@ -13,7 +13,7 @@
 	let { children }: { children?: Snippet } = $props();
 
 	const captureChrome = $derived(page.route.id === '/capture' || page.route.id === '/');
-	const collectionChrome = $derived(page.route.id === '/drafts');
+	const collectionChrome = $derived(page.route.id === '/collection');
 	const debugChrome = $derived(page.route.id === '/debug');
 	const editorChrome = $derived(page.route.id === '/take/[takeId]');
 	const accountRoute = $derived(page.route.id === '/account');
@@ -89,7 +89,7 @@
 				var(--touch-min),
 				1fr
 			);
-		align-items: center;
+		align-items: stretch;
 		column-gap: var(--space-2);
 		min-height: var(--touch-min);
 		/* Reduce vertical padding; keep touch-height via min-height. */
@@ -100,6 +100,8 @@
 	.top-bar-start {
 		justify-self: start;
 		min-width: 0;
+		display: flex;
+		align-items: center;
 	}
 
 	.top-bar-title {
@@ -121,8 +123,9 @@
 		align-items: center;
 		gap: var(--space-2);
 		min-width: 0;
-		font-size: var(--text-title);
+		font-size: var(--text-body);
 		font-weight: 600;
+		line-height: 1;
 		letter-spacing: 0.02em;
 		text-decoration: none;
 		color: var(--ink);
@@ -139,6 +142,7 @@
 		margin: 0;
 		font-size: var(--text-title);
 		font-weight: 600;
+		line-height: 1;
 		text-align: center;
 		overflow: hidden;
 		text-overflow: ellipsis;

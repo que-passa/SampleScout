@@ -1,10 +1,10 @@
 # SampleScout
 
-Browser-based, mobile-first PWA for capturing short audio takes, organizing device-local drafts in a Collection of Field Sessions, applying lightweight non-destructive edits, and uploading to Audiotool.
+Browser-based, mobile-first PWA for capturing short audio takes, organizing device-local files in a Collection of Field Sessions, applying lightweight non-destructive edits, and uploading to Audiotool.
 
-There is **no custom backend**. Drafts live in IndexedDB + OPFS on the device. Production hosting is [GitHub Pages](https://que-passa.github.io/SampleScout/) via `@sveltejs/adapter-static`.
+There is **no custom backend**. Files live in IndexedDB + OPFS on the device. Production hosting is [GitHub Pages](https://que-passa.github.io/SampleScout/) via `@sveltejs/adapter-static`.
 
-Visible product vocabulary uses **Capture** for the action, **Collection** for the `/drafts` destination, **Field Session** for groups, **Field Notes** for existing take metadata/details, and **Local Draft** for a take safely saved on this device. Local Draft never means cloud backup or sync.
+Visible product vocabulary uses **Capture** for the action, **Collection** for the `/collection` destination, **Field Session** for groups, **Field Notes** for existing take metadata/details, and **Local File** for a take safely saved on this device. Local File never means cloud backup or sync.
 
 ## Quick start
 

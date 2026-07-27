@@ -1,6 +1,7 @@
 import { createSession } from '$lib/domain/metadata';
 import { formatFieldSessionName } from '$lib/domain/catalog';
 import { nowIso } from '$lib/domain/ids';
+import { normalizeSessionName } from '$lib/domain/session-name';
 import type { CaptureSession, SessionId, TakeId } from '$lib/domain/types';
 import { cloneForIdb } from './clone-for-idb';
 import { getDatabase } from './db';
@@ -45,11 +46,55 @@ export async function renameSession(
 
 	const updated: CaptureSession = {
 		...session,
-		name: name.trim() || session.name,
+		name: normalizeSessionName(name),
 		updatedAt: nowIso()
 	};
 	await putSession(updated);
 	return updated;
+}
+
+/** True when the session has at least one saved Local File. */
+async function sessionHasSavedTakes(sessionId: SessionId): Promise<boolean> {
+	const takes = await getDatabase().takes.where('sessionId').equals(sessionId).toArray();
+	return takes.some((take) => take.lifecycleState === 'saved');
+}
+
+/**
+ * Apply a Field Session title from Capture.
+ * - Same name → no-op (returns active).
+ * - Active session has saved files → seal it (`inactive`) and create a new active session
+ *   with the new name so Collection keeps the previous group.
+ * - Empty active session → rename in place.
+ */
+export async function applyActiveSessionName(name: string): Promise<CaptureSession> {
+	const normalized = normalizeSessionName(name);
+	const active = await getActiveSession();
+
+	if (!active) {
+		const session = createSession(normalized);
+		await putSession(session);
+		return session;
+	}
+
+	if (active.name === normalized) {
+		return active;
+	}
+
+	if (!(await sessionHasSavedTakes(active.id))) {
+		const renamed = await renameSession(active.id, normalized);
+		return renamed ?? active;
+	}
+
+	const sealed: CaptureSession = {
+		...active,
+		status: 'inactive',
+		updatedAt: nowIso()
+	};
+	await putSession(sealed);
+
+	const next = createSession(normalized);
+	await putSession(next);
+	return next;
 }
 
 export async function appendTakeToSession(

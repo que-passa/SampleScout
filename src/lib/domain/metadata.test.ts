@@ -4,9 +4,11 @@ import {
 	assignNumberedDisplayNames,
 	createSession,
 	formatNumberedDisplayName,
+	formatShortDate,
+	formatShortDateTime,
 	formatTagList,
 	generateTakeMetadata,
-	isPendingDraftTake,
+	isPendingFileTake,
 	isTakeSavedLocally,
 	isUploadPendingTake,
 	nextNumberedDisplayName,
@@ -26,10 +28,28 @@ describe('formatSequence', () => {
 	});
 });
 
+describe('formatShortDate / formatShortDateTime', () => {
+	it('formats dd/mm and dd/mm/hh:mm from local calendar parts', () => {
+		const iso = '2026-07-27T15:41:00';
+		expect(formatShortDate(iso)).toBe('27/07');
+		expect(formatShortDateTime(iso)).toBe('27/07/15:41');
+	});
+
+	it('returns empty string for invalid dates', () => {
+		expect(formatShortDate('not-a-date')).toBe('');
+		expect(formatShortDateTime('not-a-date')).toBe('');
+	});
+});
+
 describe('numbered display names', () => {
 	it('builds short stems from Field Session titles', () => {
 		expect(stemFromSessionName('Field Session · 25 Jul 2026 · 21:02')).toBe('25 Jul');
 		expect(stemFromSessionName('Door hits')).toBe('Door hits');
+		expect(stemFromSessionName('Session')).toBe('Session');
+	});
+
+	it('defaults createSession name to Session', () => {
+		expect(createSession().name).toBe('Session');
 	});
 
 	it('formats and parses Stem NN without dashes', () => {
@@ -182,7 +202,7 @@ describe('isTakeSavedLocally', () => {
 	});
 });
 
-describe('isPendingDraftTake', () => {
+describe('isPendingFileTake', () => {
 	it('requires a locally saved take that is not uploaded', () => {
 		const take = {
 			lifecycleState: 'saved',
@@ -190,16 +210,16 @@ describe('isPendingDraftTake', () => {
 			source: { fileRef: 'sessions/a/takes/b/source.bin' }
 		} as Take;
 
-		expect(isPendingDraftTake(take)).toBe(true);
+		expect(isPendingFileTake(take)).toBe(true);
 
 		take.uploadState = 'uploaded';
-		expect(isPendingDraftTake(take)).toBe(false);
+		expect(isPendingFileTake(take)).toBe(false);
 
 		take.uploadState = 'failed';
-		expect(isPendingDraftTake(take)).toBe(true);
+		expect(isPendingFileTake(take)).toBe(true);
 
 		take.lifecycleState = 'finalizing';
-		expect(isPendingDraftTake(take)).toBe(false);
+		expect(isPendingFileTake(take)).toBe(false);
 	});
 });
 

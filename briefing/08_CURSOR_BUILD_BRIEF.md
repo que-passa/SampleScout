@@ -15,15 +15,15 @@ Build **SampleScout**, a mobile-first responsive Svelte/SvelteKit PWA for record
 - Do not create or assume any custom backend, API route, serverless function, database server, or secret-storage service.
 - Audiotool authentication and upload happen directly in the browser.
 - Never embed a personal access token.
-- Local drafts use browser storage.
+- Local files use browser storage.
 - The UI is bright, black/white/neutral gray, technical, precise, and primarily monospaced.
 - Waveforms must be calculated from real audio and rendered precisely.
 - Do not use a generic or decorative waveform.
 - Default Audiotool visibility is `unlisted`.
 - Default sample kind is `one-shot`.
 - Recommended hard maximum is 10 minutes per take.
-- Visible vocabulary: Capture action; Collection destination at `/drafts`; Field Session grouping; Field Notes for existing take metadata/details; **Collect** for retained trim → new Local Draft; upload from Collection only.
-- `Local Draft` means saved on this device only after the OPFS + IndexedDB commit gate.
+- Visible vocabulary: Capture action; Collection destination at `/collection`; Field Session grouping; Field Notes for existing take metadata/details; **Collect** for retained trim → new Local File; upload from Collection only.
+- `Local File` means saved on this device only after the OPFS + IndexedDB commit gate.
 
 Before adding dependencies, explain what each dependency is needed for. Prefer browser APIs and small focused libraries.
 
@@ -36,12 +36,12 @@ A user can:
 3. Stop and have the take saved locally automatically.
 4. Immediately record another take.
 5. Leave any take unreviewed for later.
-6. Open a take, trim useful regions, and **Collect** each as its own Local Draft while the parent source stays intact.
+6. Open a take, trim useful regions, and **Collect** each as its own Local File while the parent source stays intact.
 7. Discard a bad take or Capture a new one (no in-place Retake).
 8. Discard a take with a temporary Undo.
 9. Import an existing audio file.
 10. View an accurate waveform.
-11. Trim, cut, fade, and peak-normalize non-destructively on a draft.
+11. Trim, cut, fade, and peak-normalize non-destructively on a file.
 12. Review prefilled metadata (Field Notes).
 13. From Collection, confirm and upload WAV or MP3 to Audiotool (confirm sheet → progress).
 14. Close and reopen the app and recover saved local takes.
@@ -70,10 +70,10 @@ Do not add rarity, XP, streaks, collectible cards, celebratory collection motion
   Redirect or render Capture
 
 /capture
-  Minimal capture composition: record control + click-to-edit session title
+  Minimal capture composition: record control + session title (tap → name sheet)
 
-/drafts
-  Collection (Field Sessions and takes; route remains /drafts)
+/collection
+  Collection (Field Sessions and takes; route /collection)
 
 /take/[takeId]
   Editor and metadata
@@ -119,7 +119,7 @@ Persistence rule:
 
 A take can be labeled `Saved locally` only after the binary and its metadata record have been committed successfully.
 
-Present that state as `Local Draft` with supporting device-local copy. Keep the existing lifecycle enum; do not add a cloud-like draft state.
+Present that state as `Local File` with supporting device-local copy. Keep the existing lifecycle enum; do not add a cloud-like file state.
 
 Create schema versions and migration scaffolding from the start.
 
@@ -160,7 +160,7 @@ Warnings:
 
 ## Retake (removed)
 
-There is no in-place Retake. Capture a new take or Discard the old one. Do not replace an existing Local Draft’s source while preserving its sequence.
+There is no in-place Retake. Capture a new take or Discard the old one. Do not replace an existing Local File’s source while preserving its sequence.
 
 ## Discard
 
@@ -179,7 +179,8 @@ Generate:
 
 ```text
 Name:
-[Session Name] — [three-digit sequence]
+[short stem from session title] [two-digit number]   e.g. Rain 01
+(never em/en dashes)
 
 Description:
 Recorded during “[Session Name]” on [date]. Take [sequence].
@@ -193,6 +194,8 @@ one-shot
 Visibility:
 unlisted
 ```
+
+Default Field Session title is `Session`. Capture renames via a bottom sheet (input + built-in / user preset chips), not inline edit.
 
 Track whether each field came from an application default, session default, generated suggestion, or manual override.
 
@@ -232,7 +235,7 @@ Non-destructive recipe:
 
 Tools:
 
-- Collect (retained trim → new Local Draft; parent source unchanged, parent recipe resets to identity; shared source; brand primary on take; no take Upload)
+- Collect (retained trim → new Local File; parent source unchanged, parent recipe resets to identity; shared source; brand primary on take; no take Upload)
 - Trim
 - Fade in
 - Fade out
@@ -316,7 +319,7 @@ Keep local audio until Audiotool processing is ready.
 
 - Bright off-white background
 - Fixed, reachable record/stop control
-- Collection shortcut from Capture when local drafts exist
+- Collection shortcut from Capture when local files exist
 - Newest takes first within each Field Session in Collection
 - One-handed operation
 - 44 px touch targets

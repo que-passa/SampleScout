@@ -25,8 +25,8 @@ export function remainingRecordingSeconds(elapsedSeconds: number): number {
 }
 
 export const APP_NAME = 'SampleScout';
-/** Auth splash / meta tagline (briefing: field audio, useful sounds). */
-export const APP_TAGLINE = 'Discover useful sounds in the field.';
+/** Auth splash / meta tagline. */
+export const APP_TAGLINE = 'Capture sounds on the go.';
 export const APP_VERSION = '0.0.1';
 
 /** Safety margin when estimating storage before capture (bytes). */

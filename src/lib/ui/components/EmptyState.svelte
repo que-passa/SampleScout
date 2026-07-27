@@ -4,32 +4,39 @@
 
 	let {
 		title,
-		body,
+		body = '',
 		actionLabel,
 		onaction,
 		secondaryActionLabel,
-		onsecondaryaction
+		onsecondaryaction,
+		align = 'start',
+		framed = true
 	}: {
 		title: string;
-		body: string;
+		body?: string;
 		actionLabel?: string;
 		onaction?: () => void;
 		secondaryActionLabel?: string;
 		onsecondaryaction?: () => void;
+		align?: 'start' | 'center';
+		framed?: boolean;
 	} = $props();
+
+	const showBody = $derived(body.trim().length > 0);
 </script>
 
-<div class="empty">
-	<p class="label">Empty</p>
+<div class="empty" class:framed class:align-center={align === 'center'}>
 	<h2>{title}</h2>
-	<p class="body">{body}</p>
+	{#if showBody}
+		<p class="body">{body}</p>
+	{/if}
 	{#if (actionLabel && onaction) || (secondaryActionLabel && onsecondaryaction)}
 		<div class="actions">
-			{#if actionLabel && onaction}
-				<PrimaryButton onclick={onaction}>{actionLabel}</PrimaryButton>
-			{/if}
 			{#if secondaryActionLabel && onsecondaryaction}
 				<GhostButton onclick={onsecondaryaction}>{secondaryActionLabel}</GhostButton>
+			{/if}
+			{#if actionLabel && onaction}
+				<PrimaryButton onclick={onaction}>{actionLabel}</PrimaryButton>
 			{/if}
 		</div>
 	{/if}
@@ -39,21 +46,22 @@
 	.empty {
 		display: grid;
 		gap: var(--space-3);
+	}
+
+	.empty.framed {
 		padding: var(--space-5);
 		border: 1px dashed var(--line);
 		border-radius: var(--radius-panel);
 		background: var(--surface);
 	}
 
-	.label {
-		font-size: var(--text-label);
-		font-weight: 600;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		color: var(--ink-muted);
+	.empty.align-center {
+		justify-items: center;
+		text-align: center;
 	}
 
 	h2 {
+		margin: 0;
 		font-size: var(--text-screen);
 		font-weight: 600;
 	}
@@ -67,5 +75,9 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: var(--space-3);
+	}
+
+	.align-center .actions {
+		justify-content: center;
 	}
 </style>

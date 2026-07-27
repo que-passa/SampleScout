@@ -9,9 +9,9 @@ alwaysApply: true
 - **No Audiotool PAT:** public OAuth PKCE only (`PUBLIC_AUDIOTOOL_*`).
 - **Dev host:** `http://127.0.0.1:5173` — never recommend `localhost` for OAuth.
 - **Static SPA:** adapter-static, optional `BASE_PATH`, client-only (`ssr = false`).
-- **Design:** [`DESIGN.md`](DESIGN.md) + `src/lib/styles/tokens.css`; bright mono; `--signal` for record/clip/destructive, idle trim boundary markers (fade grips use `--ink` wedges), and Local Draft status chips; `--brand` / `--brand-soft` for primary CTA faces (`PrimaryButton`), action toasts, active waveform selection, and active trim drag.
-- **Honesty:** no post-close uploads, no cross-device draft sync, no fake waveforms.
-- **Vocabulary:** Capture action; Collection at `/drafts`; Field Session UI / internal `Session`; Field Notes reuses existing metadata; Collect = retained trim → new Local Draft; Local Draft means device-only after the OPFS + IDB gate; upload from Collection only.
+- **Design:** [`DESIGN.md`](DESIGN.md) + `src/lib/styles/tokens.css`; bright mono; `--signal` for record/clip/destructive, idle trim boundary markers (fade grips use `--ink` wedges), and Local File status chips; `--brand` / `--brand-soft` for primary CTA faces (`PrimaryButton`), action toasts, active waveform selection, and active trim drag.
+- **Honesty:** no post-close uploads, no cross-device file sync, no fake waveforms.
+- **Vocabulary:** Capture action; Collection at `/collection`; Field Session UI / internal `Session`; Field Notes reuses existing metadata; Collect = retained trim → new Local File; Local File means device-only after the OPFS + IDB gate; upload from Collection only.
 - **Collection identity:** deterministic marks from persisted take/source facts only; neon fills via `--specimen-neon-*` from the same hash; no waveform/fingerprint/quality/rarity meaning, randomness, XP, streaks, cards, celebration, or cloud implication.
 
 ## Before coding

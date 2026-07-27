@@ -8,20 +8,20 @@
 
 Deeper surfaces are a stack with an explicit back control:
 
-1. **Collection** (`/drafts`) — back → Capture
+1. **Collection** (`/collection`) — back → Capture
 2. **Take detail / editor** (`/take/[takeId]`) — back → Collection
-3. **Account** — bottom sheet on mobile, centered modal on desktop (not a primary tab). Open from the shell top-bar Account control (Capture, Collection, Debug) or the Take editor header. OAuth redirect host is `/capture` (matches the Audiotool developer app); `/account` remains an Account overlay deep-link. UI is the overlay, dismissible with close, backdrop, Escape, or history back.
+3. **Account** — bottom sheet on mobile, centered modal on desktop (not a primary tab). Open from the shell top-bar Account control (Capture, Collection, Debug). OAuth redirect host is `/capture` (matches the Audiotool developer app); `/account` remains an Account overlay deep-link. UI is the overlay, dismissible with close, backdrop, Escape, or history back.
 4. **Debug** (`/debug`) — quiet link from Account; back → Capture
 
 Stack navigations use a short directional page transition when the browser supports the View Transitions API: forward (deeper) slides the new page in from the right with a fade; back (shallower) reverses. Same-depth moves fade only. Account overlay keeps its own sheet/modal motion and does not use the stack page transition. Honor `prefers-reduced-motion`.
 
 There is **no** three-tab bottom navigation and **no** persistent Capture / Collection / Account rail.
 
-Collection remains the visible label for `/drafts` (base-path-safe links). Editing stays contextual to a take — never a primary nav item.
+Collection remains the visible label for `/collection` (base-path-safe links). Editing stays contextual to a take — never a primary nav item.
 
 ### Entry from Capture
 
-Capture’s Collection shortcut (simplified waveform icon + zero-padded **total** Local Draft count, including `00` when empty, with a **signal** **pending** bubble above the total when upload-pending drafts exist) is the primary path into Collection. Keep it available whenever not recording so an empty Collection remains reachable for Import.
+Capture’s Collection shortcut (simplified waveform icon + zero-padded **total** Local File count, including `00` when empty, with a **signal** **pending** bubble above the total when upload-pending files exist) is the primary path into Collection. Keep it available whenever not recording so an empty Collection remains reachable for Import.
 
 ### Tablet / desktop
 
@@ -36,14 +36,14 @@ Capture is a single open composition (not a dashboard of panels):
 - SampleScout wordmark / logo in the top bar (brand only — no screen titles that duplicate nav)
 - Large record control centered and lowered for thumb reach
 - Active session title **below** the record control, with clear spacing
-- Session rename is click-to-edit: show either the title **or** the input, never both at once
+- Session rename: tap the title to open a **bottom sheet** (input + suggestion chips). Do not use inline click-to-edit on Capture.
 - Capability / storage warnings only when something blocks recording or saving
 
 Capture fills the available viewport (shell top bar fixed; no bottom tab bar). It is **not** a scrollable document — the record control and Field Session sit in a stable lower band (same position idle and while recording); the plot stage fills remaining height above. Idle shows a standby plot frame (zero axis, edge ticks, `STANDBY` in the timer header slot, slow right→left scan — no fake waveform; header height matches Capture timer so the axis aligns with the live wave; respect `prefers-reduced-motion`). While recording, the same stage shows the live meters/waveform. Do not rely on page-level scrolling for Capture.
 
 Do **not** crowd the capture screen with connection chips, storage estimates, developer config, or a recent-takes list. Takes live under **Collection**.
 
-Capture shows a compact **Collection shortcut** to the right of the record control: a simplified waveform icon, a zero-padded **total** Local Draft count (including `00` when empty), and a **signal** **pending** bubble (record red fill, bright numerals) stacked above the total when any upload-pending drafts exist (same pending set as Collection Upload). Tapping it opens Collection at `/drafts`. Hide the shortcut while recording. The shell top-bar Account control (avatar when available) opens the Account sheet/modal on Capture, Collection, and Debug; Take uses the same control in its editor header.
+Capture shows a compact **Collection shortcut** to the right of the record control: a simplified waveform icon, a zero-padded **total** Local File count (including `00` when empty), and a **signal** **pending** bubble (record red fill, bright numerals) stacked above the total when any upload-pending files exist (same pending set as Collection Upload). Tapping it opens Collection at `/collection`. Hide the shortcut while recording. The shell top-bar Account control (avatar when available) opens the Account sheet/modal on Capture, Collection, and Debug. Take has no Account control in the editor header.
 
 Auth note: the current product gate requires Audiotool connect before the shell; local-only capture without login remains a possible future relaxation.
 
@@ -70,15 +70,18 @@ Immediately:
 2. Save the source file to local storage.
 3. Create or update the take record.
 4. Compute an initial waveform overview asynchronously.
-5. Show `Local Draft` only after the OPFS + IndexedDB save gate; supporting copy may say `Saved on this device`.
+5. Show `Local File` only after the OPFS + IndexedDB save gate; supporting copy should make clear it is not uploaded and only on this device (e.g. `Not uploaded. Only on this device.`).
 6. Keep “Record another” prominent (the primary record control returns to idle).
 7. Update the Collection shortcut counts (total + pending bubble) so the new take is reachable under **Collection**.
+8. Confirm outcomes with a compact action toast (successful capture with optional **Open**, cancel/discard, not-saved, import). Do **not** leave sticky outcome lines under the Field Session title.
 
-Review actions (play, discard, edit) live in **Collection** and the take editor; **upload** starts only from Collection — not as a take list on Capture. To capture again, record a new take; there is no in-place Retake that overwrites an existing Local Draft.
+The Capture status slot under the session title is **in-flight only** (`Checking storage…`, `Requesting mic…`, `Recording…`, `Past 5 min`, `Saving…`, `Canceling…`). Capability / storage blockers stay as overlay banners. Idle hydrate does not announce `Ready.` / `Restored…` in that slot.
+
+Review actions (play, discard, edit) live in **Collection** and the take editor; **upload** starts only from Collection — not as a take list on Capture. To capture again, record a new take; there is no in-place Retake that overwrites an existing Local File.
 
 ## 3. Field Session behavior
 
-A **Field Session** is the user-facing lightweight grouping mechanism. Internal code and persisted data continue to use `Session` / `CaptureSession`.
+A **Field Session** is the user-facing lightweight grouping mechanism for a continuous capture window. Collection treats it as a temporary group of Local Files to prepare and upload — not a reopenable long-term folder. Internal code and persisted data continue to use `Session` / `CaptureSession`.
 
 A session contains:
 
@@ -92,17 +95,21 @@ A session contains:
 - Default output format
 - Ordered take references
 
-Default session name:
+Default session name: **`Session`**. Datetime is **not** part of the name; Collection shows session datetime as metadata (`dd/mm`) beside the file count.
 
-`Field Session · 25 Jul 2026 · 21:02`
+**Capture session name sheet** (tap title):
 
-The user may rename it inline.
-
-Starting a new session should not delete or finalize the old session.
+- Text input at the top (current name); **Done** commits (empty → `Session`) and closes.
+- Below: up to **12 user presets** (custom names remembered on this device, newest first, FIFO) then ~**21 built-in** location/activity chips (e.g. Atmo, Walk, Home, Forest, Beach, City…).
+- Tap a chip **applies that name and closes** the sheet.
+- User chips are visually distinct from built-ins. Case-insensitive match to a built-in does not create a duplicate user pill.
+- **If the active session already has Local Files**, applying a *different* name **seals** that session (`inactive`) and starts a **new** active session with the chosen name. Existing files stay under the previous session group in Collection. Capture cannot record into sealed sessions.
+- **If the active session is empty**, the name is updated in place (no empty sealed group).
+- Applying the same name is a no-op. Changing the session title never rewrites existing take display names.
 
 ## 4. Take stack (Collection)
 
-The take stack lives under **Collection**, not Capture. Show the newest take first within each Field Session.
+The take stack lives under **Collection**, not Capture. Show the newest take first within each Field Session. Newest / most recently updated Field Session groups appear first.
 
 Each compact row contains:
 
@@ -116,7 +123,7 @@ Each compact row contains:
 
 Status language:
 
-- Local Draft (saved on this device only)
+- Local File (saved on this device only)
 - Unreviewed
 - Edited
 - Ready
@@ -126,11 +133,11 @@ Status language:
 - Uploaded
 - Failed
 
-Do not label a take `Local Draft` or “saved” when only held in JavaScript memory.
+Do not label a take `Local File` or “saved” when only held in JavaScript memory.
 
 ## 5. Retake (not supported)
 
-There is no in-place Retake that replaces an existing Local Draft’s audio. If a take is wrong, **Discard** it or leave it and **Capture** a new take. Sequence numbers advance for new recordings as usual.
+There is no in-place Retake that replaces an existing Local File’s audio. If a take is wrong, **Discard** it or leave it and **Capture** a new take. Sequence numbers advance for new recordings as usual.
 
 ## 6. Discard flow
 
@@ -144,19 +151,19 @@ Use an in-app confirmation dialog (`ConfirmDialog`) for Collection single discar
 
 ## 7. Collect flow (multi-sample from one recording)
 
-Typical field path: one longer take contains several useful sounds. **Collect** turns the current retained **trim** into its own Local Draft without destroying the parent source. Selection is temporary (for Trim / preview); the trim recipe is the result state Collect commits. Single-region and multi-region cases use the same primary control (once vs repeatedly).
+Typical field path: one longer take contains several useful sounds. **Collect** turns the current retained **trim** into its own Local File without destroying the parent source. Selection is temporary (for Trim / preview); the trim recipe is the result state Collect commits. Single-region and multi-region cases use the same primary control (once vs repeatedly).
 
 1. User opens a saved take (recording or import).
 2. Sets retained bounds via Trim (from a selection) and/or trim boundary grips.
 3. Taps **Collect** (brand primary in the take bottom bar; enabled only when the retained trim is narrower than the full source).
-4. App creates a new Local Draft in the same Field Session:
+4. App creates a new Local File in the same Field Session:
    - Same source binary (`fileRef`) — do not copy OPFS audio for MVP
    - Own edit recipe retaining only the trim bounds
    - Optional `derivedFromTakeId` pointing at the parent
    - Generated short name: stem + two-digit number (e.g. `Rain 01`); never em/en dashes
    - Session defaults / Field Notes prefill like any new take
 5. Parent source stays intact; parent recipe returns to full-source identity so the next region can be trimmed and collected. Temporary selection clears.
-6. Collection updates so the new draft is visible (count / row). Stay on the parent editor so the user can Collect again quickly; offer a quiet toast with an optional open-child action.
+6. Collection updates so the new file is visible (count / row). Stay on the parent editor so the user can Collect again quickly; offer a quiet toast with an optional open-child action.
 7. User repeats for further regions, then ships from **Collection** (confirm upload sheet). Parents with collected children are excluded from the default upload pending set; lone takes without children remain pending.
 
 Rules:
@@ -164,9 +171,9 @@ Rules:
 - Collect requires a usable retained trim (narrower than the full source; same minimum length as trim). It does **not** depend on a temporary waveform selection.
 - Collect is not Trim: Trim rewrites the current take’s recipe; Collect adds a Collection item from that trim result, then restores the parent recipe to identity.
 - Collect is not Cut: Cut removes material from the current recipe output; Collect leaves the parent source timeline available for further Collects.
-- Discarding a collected draft removes only that take record (and its rendered assets). Shared source cleanup must not delete the OPFS binary while any take still references it.
+- Discarding a collected file removes only that take record (and its rendered assets). Shared source cleanup must not delete the OPFS binary while any take still references it.
 - Discarding the parent must not orphan children unsafely: keep the shared source for remaining children (MVP).
-- Do not imply collected drafts sync across devices or live in the cloud.
+- Do not imply collected files sync across devices or live in the cloud.
 - Do not start upload from the take editor.
 
 ## 8. Field Notes metadata flow
@@ -198,15 +205,15 @@ Use a dedicated full-screen route or overlay — not a bottom sheet. Editing nee
 
 Structure:
 
-- Header chrome (replaces the global brand bar on this route): Back to Collection (top left, ≥44px), **centered truncated take name** (tap to rename), **Reset edits** icon (when recipe is non-identity) then Account control top right (same as shell top bar)
+- Header chrome (replaces the global brand bar on this route): Back to Collection (top left, ≥44px), **centered truncated take name** (tap to rename), **Reset edits** icon top right (when recipe is non-identity). No Account control on Take — open Account from Capture / Collection / Debug.
 - Waveform stage: precise waveform sits on page `--paper` (not a boxed pane/card) and uses the available vertical space between header and bottom bar; no redundant “Waveform” label or status header (positional time lives on the waveform ruler; duration / channel / selection facts live in Field Notes — no separate playhead clock in transport)
 - Overview navigator strip and compact zoom controls (±) pin in the bottom bar above transport
 - Pinned bottom transport: left Play/Pause + Loop; right Field Notes icon (opens Field Notes as Account-style bottom sheet on mobile / centered modal on desktop) + **Collect** (brand primary; enabled only with a usable retained trim). No Upload on take — shipping is Collection-only.
 - Field Notes sheet holds metadata/details and **Discard**. No Cut, Undo, or Redo in the UI. **Reset** lives in the editor header (not the sheet). **Normalize** and **Trim** live as quick actions on the zoom row. Selection is waveform-only (no numeric sel inputs in the sheet). **Fade in/out** are waveform grips above the take wave. There is no Retake action; capture a new take instead. Successful edit actions, Collect, and discards show a compact action toast.
-- **Collect** is the primary commit when a retained trim exists: create a new Local Draft from the trim bounds, restore parent recipe to identity, stay on the parent for another Collect
+- **Collect** is the primary commit when a retained trim exists: create a new Local File from the trim bounds, restore parent recipe to identity, stay on the parent for another Collect
 - Do **not** duplicate Capture/Collection links in the footer; stack back chrome covers navigation
 
-MVP `/take/[takeId]` follows this: editor header with top-left back → `/drafts` labeled Collection, centered filename, and top-right Reset + Account; waveform-first stage filling available height; pinned bottom bar (zoom/nav + transport); **Field Notes** opens from the transport icon button. No primary bottom tabs; hide the SampleScout brand/top bar while on the take route (Account stays in the editor header).
+MVP `/take/[takeId]` follows this: editor header with top-left back → `/collection` labeled Collection, centered filename, and top-right Reset; waveform-first stage filling available height; pinned bottom bar (zoom/nav + transport); **Field Notes** opens from the transport icon button. No primary bottom tabs; hide the SampleScout brand/top bar while on the take route (no Account in the editor header).
 
 **Viewport-locked instrument chrome:** header and transport stay **pinned**. Only the middle workspace body scrolls. Do not scroll the header or transport away with the take content. Respect `env(safe-area-inset-bottom)` on the transport bar.
 
@@ -285,19 +292,29 @@ User-facing content only:
 - Honest local-data copy (no cloud backup, no cross-device sync)
 - Delete all local data
 
-Open from the shell top bar on Capture / Collection / Debug (Audiotool avatar when available, accessible “Account” label) or the Take editor header. OAuth returns to `/capture`; route `/account` is an overlay deep-link and shows the same Account UI.
+Open from the shell top bar on Capture / Collection / Debug (Audiotool avatar when available, accessible “Account” label). OAuth returns to `/capture`; route `/account` is an overlay deep-link and shows the same Account UI.
 
 Developer diagnostics (full capability report, MIME support) live on a separate **Debug** screen (`/debug`), linked quietly from Account — not on the Account surface itself. OAuth client ID, redirect URI, scopes, and app-registration copy are not shown in the UI; they stay in `.env` / docs only.
 
-## 11. Collection view (`/drafts`)
+## 11. Collection view (`/collection`)
 
-Show Field Sessions by default. Recent takes are reviewed here, not on Capture.
+Show Field Sessions by default as **visual groups**: each session is a header band plus nested Local File / take rows. Recent takes are reviewed here, not on Capture.
 
-Shell top bar (shared with Capture/Debug): back → Capture, page title **Collection**, Account control top right. Pin Collection actions in a bottom bar (always visible; does not scroll away with the list).
+Shell top bar (shared with Capture/Debug): back → Capture, page title **Collection**, Account control top right. When the Collection has Local Files, pin actions in a bottom bar (does not scroll away with the list). When empty, omit the bottom bar — Import and Capture live only in the empty state.
 
-**Default bottom bar:** **Select**, **Import** on the left; **Upload** on the right (brand primary). Upload opens a confirm bottom sheet for every **upload-pending** Local Draft — saved, not yet uploaded, and with **no collected children**. Do not instantly queue. Do not duplicate back, title, or Account in the scrollable body.
+**Default bottom bar:** **Select**, **Import**, and **Cleanup** on the left; **Upload** on the right (brand primary). **Cleanup** removes every Local File with `uploadState === 'uploaded'` from this device after confirm (Audiotool copies stay). If none are uploaded, show a neutral toast `Nothing to clean up` instead of opening confirm. Upload opens a confirm bottom sheet for every **upload-pending** Local File — saved, not yet uploaded, and with **no collected children**. Do not instantly queue. Do not duplicate back, title, or Account in the scrollable body. Collection action feedback (import, discard, cleanup, Field Notes, empty Upload, queue failures) uses compact action toasts only — no sticky status/error lines in the list.
 
-**Select mode bottom bar:** **Done**, then **Edit data**, **Discard**, and **Upload** (selected ∩ upload-pending only). Those three stay disabled until at least one take is selected. Import is hidden while selecting. Field Session group headings use the session name only — do not add a separate “Field Session” type label above names that already include that phrase (default: `Field Session · …`).
+**Select mode bottom bar:** **Done**, then **Edit data**, **Discard**, and **Upload** (selected ∩ upload-pending only). Those three stay disabled until at least one take is selected. Import is hidden while selecting. Do not add a separate “Field Session” type label above session names that already include that phrase.
+
+### Field Session group header
+
+Each session block header:
+
+| Left | Right |
+|------|--------|
+| Session **name** (stored title; may still contain a dated default until naming work) | **`N files`** + session date as **`dd/mm`** (from `createdAt`; single day for MVP) |
+
+In **Select** mode, a checkbox precedes the session name and selects or deselects every take in that Field Session (same visual as take-row checkboxes). Take / Local File rows sit under that header. Session datetime is metadata on the right — do not treat the dated portion of the default name as the Collection time chrome.
 
 ### Collection upload sheet
 
@@ -309,30 +326,28 @@ Shell top bar (shared with Capture/Debug): back → Capture, page title **Collec
 Multi-select flow:
 
 1. Tap **Select**.
-2. Choose takes (row checkboxes; Select all / Clear in the list header).
+2. Choose takes (row checkboxes; Field Session header checkbox selects/deselects that session; Select all / Clear in the list header).
 3. Choose an action:
    - **Edit data** — opens a sheet with batch Field Notes (only checked fields apply).
-   - **Discard** — confirm, then remove selected Local Drafts from this device.
-   - **Upload** — open the confirm sheet for selected upload-pending drafts.
+   - **Discard** — confirm, then remove selected Local Files from this device.
+   - **Upload** — open the confirm sheet for selected upload-pending files.
 4. Tap **Done** to leave select mode (clears the selection).
 
 Do not show the batch Field Notes form inline as soon as a row is checked — it opens only via **Edit data**.
 
 Use catalog rhythm, stable indexing, and deterministic specimen marks to make accumulating recordings satisfying without turning records into collectible cards. A specimen mark is derived from persisted take/source facts and remains stable for those facts (grid pattern and neon fill). It is not a waveform, audio fingerprint, quality score, rarity tier, or random decoration. Do not add XP, streaks, celebratory motion, or cloud implications.
 
-Session row/card:
+Session group (header + nested takes):
 
-- Name
-- Last updated
-- Take count
-- Total duration
-- Local size
-- Upload summary
+- Name (left)
+- File count + `dd/mm` from session `createdAt` (right)
+- Nested take rows below (newest first within the session)
 
 Within a session, show takes with:
 
 - Waveform
 - Name (sequence is part of the display name — no leading sequence column)
+- Catalog reference with short capture date/time beside it (e.g. `FS-…-003 27/07/17:41`)
 - Duration
 - Type
 - Status
@@ -358,9 +373,13 @@ Bulk actions (after Select → choose takes):
 - Upload (selected ∩ upload-pending → confirm sheet)
 - Discard
 
-Outside select mode, **Upload** opens the confirm sheet for the full upload-pending Collection (Local Drafts not yet uploaded and without collected children).
+Outside select mode, **Upload** opens the confirm sheet for the full upload-pending Collection (Local Files not yet uploaded and without collected children). **Cleanup** (confirm) deletes already-uploaded local audio files from this device; empty cleanup shows toast `Nothing to clean up`.
 
 ## 12. Empty, error, and permission states
+
+### Collection empty
+
+Centered in the Collection content area (no panel border/background): title **Collection is empty**, actions **Import** then **Capture**. No bottom action bar, no supporting body copy, no “Empty” eyebrow, and no Local File legend until at least one session exists.
 
 ### Microphone not yet allowed
 

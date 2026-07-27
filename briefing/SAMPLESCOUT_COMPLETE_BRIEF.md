@@ -4,11 +4,11 @@
 
 This concatenated reference uses some legacy visible labels. Apply these decisions throughout:
 
-- **Capture** is the action; **Collection** is the visible destination while its route remains `/drafts`.
+- **Capture** is the action; **Collection** is the visible destination at `/collection`.
 - **Field Session** is the UI grouping label; keep internal `Session` / `CaptureSession` / `Take` terminology.
 - **Field Notes** labels the existing take metadata/details surface; do not add a persisted notes field.
-- **Local Draft** means saved on this device only and may appear only after both the OPFS source write and IndexedDB metadata commit succeed.
-- **Collect** creates a new Local Draft from the retained trim of an existing take (shared source; parent intact). Typical field path: longer multi-sound capture → Trim → Collect repeatedly → upload from Collection. See ADR 0003 and the individual briefing files.
+- **Local File** means saved on this device only and may appear only after both the OPFS source write and IndexedDB metadata commit succeed.
+- **Collect** creates a new Local File from the retained trim of an existing take (shared source; parent intact). Typical field path: longer multi-sound capture → Trim → Collect repeatedly → upload from Collection. See ADR 0003 and the individual briefing files.
 - Upload pending excludes parents that have collected children; lone takes remain pending.
 - Display names use short stem + two-digit numbers; never em/en dashes.
 - Collection delight is limited to catalog rhythm, indexing, and deterministic specimen marks derived from persisted take/source facts.
@@ -82,7 +82,7 @@ It is not a mobile DAW and it is not a permanent cloud-storage service.
 
 ## Working product statement
 
-> SampleScout is a capture-first, local-first Audiotool sample companion for recording several sounds quickly, keeping them as local drafts, applying precise lightweight edits, accepting useful metadata defaults, and uploading directly to Audiotool.
+> SampleScout is a capture-first, local-first Audiotool sample companion for recording several sounds quickly, keeping them as local files, applying precise lightweight edits, accepting useful metadata defaults, and uploading directly to Audiotool.
 
 
 ---
@@ -101,7 +101,7 @@ The product supports:
 
 - Mobile microphone recording
 - Multiple independent takes
-- Local drafts
+- Local files
 - Immediate retake or discard
 - File import
 - Trim, cut, fade, and normalization
@@ -133,7 +133,7 @@ SampleScout compresses this into one capture-first workflow.
 
 The user must not be forced through naming, editing, or metadata after every recording.
 
-A completed take becomes a local draft automatically. The record control remains available.
+A completed take becomes a local file automatically. The record control remains available.
 
 ### 3.2 Each take is independent
 
@@ -175,7 +175,7 @@ Avoid empty fields wherever a responsible default exists.
 
 Default metadata:
 
-- **Name:** `[session name] — [sequence]`
+- **Name:** short stem + two-digit number (`Rain 01`); never em/en dashes
 - **Tags:** session tags, recent tags, preset tags, or `recording`
 - **Description:** generated session/take context
 - **Kind:** one-shot
@@ -199,9 +199,9 @@ However, local browser storage is not presented as cloud backup.
 
 The app must state clearly:
 
-- Clearing site data removes drafts.
+- Clearing site data removes files.
 - Private browsing may remove data at the end of the session.
-- Drafts do not sync across devices.
+- Files do not sync across devices.
 - Closing the app may stop an active upload.
 
 ### 3.7 Simple interface, deep capability
@@ -224,7 +224,7 @@ Needs:
 
 - Very fast repeated capture
 - Strong outdoor readability
-- Reliable local drafts
+- Reliable local files
 - Minimal typing
 - Clear recording state
 
@@ -264,7 +264,7 @@ Needs:
 - Larger waveform editor
 - Upload queue
 
-Drafts remain device-local. A phone’s local drafts do not automatically appear on desktop.
+Files remain device-local. A phone’s local files do not automatically appear on desktop.
 
 ## 5. Product scope
 
@@ -315,7 +315,7 @@ Drafts remain device-local. A phone’s local drafts do not automatically appear
 - Effects rack
 - Arrangement timeline
 - Permanent cloud backup
-- Cross-device draft sync
+- Cross-device file sync
 - Background server processing
 - Collaborative editing
 - Server-side transcoding
@@ -376,9 +376,9 @@ Useful measures:
 
 Deeper surfaces are a stack with an explicit back control:
 
-1. **Collection** (`/drafts`) — back → Capture
+1. **Collection** (`/collection`) — back → Capture
 2. **Take detail / editor** (`/take/[takeId]`) — back → Collection
-3. **Account** — bottom sheet on mobile, centered modal on desktop. Open from the shell top bar (Capture / Collection / Debug) or the Take editor header. Keep `/account` as OAuth redirect host.
+3. **Account** — bottom sheet on mobile, centered modal on desktop. Open from the shell top bar (Capture / Collection / Debug). Keep `/account` as OAuth redirect host.
 4. **Debug** (`/debug`) — quiet link from Account; back → Capture
 
 There is **no** three-tab bottom navigation and **no** persistent Capture / Collection / Account rail.
@@ -427,7 +427,7 @@ Immediately:
 2. Save the source file to local storage.
 3. Create or update the take record.
 4. Compute an initial waveform overview asynchronously.
-5. Show `Local Draft` only after the OPFS + IndexedDB save gate.
+5. Show `Local File` only after the OPFS + IndexedDB save gate.
 6. Keep “Record another” prominent.
 
 Actions:
@@ -458,11 +458,7 @@ A session contains:
 - Default output format
 - Ordered take references
 
-Default session name:
-
-`Field Session · 25 Jul 2026 · 21:02`
-
-The user may rename it inline.
+Default session name: `Session`. Datetime is Collection metadata (`dd/mm`), not part of the title. Rename from Capture via a bottom sheet (input + location/activity presets + remembered custom pills).
 
 Starting a new session should not delete or finalize the old session.
 
@@ -485,7 +481,7 @@ The most recent take may expand to show contextual actions.
 
 Status language:
 
-- Local Draft (saved on this device only)
+- Local File (saved on this device only)
 - Unreviewed
 - Edited
 - Ready
@@ -622,7 +618,7 @@ Recommended structure:
 
 Desktop should not be a stretched mobile layout.
 
-## 10. Collection view (`/drafts`)
+## 10. Collection view (`/collection`)
 
 Show sessions by default.
 
@@ -1560,7 +1556,7 @@ src/
 │   ├── +layout.svelte
 │   ├── +page.svelte
 │   ├── capture/
-│   ├── drafts/
+│   ├── collection/
 │   ├── take/[takeId]/
 │   └── account/
 └── service-worker.ts
@@ -1579,7 +1575,7 @@ User gesture
 → finalize source file
 → persist Take metadata
 → calculate waveform peaks in worker
-→ mark saved; present as Local Draft
+→ mark saved; present as Local File
 ```
 
 ### Important implementation note
@@ -1654,7 +1650,7 @@ Before recording:
 - Check against the maximum take policy.
 - Block capture if safe storage cannot be guaranteed.
 
-Request persistent storage when the user first chooses to keep drafts, but treat denial as normal.
+Request persistent storage when the user first chooses to keep files, but treat denial as normal.
 
 ## 7. Audio decoding and rendering
 
@@ -2317,7 +2313,7 @@ Safari failure is a release decision because no backend fallback will exist.
 - User can record after a direct permission gesture.
 - Recording state is unambiguous.
 - Stopping finalizes and locally saves the take.
-- UI does not show `Local Draft` before persistence succeeds.
+- UI does not show `Local File` before persistence succeeds.
 - User can record another take immediately.
 - Three or more takes remain independently playable.
 - App restart restores takes and session order.
@@ -2486,7 +2482,7 @@ Build **SampleScout**, a mobile-first responsive Svelte/SvelteKit PWA for record
 - Do not create or assume any custom backend, API route, serverless function, database server, or secret-storage service.
 - Audiotool authentication and upload happen directly in the browser.
 - Never embed a personal access token.
-- Local drafts use browser storage.
+- Local files use browser storage.
 - The UI is bright, black/white/neutral gray, technical, precise, and primarily monospaced.
 - Waveforms must be calculated from real audio and rendered precisely.
 - Do not use a generic or decorative waveform.
@@ -2538,7 +2534,7 @@ Do not claim uploads continue after the browser is closed.
 /capture
   Active session and recording workflow
 
-/drafts
+/collection
   Local sessions and takes
 
 /take/[takeId]
@@ -2580,7 +2576,7 @@ Use:
 
 Persistence rule:
 
-A take can be labeled `Local Draft` only after the binary and its metadata record have been committed successfully; it means saved on this device only.
+A take can be labeled `Local File` only after the binary and its metadata record have been committed successfully; it means saved on this device only.
 
 Create schema versions and migration scaffolding from the start.
 
@@ -2781,7 +2777,7 @@ Keep local audio until Audiotool processing is ready.
 
 - Bright off-white background
 - Fixed, reachable record/stop control
-- Collection shortcut from Capture when local drafts exist
+- Collection shortcut from Capture when local files exist
 - Newest takes first
 - One-handed operation
 - 44 px touch targets
@@ -3093,9 +3089,9 @@ But it introduces:
 - DNS configuration
 - Audiotool redirect update
 - Service-worker migration considerations
-- Old-origin local drafts remaining on the old origin
+- Old-origin local files remaining on the old origin
 
-Browser storage is origin-bound. Changing from a GitHub project URL to a custom domain does not migrate local drafts automatically.
+Browser storage is origin-bound. Changing from a GitHub project URL to a custom domain does not migrate local files automatically.
 
 This should be decided before public usage if possible.
 
@@ -3243,7 +3239,7 @@ Current behavior:
 - Keep job locally.
 - Restart or retry when app is open.
 
-### Cross-device drafts
+### Cross-device files
 
 OPFS and IndexedDB are origin- and device-local.
 
@@ -3265,11 +3261,11 @@ There is no Node fallback if Nexus does not function in Safari.
 
 ## 4. Product risks
 
-### Users mistake local drafts for backup
+### Users mistake local files for backup
 
 Mitigation:
 
-- Use `Saved on this device`.
+- Use supporting copy that Local File means not uploaded and only on this device.
 - Show storage origin/device language.
 - Explain clearing browser data.
 - Offer delete-after-upload preference.
@@ -3305,7 +3301,7 @@ Mitigation:
 - No smoothing into decorative shapes.
 - Show analysis state rather than placeholder art.
 
-### GitHub custom-domain migration loses apparent access to drafts
+### GitHub custom-domain migration loses apparent access to files
 
 Browser storage is bound to the old origin.
 

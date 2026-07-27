@@ -27,10 +27,10 @@ Audio logic must not live inside large Svelte components. Prefer typed modules u
 
 Visible labels do not rename architecture:
 
-- Collection → existing `/drafts` route
+- Collection → `/collection` route (legacy `/drafts` redirects)
 - Field Session → `Session` / `CaptureSession`
 - Field Notes → existing `TakeMetadata` and details UI; no new notes field
-- Local Draft → an existing saved take after the OPFS + IndexedDB commit gate; device-local only
+- Local File → an existing saved take after the OPFS + IndexedDB commit gate; device-local only
 
 Collection specimen marks are deterministic UI projections of persisted take/source facts (grid pattern + neon fill index). They are not stored audio fingerprints, waveform assets, quality scores, or random decoration and do not change the PCM peak pipeline.
 
@@ -48,7 +48,7 @@ Collection specimen marks are deterministic UI projections of persisted take/sou
 | IndexedDB (Dexie) | Sessions, takes, edit recipes, upload queue, settings, cleanup jobs |
 | OPFS              | Source audio, peak binaries, rendered WAV/MP3, trash                |
 
-A take may be presented as `Local Draft` / “Saved on this device” only after the OPFS binary write and IndexedDB metadata commit succeed.
+A take may be presented as `Local File` (supporting copy: not uploaded, only on this device) only after the OPFS binary write and IndexedDB metadata commit succeed.
 
 ## Source map
 
@@ -69,7 +69,7 @@ src/lib/
 
 Documented for honesty in the product UI and docs:
 
-- Cross-device draft sync
+- Cross-device file sync
 - Cloud backup of local takes
 - Background upload after the browser is closed
 - Server-side transcoding

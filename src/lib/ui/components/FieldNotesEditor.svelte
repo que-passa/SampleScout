@@ -23,7 +23,7 @@
 		onsave: (patch: TakeMetadataPatch) => void | Promise<void>;
 	} = $props();
 
-	/** Recreate local draft only when persisted Field Notes identity changes. */
+	/** Recreate form draft only when persisted Field Notes identity changes. */
 	const sourceKey = $derived(
 		[
 			metadata.displayName,
@@ -360,7 +360,7 @@
 		font-weight: 600;
 		letter-spacing: 0.04em;
 		text-transform: lowercase;
-		cursor: pointer;
+		cursor: default;
 		box-shadow: none;
 	}
 

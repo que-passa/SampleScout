@@ -48,10 +48,9 @@ describe('deriveCatalogReference', () => {
 });
 
 describe('formatFieldSessionName', () => {
-	it('formats a dated local Field Session name', () => {
-		const date = new Date(2026, 6, 25, 21, 2);
-
-		expect(formatFieldSessionName(date)).toBe('Field Session · 25 Jul 2026 · 21:02');
+	it('returns the default Session title', () => {
+		expect(formatFieldSessionName(new Date(2026, 6, 25, 21, 2))).toBe('Session');
+		expect(formatFieldSessionName()).toBe('Session');
 	});
 });
 

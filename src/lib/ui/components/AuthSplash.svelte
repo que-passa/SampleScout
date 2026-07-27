@@ -24,8 +24,10 @@
 
 <div class="splash">
 	<div class="composition">
-		<img class="logo" src={logoMark} alt="" width="72" height="72" />
-		<h1 class="brand">{APP_NAME}</h1>
+		<div class="brand-lockup">
+			<img class="logo" src={logoMark} alt="" width="60" height="60" />
+			<h1 class="brand">{APP_NAME}</h1>
+		</div>
 		<p class="support">{APP_TAGLINE}</p>
 
 		<div class="status-slot" aria-live="polite">
@@ -67,15 +69,23 @@
 		text-align: center;
 	}
 
+	.brand-lockup {
+		display: grid;
+		justify-items: center;
+		gap: var(--space-2);
+		/* Sit logo + name a bit above the centered composition. */
+		transform: translateY(calc(-1 * var(--space-7)));
+	}
+
 	.logo {
-		width: calc(var(--space-7) + var(--space-5));
-		height: calc(var(--space-7) + var(--space-5));
+		width: calc(var(--space-7) + var(--space-3));
+		height: calc(var(--space-7) + var(--space-3));
 		display: block;
 	}
 
 	.brand {
 		margin: 0;
-		font-size: var(--text-title);
+		font-size: var(--text-screen);
 		font-weight: 600;
 		letter-spacing: 0.02em;
 		color: var(--ink);

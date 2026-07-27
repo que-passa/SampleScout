@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { untrack, type Snippet } from 'svelte';
+	import { onDestroy, untrack, type Snippet } from 'svelte';
 	import type { Attachment } from 'svelte/attachments';
 	import { on } from 'svelte/events';
 	import {
@@ -23,6 +23,11 @@
 		zoomView,
 		type ViewWindow
 	} from './view-window';
+	import {
+		edgeScrollCanPan,
+		edgeScrollDeltaAbs,
+		edgeScrollIntensity
+	} from './edge-scroll';
 	import { Icon } from '$lib/ui/icons';
 	import GhostButton from '$lib/ui/components/GhostButton.svelte';
 
@@ -35,10 +40,10 @@
 		analyzing = false,
 		error = null,
 		chrome = 'panel',
-		/** When true with stage chrome, zoom + navigator render into `chromeHost` (take dock). */
+		/** When true with stage chrome, navigator + actions render into `chromeHost` (take dock). */
 		dockChrome = false,
 		chromeHost = null,
-		/** Optional actions rendered to the right of stage zoom controls (e.g. Normalize / Trim / Extract). */
+		/** Optional actions centered in the stage chrome toolbar (e.g. Normalize / Trim / Extract). */
 		chromeActions = undefined,
 		selectionStart = $bindable(null),
 		selectionEnd = $bindable(null),
@@ -1190,12 +1195,15 @@
 		selectionEdgeDrag = null;
 		selectionMoveDrag = null;
 		suppressSelectionFit = false;
+		stopEdgeScroll();
 	}
 
 	function endTrimGesture() {
 		trimDrag = null;
 		suppressTrimFit = false;
+		stopEdgeScroll();
 	}
+
 	let trimDrag = $state.raw<{
 		pointerId: number;
 		rangeIndex: number;
@@ -1207,6 +1215,96 @@
 		currentSeconds: number;
 		dragged: boolean;
 	} | null>(null);
+
+	/** Last pointer X while a trim / selection edge grip is active (for edge auto-pan). */
+	let edgeScrollClientX = 0;
+	let edgeScrollRaf: number | null = null;
+	let edgeScrollLastTs = 0;
+
+	function edgeScrollGestureActive(): boolean {
+		return Boolean(trimDrag || selectionEdgeDrag);
+	}
+
+	function stopEdgeScroll() {
+		if (edgeScrollRaf != null) {
+			cancelAnimationFrame(edgeScrollRaf);
+			edgeScrollRaf = null;
+		}
+		edgeScrollLastTs = 0;
+	}
+
+	function applyEdgeScrollGripFromPointer() {
+		if (trimDrag) {
+			updateTrimDragFromClientX(edgeScrollClientX);
+			return;
+		}
+		if (selectionEdgeDrag) {
+			updateSelectionEdgeDragFromClientX(edgeScrollClientX);
+		}
+	}
+
+	function tickEdgeScroll(ts: number) {
+		edgeScrollRaf = null;
+		if (!edgeScrollGestureActive() || !canvas || cssWidth <= 0) {
+			stopEdgeScroll();
+			return;
+		}
+
+		const dt = edgeScrollLastTs === 0 ? 0 : Math.min(0.05, (ts - edgeScrollLastTs) / 1000);
+		edgeScrollLastTs = ts;
+
+		const localX = edgeScrollClientX - canvas.getBoundingClientRect().left;
+		const intensity = edgeScrollIntensity(localX, cssWidth);
+		const view = { start: viewStart, end: viewEnd };
+		let panned = false;
+		if (Math.abs(intensity) > 0 && edgeScrollCanPan(view, intensity) && dt > 0) {
+			const delta = edgeScrollDeltaAbs(view, intensity, dt);
+			const next = panView(view, delta);
+			if (next.start !== view.start || next.end !== view.end) {
+				applyView(next);
+				panned = true;
+			}
+		}
+
+		if (panned || Math.abs(intensity) > 0) {
+			applyEdgeScrollGripFromPointer();
+		}
+
+		const still =
+			edgeScrollGestureActive() &&
+			Math.abs(intensity) > 0 &&
+			edgeScrollCanPan({ start: viewStart, end: viewEnd }, intensity);
+		if (still) {
+			edgeScrollRaf = requestAnimationFrame(tickEdgeScroll);
+		} else {
+			edgeScrollLastTs = 0;
+		}
+	}
+
+	/** Track pointer during trim / selection edge drags; start auto-pan near viewport edges. */
+	function noteEdgeScrollPointer(clientX: number) {
+		edgeScrollClientX = clientX;
+		if (!edgeScrollGestureActive() || !canvas || cssWidth <= 0) {
+			stopEdgeScroll();
+			return;
+		}
+		const localX = clientX - canvas.getBoundingClientRect().left;
+		const intensity = edgeScrollIntensity(localX, cssWidth);
+		if (
+			Math.abs(intensity) > 0 &&
+			edgeScrollCanPan({ start: viewStart, end: viewEnd }, intensity)
+		) {
+			if (edgeScrollRaf == null) {
+				edgeScrollLastTs = 0;
+				edgeScrollRaf = requestAnimationFrame(tickEdgeScroll);
+			}
+		} else if (edgeScrollRaf == null) {
+			edgeScrollLastTs = 0;
+		}
+	}
+
+	onDestroy(() => stopEdgeScroll());
+
 	let fadeDrag = $state.raw<{
 		pointerId: number;
 		edge: 'in' | 'out';
@@ -1427,6 +1525,7 @@
 		const wasEdge = selectionEdgeDrag;
 		if (!wasEdge || pointerId !== wasEdge.pointerId) return false;
 
+		stopEdgeScroll();
 		selectionEdgeDrag = null;
 		suppressSelectionFit = false;
 		if (releaseTarget && 'releasePointerCapture' in releaseTarget) {
@@ -1632,6 +1731,7 @@
 		const wasTrim = trimDrag;
 		if (!wasTrim || pointerId !== wasTrim.pointerId) return false;
 
+		stopEdgeScroll();
 		trimDrag = null;
 		const committedSeconds = wasTrim.currentSeconds;
 		const dragged = wasTrim.dragged;
@@ -1758,11 +1858,13 @@
 		event.preventDefault();
 		event.stopPropagation();
 		beginTrimDrag(event.pointerId, rangeIndex, edge, event.currentTarget as HTMLElement);
+		noteEdgeScrollPointer(event.clientX);
 	}
 
 	function onTrimHandlePointerMove(event: PointerEvent) {
 		if (!trimDrag || event.pointerId !== trimDrag.pointerId) return;
 		event.preventDefault();
+		noteEdgeScrollPointer(event.clientX);
 		updateTrimDragFromClientX(event.clientX);
 	}
 
@@ -1798,11 +1900,13 @@
 		event.preventDefault();
 		event.stopPropagation();
 		beginSelectionEdgeDrag(event.pointerId, edge, event.currentTarget as HTMLElement);
+		noteEdgeScrollPointer(event.clientX);
 	}
 
 	function onSelectionHandlePointerMove(event: PointerEvent) {
 		if (!selectionEdgeDrag || event.pointerId !== selectionEdgeDrag.pointerId) return;
 		event.preventDefault();
+		noteEdgeScrollPointer(event.clientX);
 		updateSelectionEdgeDragFromClientX(event.clientX);
 	}
 
@@ -1848,7 +1952,7 @@
 	function cursorForNavMode(mode: 'start' | 'end' | 'move' | 'jump', dragging: boolean): string {
 		if (mode === 'start' || mode === 'end') return 'ew-resize';
 		if (mode === 'move') return dragging ? 'grabbing' : 'grab';
-		return 'pointer';
+		return 'default';
 	}
 
 	function syncNavCursor(clientX: number, dragging = navDrag != null) {
@@ -1925,6 +2029,7 @@
 			const trimHit = hitTrimEdge(event.clientX, event.clientY);
 			if (trimHit && event.isPrimary) {
 				if (beginTrimDrag(event.pointerId, trimHit.rangeIndex, trimHit.edge)) {
+					noteEdgeScrollPointer(event.clientX);
 					return;
 				}
 			}
@@ -1932,6 +2037,7 @@
 			const selectionEdge = hitSelectionEdge(event.clientX);
 			if (selectionEdge && event.isPrimary) {
 				if (beginSelectionEdgeDrag(event.pointerId, selectionEdge)) {
+					noteEdgeScrollPointer(event.clientX);
 					return;
 				}
 			}
@@ -2018,6 +2124,7 @@
 		}
 
 		if (trimDrag && event.pointerId === trimDrag.pointerId) {
+			noteEdgeScrollPointer(event.clientX);
 			updateTrimDragFromClientX(event.clientX);
 			return;
 		}
@@ -2028,6 +2135,7 @@
 		}
 
 		if (selectionEdgeDrag && event.pointerId === selectionEdgeDrag.pointerId) {
+			noteEdgeScrollPointer(event.clientX);
 			updateSelectionEdgeDragFromClientX(event.clientX);
 			return;
 		}
@@ -2193,7 +2301,7 @@
 
 	function onNavPointerLeave() {
 		if (navDrag) return;
-		navCursor = analyzing || !data ? 'default' : 'pointer';
+		navCursor = 'default';
 	}
 
 	$effect(() => {
@@ -2385,14 +2493,13 @@
 		class={['stage-nav-chrome', 'chrome-stage', showDockedChrome && 'dock-target']}
 		{@attach showDockedChrome && chromeHost ? portalTo(chromeHost) : undefined}
 	>
-		<div class="stage-chrome-toolbar">
-			{@render zoomControls(true)}
-			{#if chromeActions}
+		{#if chromeActions}
+			<div class="stage-chrome-toolbar">
 				<div class="chrome-actions">
 					{@render chromeActions()}
 				</div>
-			{/if}
-		</div>
+			</div>
+		{/if}
 		{@render navigator()}
 	</div>
 {/snippet}
@@ -2593,7 +2700,7 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		justify-content: space-between;
+		justify-content: center;
 		gap: var(--space-2);
 		min-width: 0;
 	}
@@ -2601,7 +2708,7 @@
 	.chrome-actions {
 		display: flex;
 		flex-wrap: wrap;
-		justify-content: flex-end;
+		justify-content: center;
 		gap: var(--space-1);
 		min-width: 0;
 	}

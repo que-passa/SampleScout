@@ -103,7 +103,7 @@ export function takeUploadStateFromJob(state: UploadJobState): TakeUploadState {
 export function formatUploadStateLabel(state: TakeUploadState | UploadJobState): string {
 	switch (state) {
 		case 'not-queued':
-			return 'Local draft';
+			return 'Local file';
 		case 'queued':
 			return 'Queued';
 		case 'rendering':

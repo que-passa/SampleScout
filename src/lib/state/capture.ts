@@ -1,4 +1,4 @@
-import { createTakeDraft, isTakeSavedLocally } from '$lib/domain/metadata';
+import { createTake, isTakeSavedLocally } from '$lib/domain/metadata';
 import { createAppError, nowIso } from '$lib/domain/ids';
 import { deriveCatalogReference, formatFieldSessionName } from '$lib/domain/catalog';
 import type { AppError, CaptureSession, Take } from '$lib/domain/types';
@@ -14,7 +14,7 @@ import { decodeAudioSummary } from '$lib/audio/decode';
 import { RECORDING_MAX_SECONDS, type RecordingWarningLevel } from '$lib/config/recording';
 import { writeBinary } from '$lib/persistence/opfs';
 import { sourcePath } from '$lib/persistence/paths';
-import { ensureActiveSession, putSession, renameSession } from '$lib/persistence/sessions';
+import { ensureActiveSession, putSession, applyActiveSessionName } from '$lib/persistence/sessions';
 import { checkStorageForRecording } from '$lib/persistence/storage-gate';
 import {
 	commitSavedTake,
@@ -110,14 +110,13 @@ class CaptureController {
 			await processDueCleanups();
 			const session = await ensureActiveSession(sessionName);
 			const takes = await listTakesForSession(session.id);
+			// No sticky idle copy — Collection shortcut reflects file count; status slot is in-flight only.
 			this.#set({
 				ready: true,
 				session,
 				takes,
 				phase: 'ready',
-				statusMessage: takes.length
-					? `Restored ${takes.length} draft${takes.length === 1 ? '' : 's'}.`
-					: 'Ready.'
+				statusMessage: ''
 			});
 		})();
 
@@ -134,9 +133,8 @@ class CaptureController {
 	}
 
 	async setSessionName(name: string): Promise<void> {
-		if (!this.session) return;
-		const updated = await renameSession(this.session.id, name);
-		if (updated) this.#set({ session: updated });
+		const updated = await applyActiveSessionName(name);
+		this.#set({ session: updated });
 	}
 
 	get newestTakes(): Take[] {
@@ -243,8 +241,9 @@ class CaptureController {
 				remainingSeconds: RECORDING_MAX_SECONDS,
 				warning: 'none',
 				livePeaks: [],
-				statusMessage: 'Canceled.'
+				statusMessage: ''
 			});
+			actionToast.show('Canceled');
 			return;
 		}
 
@@ -259,8 +258,8 @@ class CaptureController {
 				livePeaks: [],
 				session: saved.session,
 				takes: saved.takes,
-				// Success feedback is the action toast; avoid a sticky Capture status line.
-				statusMessage: savedLocally ? '' : 'Not saved locally.'
+				// Outcomes use action toasts; keep the status slot for in-flight only.
+				statusMessage: ''
 			});
 			if (savedLocally) {
 				const label = saved.take.metadata.displayName || deriveCatalogReference(saved.take);
@@ -271,6 +270,8 @@ class CaptureController {
 						await goto(resolve(`/take/${takeId}`));
 					}
 				});
+			} else {
+				actionToast.show('Not saved locally');
 			}
 		} catch (cause) {
 			const detail =
@@ -308,8 +309,9 @@ class CaptureController {
 			warning: 'none',
 			levels: idleLevels(),
 			livePeaks: [],
-			statusMessage: 'Discarded.'
+			statusMessage: ''
 		});
+		actionToast.show('Discarded');
 	}
 
 	async #persistTake(
@@ -343,7 +345,7 @@ class CaptureController {
 
 		const sequence = await nextSequenceForSession(this.session.id);
 		const existingDisplayNames = await listDisplayNamesForSession(this.session.id);
-		const draft = createTakeDraft({
+		const draft = createTake({
 			session: this.session,
 			sequence,
 			existingDisplayNames,

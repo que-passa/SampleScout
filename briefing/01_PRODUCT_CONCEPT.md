@@ -10,11 +10,11 @@ The product supports:
 
 - Mobile microphone recording (including longer multi-sound captures within the take limit)
 - Multiple independent takes in a Field Session
-- **Collect:** turn retained trims of one recording into multiple Local Drafts (parent source intact); upload from Collection
-- A device-local Collection of drafts
+- **Collect:** turn retained trims of one recording into multiple Local Files (parent source intact); upload from Collection
+- A device-local Collection of files
 - Immediate discard; capture a new take instead of in-place retake
 - File import
-- Trim, cut, fade, and normalization on a per-draft recipe
+- Trim, cut, fade, and normalization on a per-file recipe
 - Metadata defaults and batch editing
 - WAV and MP3 output
 - Direct Audiotool authentication and upload (Collection confirm sheet → progress)
@@ -43,9 +43,9 @@ SampleScout compresses this into one capture-first workflow.
 
 The user must not be forced through naming, editing, or metadata after every recording.
 
-A completed take becomes a local draft automatically. The record control remains available.
+A completed take becomes a local file automatically. The record control remains available.
 
-**Capture** names the action, not a storage destination. Saved takes are found in the visible **Collection** destination (`/drafts` remains the implementation route).
+**Capture** names the action, not a storage destination. Saved takes are found in the visible **Collection** destination at `/collection`.
 
 ### 3.2 Each take is independent
 
@@ -61,13 +61,13 @@ A session contains multiple takes, but each take can have its own:
 - Output format
 - Upload status
 
-Collected drafts are full takes in this sense: independent Field Notes and upload state. They may **share** the parent’s source binary (same OPFS `fileRef`) while keeping a distinct retain recipe. Collect is not the same as Trim: Trim changes one take’s recipe; Collect creates another Local Draft from that trim result and restores the parent recipe to identity so further regions can be collected.
+Collected files are full takes in this sense: independent Field Notes and upload state. They may **share** the parent’s source binary (same OPFS `fileRef`) while keeping a distinct retain recipe. Collect is not the same as Trim: Trim changes one take’s recipe; Collect creates another Local File from that trim result and restores the parent recipe to identity so further regions can be collected.
 
-**Upload pending:** a Local Draft is in the default upload set when it is not yet uploaded **and** it has no collected children (`derivedFromTakeId` pointing at it). Lone takes remain uploadable; parents with children are source-only for shipping until children are discarded.
+**Upload pending:** a Local File is in the default upload set when it is not yet uploaded **and** it has no collected children (`derivedFromTakeId` pointing at it). Lone takes remain uploadable; parents with children are source-only for shipping until children are discarded.
 
 ### 3.3 No in-place Retake
 
-Do not replace an existing Local Draft’s audio via a Retake action. If a take is wrong, Discard it (with undo) or leave it and Capture a new take. Sequence numbers advance for new recordings as usual.
+Do not replace an existing Local File’s audio via a Retake action. If a take is wrong, Discard it (with undo) or leave it and Capture a new take. Sequence numbers advance for new recordings as usual.
 
 ### 3.4 Discard should be fast but reversible
 
@@ -91,6 +91,8 @@ Default metadata:
 
 Generated metadata remains visibly editable. On Collection upload, session defaults may be extended by a per-batch overlay for title stem, description, and tags.
 
+Default Field Session title is **`Session`** (datetime is Collection metadata, not part of the name). Capture renames via a bottom sheet with location/activity presets and remembered custom pills.
+
 In the UI, the existing metadata/details surface is labeled **Field Notes**. This is vocabulary only: do not add a separate persisted notes field.
 
 ### 3.6 Local-first, not permanent storage
@@ -105,13 +107,13 @@ Every stopped take is stored locally to survive:
 
 However, local browser storage is not presented as cloud backup.
 
-**Local Draft** means saved on this device only. It is not a cloud, sync, ownership, or upload state, and it must not appear before both the OPFS binary write and IndexedDB metadata commit succeed.
+**Local File** means saved on this device only. It is not a cloud, sync, ownership, or upload state, and it must not appear before both the OPFS binary write and IndexedDB metadata commit succeed.
 
 The app must state clearly:
 
-- Clearing site data removes drafts.
+- Clearing site data removes files.
 - Private browsing may remove data at the end of the session.
-- Drafts do not sync across devices.
+- Files do not sync across devices.
 - Closing the app may stop an active upload.
 
 ### 3.7 Simple interface, deep capability
@@ -147,7 +149,7 @@ Needs:
 - Very fast repeated capture
 - Comfortable longer takes (within the take limit)
 - Strong outdoor readability
-- Reliable local drafts
+- Reliable local files
 - Collect multiple samples from one recording
 - Minimal typing
 - Clear recording state
@@ -190,7 +192,7 @@ Needs:
 - Larger waveform editor
 - Upload queue
 
-Drafts remain device-local. A phone’s local drafts do not automatically appear on desktop.
+Files remain device-local. A phone’s local files do not automatically appear on desktop.
 
 ## 5. Product scope
 
@@ -204,7 +206,7 @@ Drafts remain device-local. A phone’s local drafts do not automatically appear
 - Discard with Undo
 - File import
 - Accurate waveform
-- Collect retained trim as a new Local Draft (shared source, parent intact)
+- Collect retained trim as a new Local File (shared source, parent intact)
 - Trim
 - Cut
 - Fade in/out
@@ -241,7 +243,7 @@ Drafts remain device-local. A phone’s local drafts do not automatically appear
 - Effects rack
 - Arrangement timeline
 - Permanent cloud backup
-- Cross-device draft sync
+- Cross-device file sync
 - Background server processing
 - Collaborative editing
 - Server-side transcoding

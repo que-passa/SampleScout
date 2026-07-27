@@ -150,7 +150,7 @@ export interface Take {
 	metadata: TakeMetadata;
 	editRecipe: EditRecipe;
 	output: OutputSettings;
-	/** Set when this Local Draft was Extracted from another take’s selection. */
+	/** Set when this Local File was Extracted from another take’s selection. */
 	derivedFromTakeId?: TakeId;
 	lifecycleState: TakeLifecycleState;
 	reviewState: TakeReviewState;
@@ -192,5 +192,7 @@ export interface AppSettings {
 	id: 'settings';
 	recentTags: string[];
 	preferredOutput: OutputSettings;
+	/** Custom Field Session titles for Capture name sheet (newest first, max 12). */
+	sessionNamePresets: string[];
 	updatedAt: string;
 }

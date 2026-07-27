@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
-import { createSession, createTakeDraft } from '$lib/domain/metadata';
+import { createSession, createTake } from '$lib/domain/metadata';
 import type { CleanupJob, CaptureSession, Take } from '$lib/domain/types';
 import { sourcePath } from '$lib/persistence/paths';
 
@@ -70,7 +70,7 @@ function seedSavedTake() {
 	cleanupJobs.clear();
 
 	const session = createSession('Field');
-	const draft = createTakeDraft({
+	const draft = createTake({
 		session,
 		sequence: 1,
 		source: {
@@ -122,7 +122,7 @@ describe('discard + cleanup', () => {
 		const { session, take: parent } = seedSavedTake();
 		const sharedRef = parent.source.fileRef;
 
-		const extractDraft = createTakeDraft({
+		const extractDraft = createTake({
 			session,
 			sequence: 2,
 			source: { ...parent.source }

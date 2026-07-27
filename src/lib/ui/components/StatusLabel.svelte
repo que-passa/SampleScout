@@ -7,7 +7,7 @@
 		density = 'default'
 	}: {
 		children: Snippet;
-		tone?: 'neutral' | 'ok' | 'signal' | 'muted';
+		tone?: 'neutral' | 'ok' | 'brand' | 'signal' | 'muted';
 		density?: 'default' | 'compact';
 	} = $props();
 </script>
@@ -43,6 +43,11 @@
 
 	.status[data-tone='ok'] {
 		border-color: var(--line-strong);
+	}
+
+	.status[data-tone='brand'] {
+		border-color: var(--brand);
+		color: var(--brand);
 	}
 
 	.status[data-tone='signal'] {

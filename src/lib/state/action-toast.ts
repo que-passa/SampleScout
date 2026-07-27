@@ -47,8 +47,10 @@ class ActionToastController {
 
 		this.#clearTimer();
 		const expiresAt = Date.now() + Math.max(0, durationMs);
+		// Reuse id when replacing so the UI updates one toast in place
+		// (avoids stacked outro+intro from {#key} remounts).
 		const next: ActionToastEntry = {
-			id: crypto.randomUUID(),
+			id: this.current?.id ?? crypto.randomUUID(),
 			message: trimmed,
 			expiresAt,
 			actionLabel: opts.actionLabel?.trim() || undefined,

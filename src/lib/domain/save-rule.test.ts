@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { createSession, createTakeDraft } from '$lib/domain/metadata';
+import { createSession, createTake } from '$lib/domain/metadata';
 import { isTakeSavedLocally } from '$lib/domain/metadata';
 import { sourcePath } from '$lib/persistence/paths';
 
 describe('take save labeling', () => {
-	it('does not label a draft as saved before commit', () => {
+	it('does not label a take as saved before commit', () => {
 		const session = createSession('Gate');
-		const draft = createTakeDraft({
+		const draft = createTake({
 			session,
 			sequence: 1,
 			source: {

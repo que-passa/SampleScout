@@ -30,10 +30,10 @@ export async function notifyTakeInventoryChanged(): Promise<void> {
 }
 
 /**
- * Collect a retained trim into a new Local Draft (shared source).
+ * Collect a retained trim into a new Local File (shared source).
  * Parent source stays intact; the take page resets parent recipe to identity after Collect.
  */
-export async function collectSelectionAsLocalDraft(input: {
+export async function collectSelectionAsLocalFile(input: {
 	parentTakeId: TakeId;
 	startSeconds: number;
 	endSeconds: number;
@@ -52,13 +52,13 @@ export async function collectSelectionAsLocalDraft(input: {
 	return take;
 }
 
-/** @deprecated Use {@link collectSelectionAsLocalDraft}. */
-export const extractSelectionAsLocalDraft = collectSelectionAsLocalDraft;
+/** @deprecated Use {@link collectSelectionAsLocalFile}. */
+export const extractSelectionAsLocalFile = collectSelectionAsLocalFile;
 
 /**
  * Discard a take immediately. Binary cleanup is scheduled in IndexedDB.
  */
-export async function discardLocalDraft(
+export async function discardLocalFile(
 	takeId: TakeId,
 	options?: { silent?: boolean }
 ): Promise<void> {
@@ -73,10 +73,11 @@ export async function discardLocalDraft(
 }
 
 /**
- * Discard many takes sequentially. One summary toast; partial failures do not roll back.
+ * Discard many takes sequentially. One summary toast unless `silent`; partial failures do not roll back.
  */
-export async function discardLocalDrafts(
-	takeIds: TakeId[]
+export async function discardLocalFiles(
+	takeIds: TakeId[],
+	options?: { silent?: boolean }
 ): Promise<{ discarded: TakeId[]; errors: { takeId: TakeId; message: string }[] }> {
 	const discarded: TakeId[] = [];
 	const errors: { takeId: TakeId; message: string }[] = [];
@@ -89,7 +90,7 @@ export async function discardLocalDrafts(
 			const message =
 				cause && typeof cause === 'object' && 'message' in cause
 					? String((cause as { message: string }).message)
-					: 'Could not discard Local Draft.';
+					: 'Could not discard Local File.';
 			errors.push({ takeId, message });
 		}
 	}
@@ -97,11 +98,13 @@ export async function discardLocalDrafts(
 	if (discarded.length > 0) {
 		await notifyTakeInventoryChanged();
 		await processDueCleanups();
-		actionToast.show(
-			discarded.length === 1
-				? '1 Local Draft discarded'
-				: `${discarded.length} Local Drafts discarded`
-		);
+		if (!options?.silent) {
+			actionToast.show(
+				discarded.length === 1
+					? '1 Local File discarded'
+					: `${discarded.length} Local Files discarded`
+			);
+		}
 	}
 
 	return { discarded, errors };

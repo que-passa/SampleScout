@@ -134,7 +134,7 @@
 					type="text"
 					class="control"
 					bind:value={titleStem}
-					placeholder="Base name for numbered uploads"
+					placeholder="Base name"
 					required
 					disabled={busy}
 				/>
@@ -145,7 +145,7 @@
 				<textarea
 					class="control textarea"
 					bind:value={description}
-					placeholder="Optional description for all uploads"
+					placeholder="Optional"
 					rows="2"
 					disabled={busy}></textarea>
 			</label>

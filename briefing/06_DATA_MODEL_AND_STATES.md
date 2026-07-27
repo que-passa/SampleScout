@@ -16,9 +16,9 @@ Do not use array indexes as identifiers.
 ## Product vocabulary mapping
 
 - `CaptureSession` / `Session` remains the persisted and engineering term; the UI label is **Field Session**.
-- `Take` remains the record term; saved takes are browsed in **Collection** at `/drafts`.
+- `Take` remains the record term; saved takes are browsed in **Collection** at `/collection`.
 - **Field Notes** is the UI label for the existing `TakeMetadata` / details surface. Do not add a `notes` field.
-- **Local Draft** maps to an existing take with `lifecycleState === 'saved'` after the OPFS + IndexedDB commit gate. It is not a new enum value and means this device only.
+- **Local File** maps to an existing take with `lifecycleState === 'saved'` after the OPFS + IndexedDB commit gate. It is not a new enum value and means this device only.
 - **Collect** creates another `Take` from the current retained trim; it is not a separate entity type. Optional `derivedFromTakeId` records lineage for UI honesty.
 - A specimen mark is derived deterministically at presentation time from persisted take/source facts (pattern + neon fill index). It is not persisted audio analysis, an audio fingerprint, a quality score, or random decoration.
 
@@ -36,6 +36,8 @@ interface CaptureSession {
 	takeOrder: TakeId[];
 }
 ```
+
+Default `name` for a new session is **`Session`**. Capture renames via a sheet (built-in location/activity presets + up to 12 remembered custom names on `AppSettings.sessionNamePresets`). Applying a **different** name when the active session already has saved Local Files seals that session (`status: 'inactive'`) and creates a new active session — Collection keeps both groups. Empty sessions rename in place. Changing the title never rewrites existing take display names.
 
 ```ts
 interface SessionDefaults {
@@ -81,7 +83,7 @@ Collected takes normally reuse the parent `source.fileRef` (reference-counted cl
 
 **Display names:** generated as short stem + space + two-digit number (`Rain 01`). Never use em/en dashes. Numbering continues while the stem matches the previous numbered name in the session; resets to `01` when the stem changes.
 
-**Upload pending:** a take is upload-pending when it is a saved Local Draft, `uploadState !== 'uploaded'`, and no other take has `derivedFromTakeId === this.id`. Parents with collected children are source-only for default Collection Upload.
+**Upload pending:** a take is upload-pending when it is a saved Local File, `uploadState !== 'uploaded'`, and no other take has `derivedFromTakeId === this.id`. Parents with collected children are source-only for default Collection Upload.
 
 ## 4. Audio source
 

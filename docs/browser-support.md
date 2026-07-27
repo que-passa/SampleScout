@@ -13,7 +13,7 @@ SampleScout targets modern mobile and desktop browsers with:
 - Web Workers
 - Canvas
 
-Capability detection probes a real OPFS write (not only `getDirectory()`), so Capture can warn before recording when Local Drafts cannot be saved.
+Capability detection probes a real OPFS write (not only `getDirectory()`), so Capture can warn before recording when Local Files cannot be saved.
 
 ## Validation targets
 
@@ -31,7 +31,7 @@ Safari support is a release decision, not an assumption. Audiotool Nexus current
 At startup / Account, `detectCapabilities()` probes the APIs above and surfaces:
 
 - Whether recording is possible
-- Whether drafts can be persisted
+- Whether files can be persisted
 - Supported MediaRecorder MIME types
 - Approximate storage quota remaining
 

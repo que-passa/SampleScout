@@ -108,7 +108,7 @@ function uploadOutputForTake(take: Take): Extract<OutputSettings, { format: 'wav
 export async function hydrateUploadQueue(): Promise<void> {
 	const inFlight = await listInFlightUploadJobs();
 	const abandonedMessage =
-		'Upload stopped when this page closed. Local draft is intact — Retry to upload again.';
+		'Upload stopped when this page closed. Local file is intact — Retry to upload again.';
 
 	for (const job of inFlight) {
 		const failed = await patchUploadJob(job.id, {

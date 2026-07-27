@@ -17,7 +17,7 @@ export function stackDepth(pathname: string): number | null {
 
 	if (path === '/account') return null;
 	if (path === '/' || path === '/capture') return 0;
-	if (path === '/drafts' || path === '/debug') return 1;
+	if (path === '/collection' || path === '/drafts' || path === '/debug') return 1;
 	if (path.startsWith('/take/')) return 2;
 	return 0;
 }

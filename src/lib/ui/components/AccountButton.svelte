@@ -20,7 +20,6 @@
 
 <GhostButton
 	icon
-	muted
 	active={expanded}
 	live={connected}
 	onclick={openAccountOverlay}
@@ -40,6 +39,6 @@
 			}}
 		/>
 	{:else}
-		<Icon name="account" size={16} />
+		<Icon name="account" />
 	{/if}
 </GhostButton>

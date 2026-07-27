@@ -8,8 +8,8 @@ test.describe('auth splash gate', () => {
 		await expect(page.getByRole('navigation', { name: 'Primary' })).toHaveCount(0);
 	});
 
-	test('unauthenticated capture, drafts, and account show splash', async ({ page }) => {
-		for (const path of ['/capture', '/drafts', '/account']) {
+	test('unauthenticated capture, collection, and account show splash', async ({ page }) => {
+		for (const path of ['/capture', '/collection', '/drafts', '/account']) {
 			await page.goto(path);
 			await expect(page.getByRole('heading', { name: 'SampleScout' })).toBeVisible();
 			await expect(page.getByRole('button', { name: 'Connect Audiotool' })).toBeVisible();

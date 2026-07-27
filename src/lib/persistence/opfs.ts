@@ -73,7 +73,7 @@ async function writeViaSyncAccessWorker(path: FileRef, data: ArrayBuffer): Promi
 	if (!worker) {
 		throw createAppError(
 			'OPFS_WRITE_UNSUPPORTED',
-			'This browser cannot write Local Draft audio (OPFS createWritable / sync handle unavailable). Try Chrome or update Safari.',
+			'This browser cannot write local audio files (OPFS createWritable / sync handle unavailable). Try Chrome or update Safari.',
 			{ recoverable: true, context: { path } }
 		);
 	}

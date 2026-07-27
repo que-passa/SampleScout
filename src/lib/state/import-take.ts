@@ -1,7 +1,7 @@
 import { RECORDING_MAX_SECONDS } from '$lib/config/recording';
 import { blobWithAudioType, decodeAudioSummary } from '$lib/audio/decode';
 import { createAppError, nowIso } from '$lib/domain/ids';
-import { createTakeDraft } from '$lib/domain/metadata';
+import { createTake } from '$lib/domain/metadata';
 import type { AppError, Take } from '$lib/domain/types';
 import {
 	checkStorageForImport,
@@ -44,9 +44,9 @@ export function assertImportDurationAllowed(durationSeconds: number): void {
 	}
 }
 
-/** Build the pre-OPFS draft shape used for imports (testable without storage). */
-export function buildImportTakeDraft(input: {
-	session: Parameters<typeof createTakeDraft>[0]['session'];
+/** Build the pre-OPFS take shape used for imports (testable without storage). */
+export function buildImportTake(input: {
+	session: Parameters<typeof createTake>[0]['session'];
 	sequence: number;
 	file: Pick<File, 'name' | 'type' | 'size'>;
 	durationSeconds: number;
@@ -54,7 +54,7 @@ export function buildImportTakeDraft(input: {
 	sampleRate: number;
 	existingDisplayNames?: string[];
 }): Take {
-	return createTakeDraft({
+	return createTake({
 		session: input.session,
 		sequence: input.sequence,
 		existingDisplayNames: input.existingDisplayNames,
@@ -72,7 +72,7 @@ export function buildImportTakeDraft(input: {
 }
 
 /**
- * Import one audio file into the active Field Session as a Local Draft.
+ * Import one audio file into the active Field Session as a Local File.
  * Saved only after OPFS write and IndexedDB commit both succeed.
  */
 export async function importAudioFile(
@@ -110,7 +110,7 @@ export async function importAudioFile(
 	const session = await ensureActiveSession();
 	const sequence = await nextSequenceForSession(session.id);
 	const existingDisplayNames = await listDisplayNamesForSession(session.id);
-	const draft = buildImportTakeDraft({
+	const draft = buildImportTake({
 		session,
 		sequence,
 		file,

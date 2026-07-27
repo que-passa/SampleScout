@@ -91,9 +91,8 @@
 		flex-direction: column;
 		width: 100%;
 		max-height: 85dvh;
-		border: 1px solid var(--line-strong);
-		border-bottom: none;
-		border-radius: var(--radius-panel) var(--radius-panel) 0 0;
+		overflow: hidden;
+		border-radius: var(--space-3) var(--space-3) 0 0;
 		background: var(--surface);
 		color: var(--ink);
 		font-family: var(--font-mono);
@@ -106,9 +105,9 @@
 		justify-content: space-between;
 		gap: var(--space-3);
 		flex-shrink: 0;
-		padding: var(--space-3) var(--space-4);
-		border-bottom: 1px solid var(--line);
-		background: var(--surface);
+		padding: var(--space-1) var(--space-2);
+		/* Slightly darker than body paper; still Ghost-friendly for --surface hover/press. */
+		background: color-mix(in srgb, var(--ink) 10%, var(--paper));
 	}
 
 	.title {
@@ -138,8 +137,7 @@
 		.panel {
 			width: min(28rem, 100%);
 			max-height: min(85dvh, 40rem);
-			border-bottom: 1px solid var(--line-strong);
-			border-radius: var(--radius-panel);
+			border-radius: var(--space-3);
 		}
 
 		.body {

@@ -25,9 +25,9 @@ SampleScout is a focused browser application that lets an Audiotool user:
 1. Record field audio on a phone — often a longer take that contains several useful sounds, or several independent takes in one Field Session.
 2. Keep each completed take locally for later.
 3. Immediately record another take without forcing review.
-4. Review a recording and **Collect** multiple useful regions into separate Local Drafts (parent source stays intact).
+4. Review a recording and **Collect** multiple useful regions into separate Local Files (parent source stays intact).
 5. Discard individual takes (or Capture a new one — no in-place Retake).
-6. Perform lightweight, non-destructive editing (trim/cut/fade/normalize) per draft.
+6. Perform lightweight, non-destructive editing (trim/cut/fade/normalize) per file.
 7. Review mostly prefilled metadata (Field Notes).
 8. Upload from **Collection** (confirm sheet → progress) to Audiotool in WAV, MP3, or another supported format.
 
@@ -36,11 +36,11 @@ It is not a mobile DAW and it is not a permanent cloud-storage service.
 ## Collection identity vocabulary
 
 - **Capture** is the primary action.
-- **Collection** is the visible destination for saved takes; its route remains `/drafts`.
+- **Collection** is the visible destination for saved takes; its route is `/collection`.
 - **Field Session** is the user-facing grouping label. Engineering keeps `Session` / `CaptureSession`.
 - **Field Notes** labels the existing take metadata/details surface. It does not add a persisted notes field.
-- **Local Draft** means saved on this device only, and only after the OPFS source write and IndexedDB metadata commit both succeed.
-- **Collect** creates a new Local Draft from the current retained **trim** of an existing take. Selection is temporary tooling for Trim; it does not enable Collect. The parent recording stays available; each collected draft is its own Collection item with its own Field Notes and upload state. Shipping (upload) happens from Collection, not the take editor.
+- **Local File** means saved on this device only, and only after the OPFS source write and IndexedDB metadata commit both succeed.
+- **Collect** creates a new Local File from the current retained **trim** of an existing take. Selection is temporary tooling for Trim; it does not enable Collect. The parent recording stays available; each collected file is its own Collection item with its own Field Notes and upload state. Shipping (upload) happens from Collection, not the take editor.
 - **Display names** use a short stem plus a two-digit number (`Rain 01`); never em/en dashes in generated names.
 - Deterministic specimen marks may give catalog identity to records. They derive only from persisted take/source facts; they are not waveforms, audio fingerprints, quality scores, or random decoration. Active cells use a deterministic neon fill from the 21-swatch specimen palette.
 
@@ -86,4 +86,4 @@ Collection delight stays bounded to catalog rhythm, indexing, and those determin
 
 ## Working product statement
 
-> SampleScout is a capture-first, local-first Audiotool sample companion for recording several sounds quickly, keeping them as local drafts, applying precise lightweight edits, accepting useful metadata defaults, and uploading directly to Audiotool.
+> SampleScout is a capture-first, local-first Audiotool sample companion for recording several sounds quickly, keeping them as local files, applying precise lightweight edits, accepting useful metadata defaults, and uploading directly to Audiotool.

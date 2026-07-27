@@ -72,7 +72,7 @@ Safari failure is a release decision because no backend fallback will exist.
 - Recording state is unambiguous.
 - Stopping finalizes and locally saves the take.
 - UI does not show “Saved locally” before persistence succeeds.
-- `Local Draft` is shown only after the OPFS source and IndexedDB metadata commits succeed, with device-local meaning clear.
+- `Local File` is shown only after the OPFS source and IndexedDB metadata commits succeed, with device-local meaning clear.
 - User can record another take immediately.
 - Three or more takes remain independently playable.
 - App restart restores takes and session order.
@@ -124,12 +124,12 @@ Safari failure is a release decision because no backend fallback will exist.
 
 ### Acceptance criteria
 
-- With a usable retained trim (narrower than the full source), Collect creates a new Local Draft in the same Field Session.
+- With a usable retained trim (narrower than the full source), Collect creates a new Local File in the same Field Session.
 - Parent source binary remains shared/intact; parent recipe returns to full-source identity after Collect so further regions can be trimmed.
 - Collected take shares the parent source binary (`fileRef`) and retains only the trim bounds in its edit recipe.
 - Collected take appears in Collection with its own Field Notes; upload starts from Collection only (no Upload on take).
 - Collect is a brand primary in the take transport; it depends on trim result state, not a temporary waveform selection. User can Collect multiple regions from the same parent without leaving the parent editor.
-- Discarding a collected draft does not delete the shared OPFS source while the parent (or another child) still references it.
+- Discarding a collected file does not delete the shared OPFS source while the parent (or another child) still references it.
 - Display names use short stem + two-digit number with no em/en dashes; lineage may be surfaced honestly (e.g. collected-from) without implying cloud sync.
 - Parents with collected children are excluded from the default upload-pending set; lone takes without children remain upload-pending.
 
@@ -227,7 +227,7 @@ Safari failure is a release decision because no backend fallback will exist.
 - Waveform is accurate and detailed.
 - No dark-first DAW aesthetic.
 - No decorative simplified waveform.
-- Collection is reached from Capture (shortcut / stack), labeled Collection while the route remains `/drafts`; no three-tab primary nav.
+- Collection is reached from Capture (shortcut / stack), labeled Collection while the route is `/collection`; no three-tab primary nav.
 - Collection uses stable indexing/catalog rhythm and may use deterministic, data-derived specimen marks.
 - Account opens as a mobile bottom sheet / desktop modal; `/account` remains the OAuth redirect host.
 - Specimen marks are visibly distinct from real waveforms and do not imply fingerprinting, quality, rarity, cloud storage, XP, or streaks.

@@ -195,9 +195,9 @@ But it introduces:
 - DNS configuration
 - Audiotool redirect update
 - Service-worker migration considerations
-- Old-origin local drafts remaining on the old origin
+- Old-origin local files remaining on the old origin
 
-Browser storage is origin-bound. Changing from a GitHub project URL to a custom domain does not migrate local drafts automatically.
+Browser storage is origin-bound. Changing from a GitHub project URL to a custom domain does not migrate local files automatically.
 
 This should be decided before public usage if possible.
 

@@ -1,8 +1,32 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import type { HTMLButtonAttributes } from 'svelte/elements';
+	import type { HTMLAnchorAttributes, HTMLButtonAttributes } from 'svelte/elements';
+
+	type SharedProps = {
+		/** When set, renders an `<a>` (callers pass base-aware href from `resolve(...)`). */
+		href?: string;
+		type?: 'button' | 'submit';
+		disabled?: boolean;
+		onclick?: (event: MouseEvent) => void;
+		class?: string;
+		/** Sticky on — flat well highlight (e.g. Field Notes open, Loop latched). */
+		active?: boolean;
+		/** Icon-only: square face (touch-min − space-2). */
+		icon?: boolean;
+		/** Compact waveform / toolbar hit size (~30px). */
+		compact?: boolean;
+		/** Destructive ghost — signal label/icon only. */
+		danger?: boolean;
+		/** Idle label/icon uses muted ink (nav chrome). */
+		muted?: boolean;
+		/** Brand status LED on the well (connected account, latched loop). */
+		live?: boolean;
+		focusOnMount?: boolean;
+		children: Snippet;
+	};
 
 	let {
+		href,
 		type = 'button',
 		disabled = false,
 		onclick,
@@ -16,37 +40,11 @@
 		focusOnMount = false,
 		children,
 		...rest
-	}: {
-		type?: 'button' | 'submit';
-		disabled?: boolean;
-		onclick?: (event: MouseEvent) => void;
-		class?: string;
-		/** Sticky on — flat well highlight (e.g. Field Notes open, Loop latched). */
-		active?: boolean;
-		/** Icon-only: square face; otherwise padded text face. */
-		icon?: boolean;
-		/** Compact waveform / toolbar hit size (~30px). */
-		compact?: boolean;
-		/** Destructive ghost — signal label/icon only. */
-		danger?: boolean;
-		/** Idle label/icon uses muted ink (nav chrome). */
-		muted?: boolean;
-		/** Brand status LED on the well (connected account, latched loop). */
-		live?: boolean;
-		focusOnMount?: boolean;
-		children: Snippet;
-	} & Omit<HTMLButtonAttributes, 'type' | 'disabled' | 'onclick' | 'class' | 'children'> = $props();
+	}: SharedProps &
+		Omit<HTMLButtonAttributes, 'type' | 'disabled' | 'onclick' | 'class' | 'children' | 'href'> &
+		Omit<HTMLAnchorAttributes, 'href' | 'onclick' | 'class' | 'children'> = $props();
 
-	function focusAttach(node: HTMLButtonElement) {
-		if (focusOnMount) node.focus();
-	}
-</script>
-
-<button
-	{type}
-	{disabled}
-	{onclick}
-	class={[
+	const rootClass = $derived([
 		'ss-ghost-button',
 		icon && 'icon',
 		compact && 'compact',
@@ -55,10 +53,14 @@
 		active && 'active',
 		live && 'live-on',
 		className
-	]}
-	{@attach focusAttach}
-	{...rest}
->
+	]);
+
+	function focusAttach(node: HTMLElement) {
+		if (focusOnMount) node.focus();
+	}
+</script>
+
+{#snippet face()}
 	<span class="well">
 		<span class="face">
 			{@render children()}
@@ -67,7 +69,18 @@
 			<span class="live" aria-hidden="true"></span>
 		{/if}
 	</span>
-</button>
+{/snippet}
+
+{#if href}
+	<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- href is pre-resolved by callers -->
+	<a class={rootClass} {href} {onclick} {@attach focusAttach} {...rest}>
+		{@render face()}
+	</a>
+{:else}
+	<button class={rootClass} {type} {disabled} {onclick} {@attach focusAttach} {...rest}>
+		{@render face()}
+	</button>
+{/if}
 
 <style>
 	.ss-ghost-button {
@@ -85,7 +98,8 @@
 		font-family: var(--font-mono);
 		font-size: var(--text-button);
 		font-weight: 600;
-		cursor: pointer;
+		text-decoration: none;
+		cursor: default;
 	}
 
 	.ss-ghost-button.muted:not(:disabled):not(.active) {
@@ -120,12 +134,6 @@
 		background: transparent;
 	}
 
-	.icon .well {
-		width: var(--space-6);
-		height: var(--space-6);
-		min-height: 0;
-	}
-
 	.compact {
 		min-width: 30px;
 		min-height: 30px;
@@ -151,6 +159,8 @@
 	}
 
 	.compact.icon .face {
+		width: 100%;
+		height: 100%;
 		min-height: 0;
 		padding: 0;
 	}
@@ -165,9 +175,10 @@
 		background: transparent;
 	}
 
+	/* Square face at touch-min − well padding (space-1 × 2). */
 	.icon .face {
-		width: 100%;
-		height: 100%;
+		width: calc(var(--touch-min) - var(--space-2));
+		height: calc(var(--touch-min) - var(--space-2));
 		min-height: 0;
 		padding: 0;
 		overflow: hidden;
@@ -175,8 +186,8 @@
 
 	.live {
 		position: absolute;
-		top: var(--space-2);
-		right: var(--space-2);
+		top: var(--space-3);
+		right: var(--space-3);
 		width: var(--space-1);
 		height: var(--space-1);
 		border-radius: var(--radius-round);

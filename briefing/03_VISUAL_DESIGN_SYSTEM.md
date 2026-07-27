@@ -80,7 +80,7 @@ Use `--signal` only for:
 - Destructive confirmation
 - Critical failure
 - Trim / edit boundary markers on the waveform
-- Local Draft status chips (Collection take rows and take Status) — same record red, border + text
+- Local File status chips (Collection take rows and take Status) — same record red, border + text
 
 Use `--brand` / `--brand-soft` for primary CTA faces (`PrimaryButton`: Collect / Upload), compact action-toast chrome (success / confirm feedback), **and** active waveform selection fill/edges/grips. While dragging a trim edge, that grip and its boundary stroke also use `--brand` (idle trim stays `--signal`). Do not use `--signal` for those toasts, primary CTAs, or selection. Discarded (outside-trim) waveform regions use `--disabled` wash and peaks; retained audio stays normal `--ink` on paper.
 
@@ -278,7 +278,7 @@ Keep marks compact and subordinate to the record name. Active cells use one of 2
 
 Use structural panels, not a collection of floating cards.
 
-The visible destination is **Collection** (route `/drafts`), grouped by **Field Session**. Use **Field Notes** for the existing take details/metadata region. These labels do not change the internal `Session`/`Take` model.
+The visible destination is **Collection** (route `/collection`), grouped by **Field Session**. Use **Field Notes** for the existing take details/metadata region. These labels do not change the internal `Session`/`Take` model.
 
 Take rows should resemble data records:
 

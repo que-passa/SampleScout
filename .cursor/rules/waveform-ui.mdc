@@ -21,6 +21,7 @@ Collection specimen marks are separate deterministic catalog identities derived 
 - Selection uses `--brand-soft` fill and `--brand` edges/grips (not ink wash, not signal)
 - Hit targets near half `--touch-min` on canvas edges; DOM grips at `--touch-min`. At zero fade: ruler band → fade; wave-body edge → trim
 - Fade visualization scales peaks by linear fade gain and draws a dashed `--ink` envelope diagonal (not signal)
+- While dragging trim or selection edge grips near the viewport left/right, auto-pan; tempo scales with zoom (visible span)
 
 ## Forbidden
 

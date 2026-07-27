@@ -10,11 +10,11 @@ Not a dark DAW, generic SaaS dashboard, cyberpunk UI, colorful consumer recorder
 
 ## Product vocabulary and collection identity
 
-- **Capture** is the action. **Collection** is the visible saved-take destination; keep route `/drafts`.
+- **Capture** is the action. **Collection** is the visible saved-take destination at `/collection` (legacy `/drafts` redirects).
 - Group records under **Field Session** headings; internal engineering remains `Session` / `Take`.
 - Label existing take details/metadata **Field Notes**; do not imply a separate notes field.
-- `Local Draft` means saved on this device only and only after the OPFS + IndexedDB commit gate.
-- **Collect** creates a new Local Draft from a selected waveform region (shared source; parent intact). Upload ships from Collection only.
+- `Local File` means saved on this device only and only after the OPFS + IndexedDB commit gate.
+- **Collect** creates a new Local File from a selected waveform region (shared source; parent intact). Upload ships from Collection only.
 - Collection delight is bounded to catalog rhythm, indexing, and compact deterministic specimen marks derived from persisted take/source facts.
 - Specimen marks are catalog identities—not waveforms, audio fingerprints, quality scores, rarity, or random decoration. They never replace real waveform data. Active cells use a deterministic neon fill from `--specimen-neon-0`…`--specimen-neon-20` (hashed from the same take/source facts as the mark pattern).
 
@@ -28,8 +28,8 @@ Use CSS variables from `tokens.css`. Do not invent new hex colors, spacing steps
 | Panels   | `--surface`, `--surface-subtle`                                                                                                                                                                                                    |
 | Text     | `--ink`, `--ink-muted`, `--disabled`                                                                                                                                                                                               |
 | Rules    | `--line`, `--line-strong`                                                                                                                                                                                                          |
-| Signal   | `--signal` — active record, clipping, destructive confirm, critical failure, idle trim boundary markers (not fade grips; active trim drag uses `--brand`), **and Local Draft status chips** (same record red)                      |
-| Brand    | `--brand` / `--brand-soft` — neon blue-green; primary CTA face (`PrimaryButton`), action-toast border/fill, active waveform selection fill/edges/grips, **and** active trim drag (grip + boundary stroke) (not record/destructive) |
+| Signal   | `--signal` — active record, clipping, destructive confirm, critical failure, idle trim boundary markers (not fade grips; active trim drag uses `--brand`), Local File status chips, **and Account auth chip when not connected** |
+| Brand    | `--brand` / `--brand-soft` — neon blue-green; primary CTA face (`PrimaryButton`), action-toast border/fill, active waveform selection fill/edges/grips, active trim drag (grip + boundary stroke), **and Account auth chip when connected** (not record/destructive) |
 | Specimen | `--specimen-neon-0`…`--specimen-neon-20` — 21 neon fills for deterministic specimen marks (same family as `--brand`)                                                                                                               |
 | Space    | `--space-1`…`--space-7` (4px base), `--page-gutter` (horizontal page inset)                                                                                                                                                        |
 | Radius   | `--radius-control` (buttons/inputs), `--radius-panel` (panels), `--radius-round` (status/tags/toggles), `--radius-record` (record control face)                                                                                    |
@@ -49,7 +49,7 @@ Use CSS variables from `tokens.css`. Do not invent new hex colors, spacing steps
 ## Layout & surfaces
 
 - Structural panels: flat `--surface`, `1px solid var(--line)`, `--radius-panel`. Prefer pane separation by rules over floating cards.
-- Take rows = catalog data records (stable height, baseline alignment) — not marketing or collectible cards. Sequence lives in the display name, not a leading column; the whole row opens the take, with rename in the overflow menu and a visible Discard action (confirm first on Collection). Take lists belong under **Collection**; Capture shows a Collection shortcut (icon + zero-padded **total** count, including `00` when empty, with a **signal** **pending** bubble when upload-pending drafts exist). No three-tab bottom nav — Collection / Take / Account are stack or overlay surfaces with back / dismiss.
+- Take rows = catalog data records (stable height, baseline alignment) — not marketing or collectible cards. Sequence lives in the display name, not a leading column; the whole row opens the take, with rename in the overflow menu and a visible Discard action (confirm first on Collection). Take lists belong under **Collection**; Capture shows a Collection shortcut (icon + zero-padded **total** count, including `00` when empty, with a **signal** **pending** bubble when upload-pending files exist). No three-tab bottom nav — Collection / Take / Account are stack or overlay surfaces with back / dismiss.
 - Mobile outer padding `--page-gutter` (`--space-3`); desktop `--space-5`; major section gap `--space-5`; list row gap `--space-3` (prefer air over packing).
 - Respect `env(safe-area-inset-*)`. Desktop: 1px pane rules, not drop shadows.
 
@@ -58,7 +58,7 @@ Use CSS variables from `tokens.css`. Do not invent new hex colors, spacing steps
 | Kind      | Treatment                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Primary   | Recessed well + raised `--brand` face, `--ink` label (`PrimaryButton`); min-height `--touch-min`. Use for take **Collect**, Collection footer **Upload**, upload-sheet confirm **Upload**, and other main commit CTAs. **Only Primary and Record use 3D well/face chrome.**                                                                                                                                                                                           |
-| Ghost     | Flat transparent idle; hover/active = flat `--surface-subtle` well + `--surface` face (no inset shadows). `GhostButton` / `BackButton`; optional `compact` (~30px) for waveform toolbar; `danger` = same ghost with `--signal` label/icon only. Use for Back, nav chrome (Account, Collection shortcut, Loop), Collection **Select** / **Import** / select-mode actions, take-editor **Reset**, **Field Notes**, sheet close, cancel, and destructive confirm labels. |
+| Ghost     | **BackButton look is the Ghost style** — flat transparent idle; hover = `--surface-subtle` well + `--surface` face; pressed = root/well/face all `--surface` (no inset shadows). Designed to sit on `--paper` (top bars, sheet headers) so the `--surface` face reads; do not place on `--surface` or hover/press vanish. `GhostButton` is the single chrome source; `BackButton` is a thin `GhostButton` link wrapper (`icon` + `href` + back glyph). Optional `compact` (~30px) for waveform toolbar; `danger` = same ghost with `--signal` label/icon only. Use for Back, nav chrome (Account, Collection shortcut, Loop), Collection **Select** / **Import** / select-mode actions, take-editor **Reset**, **Field Notes**, sheet close, cancel, and destructive confirm labels. |
 | Record    | solid `--signal` rounded square (`--radius-record`) in recessed well (idle) + `Record`; recording: dark `--ink` face + `--signal` stop square + `Stop`; timer visible while active. **3D well/face chrome.**                                                                                                                                                                                                                                                          |
 | Idle plot | Capture stage above the record band shows a standby frame (zero axis, edge ticks, `STANDBY` in timer header slot, slow right→left scan) sharing live-wave geometry — not a decorative or fake waveform; scan off under `prefers-reduced-motion`                                                                                                                                                                                                                       |
 
@@ -70,7 +70,7 @@ UI glyphs live in `$lib/assets/ui-icons/*.svg` and render through `$lib/ui/icons
 
 ### Action toasts
 
-Compact, content-width feedback chips: `--brand-soft` fill, `--brand` border, `--text-annotation` type (ink). No leading accent bar; do not use `--signal` for success / confirm feedback. Optional action uses a small brand-outlined control on `--surface`. Not full-width panels. Centered in the viewport (horizontally and vertically). Enter/exit: global slide + fade + scale with rubber overshoot (back easing; ~480ms in / ~400ms out; respect `prefers-reduced-motion`).
+Compact, content-width feedback chips: `--brand-soft` fill, `--brand` border, `--text-annotation` type (ink). No leading accent bar; do not use `--signal` for success / confirm feedback. Optional action uses a small brand-outlined control on `--surface`. Not full-width panels. Centered in the viewport (horizontally and vertically). Stack above sheets/confirms (`toast-host` z-index above SheetOverlay / ConfirmDialog) so outcomes stay readable while a sheet is open. Enter/exit: global slide + fade + scale with rubber overshoot (back easing; ~480ms in / ~400ms out; respect `prefers-reduced-motion`).
 
 ## Motion
 
@@ -92,7 +92,7 @@ Accurate PCM-derived peaks only. Canvas + DPR. Clear zero axis and time ruler. N
 
 - Dark-first themes, purple/indigo gradients, glow stacks, glassmorphism
 - Warm cream + terracotta + display serif defaults; broadsheet newspaper layouts
-- Card grids, pill clusters, stat strips, floating badges on media
+- Card grids, decorative pill clusters, stat strips, floating badges on media (interactive session-name suggestion chips on Capture are allowed; use `--radius-round`)
 - Hardcoded `#hex` / `rgb()` / arbitrary `px` spacing outside tokens
 - Oversized decorative record rings; emoji as UI chrome
 - Inventing a second type scale or color palette in a component

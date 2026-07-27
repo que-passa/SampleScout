@@ -16,11 +16,13 @@ Dexie database name: `samplescout`.
 | `cleanupJobs` | `id` | `deleteAfter`                                          | Deferred OPFS deletes after Undo    |
 | `settings`    | `id` | —                                                      | App preferences (`id = 'settings'`) |
 
+`AppSettings` includes `recentTags`, `preferredOutput`, and `sessionNamePresets` (up to 12 custom Field Session titles remembered on this device for the Capture name sheet). Missing fields are filled with defaults on read.
+
 Migrations must be additive. Use `runMigrations()` as the bump hook.
 
 ## Collection identity does not change schema
 
-The UI label **Collection** maps to the existing `/drafts` view, and **Field Session** maps to `sessions`. **Field Notes** labels the existing take metadata/details surface; do not add a `notes` column or field. A deterministic specimen mark is computed from already-persisted take/source facts and is not a waveform, fingerprint, score, or new persisted asset.
+The UI label **Collection** maps to the `/collection` view, and **Field Session** maps to `sessions`. **Field Notes** labels the existing take metadata/details surface; do not add a `notes` column or field. A deterministic specimen mark is computed from already-persisted take/source facts and is not a waveform, fingerprint, score, or new persisted asset.
 
 ## OPFS layout
 
@@ -51,13 +53,13 @@ Metadata for the asset is stored on `Take.peaks` in IndexedDB.
 
 ## Saved-locally rule
 
-A take may show **Local Draft** (supporting copy: “Saved on this device”) only when:
+A take may show **Local File** (supporting copy: “Not uploaded. Only on this device.”) only when:
 
 1. Source binary is flushed to OPFS
 2. Take metadata record is written to IndexedDB
 3. `lifecycleState === 'saved'`
 
-**Extract** creates another take that reuses an existing OPFS `source.fileRef` (no second write). The Local Draft gate is the IndexedDB commit of the new take. Optional `derivedFromTakeId` records lineage. Cleanup must not delete a `fileRef` while any non-deleted take still references it (see ADR 0003).
+**Extract** creates another take that reuses an existing OPFS `source.fileRef` (no second write). The Local File gate is the IndexedDB commit of the new take. Optional `derivedFromTakeId` records lineage. Cleanup must not delete a `fileRef` while any non-deleted take still references it (see ADR 0003).
 
 ## Delete all local data
 

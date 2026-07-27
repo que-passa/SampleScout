@@ -1,14 +1,13 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { deleteAllLocalData } from '$lib/persistence';
-	import { audiotoolAuth, captureController, connect, disconnect } from '$lib/state';
+	import { actionToast, audiotoolAuth, captureController, connect, disconnect } from '$lib/state';
 	import ConfirmDialog from '$lib/ui/components/ConfirmDialog.svelte';
 	import GhostButton from '$lib/ui/components/GhostButton.svelte';
 	import PrimaryButton from '$lib/ui/components/PrimaryButton.svelte';
 	import StatusLabel from '$lib/ui/components/StatusLabel.svelte';
 
 	let clearing = $state(false);
-	let clearMessage = $state('');
 	let confirmOpen = $state(false);
 
 	async function handleConnect() {
@@ -32,14 +31,13 @@
 	async function confirmDeleteAll() {
 		if (clearing) return;
 		clearing = true;
-		clearMessage = '';
 		try {
 			await deleteAllLocalData();
 			await captureController.reset();
-			clearMessage = 'Local metadata cleared. Binary storage cleared when OPFS is available.';
+			actionToast.show('Local data cleared');
 			confirmOpen = false;
 		} catch {
-			clearMessage = 'Could not clear all local data.';
+			actionToast.show('Could not clear all local data');
 			confirmOpen = false;
 		} finally {
 			clearing = false;
@@ -49,59 +47,67 @@
 	const auth = $derived(audiotoolAuth.status);
 	const authBusy = $derived(audiotoolAuth.busy);
 	const identityLabel = $derived(auth.displayName || auth.userName);
-	const authTone = $derived(
-		auth.state === 'connected' ? 'ok' : auth.state === 'error' ? 'signal' : 'muted'
-	);
+	const authTone = $derived(auth.state === 'connected' ? 'brand' : 'signal');
 </script>
 
-<section class="panel">
-	<div class="row">
-		<h2>Audiotool</h2>
-		<StatusLabel tone={authTone}>
-			{auth.state}
-		</StatusLabel>
+<section class="block">
+	<div class="panel">
+		<div class="row">
+			<h2>Audiotool</h2>
+			<StatusLabel tone={authTone}>
+				{auth.state}
+			</StatusLabel>
+		</div>
+		{#if auth.state === 'connected'}
+			{#if identityLabel}
+				<p class="body"><strong>{identityLabel}</strong></p>
+			{:else}
+				<p class="body">Connected</p>
+			{/if}
+		{:else if auth.message}
+			<p class="body">{auth.message}</p>
+		{/if}
+		{#if auth.error}
+			<p class="error">{auth.error.message}</p>
+		{/if}
 	</div>
-	<p class="body">{auth.message}</p>
-	{#if identityLabel}
-		<p class="body">Signed in as <strong>{identityLabel}</strong>.</p>
-	{/if}
-	{#if auth.error}
-		<p class="error">{auth.error.message}</p>
-	{/if}
-	{#if auth.state === 'connected'}
-		<GhostButton disabled={authBusy} onclick={handleDisconnect}>
-			{authBusy ? 'Working…' : 'Disconnect'}
-		</GhostButton>
-	{:else}
-		<PrimaryButton disabled={!auth.configured || authBusy} onclick={handleConnect}>
-			{authBusy ? 'Working…' : 'Connect Audiotool'}
-		</PrimaryButton>
-	{/if}
+	<!-- Ghost/Primary sit on sheet paper — not on --surface — so hover/press faces read. -->
+	<div class="actions">
+		{#if auth.state === 'connected'}
+			<GhostButton disabled={authBusy} onclick={handleDisconnect}>
+				{authBusy ? 'Working…' : 'Disconnect'}
+			</GhostButton>
+		{:else}
+			<PrimaryButton disabled={!auth.configured || authBusy} onclick={handleConnect}>
+				{authBusy ? 'Working…' : 'Connect Audiotool'}
+			</PrimaryButton>
+		{/if}
+	</div>
 </section>
 
-<section class="panel">
-	<h2>Local data</h2>
-	<p class="body">
-		The Collection contains Local Drafts saved on this device only. There is no cloud backup and no
-		cross-device sync. Clearing site data in the browser also removes them.
-	</p>
-	<GhostButton danger disabled={clearing} onclick={requestDeleteAll}>
-		{clearing ? 'Clearing…' : 'Delete all local data'}
-	</GhostButton>
-	{#if clearMessage}
-		<p class="body">{clearMessage}</p>
-	{/if}
+<section class="block">
+	<div class="panel">
+		<h2>Local data</h2>
+		<p class="body">
+			Not uploaded. Only on this device. Clearing browser data removes Local Files.
+		</p>
+	</div>
+	<div class="actions">
+		<GhostButton danger disabled={clearing} onclick={requestDeleteAll}>
+			{clearing ? 'Clearing…' : 'Delete all'}
+		</GhostButton>
+	</div>
 </section>
 
 <p class="debug-link">
-	<a href={resolve('/debug')}>Developer diagnostics</a>
+	<a href={resolve('/debug')}>Diagnostics</a>
 </p>
 
 {#if confirmOpen}
 	<ConfirmDialog
 		title="Delete all"
-		message="Delete all local SampleScout data on this device? This cannot be undone."
-		confirmLabel="Delete all"
+		message="Delete all local data? Cannot be undone."
+		confirmLabel="Delete"
 		busy={clearing}
 		oncancel={cancelDeleteAll}
 		onconfirm={() => void confirmDeleteAll()}
@@ -109,14 +115,25 @@
 {/if}
 
 <style>
-	.panel {
+	.block {
 		display: grid;
 		gap: var(--space-3);
 		margin-bottom: var(--space-5);
+	}
+
+	.panel {
+		display: grid;
+		gap: var(--space-3);
 		padding: var(--space-4);
 		border: 1px solid var(--line);
 		border-radius: var(--radius-panel);
 		background: var(--surface);
+	}
+
+	.actions {
+		display: grid;
+		gap: var(--space-3);
+		justify-items: end;
 	}
 
 	.row {

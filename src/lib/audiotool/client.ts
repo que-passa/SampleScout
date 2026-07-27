@@ -73,7 +73,7 @@ function toStatus(
 			state: 'disconnected',
 			configured: false,
 			message:
-				'Register an app at developer.audiotool.com/applications, then set PUBLIC_AUDIOTOOL_CLIENT_ID and PUBLIC_AUDIOTOOL_REDIRECT_URL.'
+				'Set PUBLIC_AUDIOTOOL_CLIENT_ID and PUBLIC_AUDIOTOOL_REDIRECT_URL in .env.'
 		};
 	}
 
@@ -81,7 +81,7 @@ function toStatus(
 		return {
 			state: 'disconnected',
 			configured: true,
-			message: 'Audiotool client not initialized yet.'
+			message: 'Starting…'
 		};
 	}
 
@@ -92,7 +92,7 @@ function toStatus(
 			userName: result.userName,
 			displayName: profile?.displayName,
 			avatarUrl: profile?.avatarUrl,
-			message: 'Connected. Uploads go to this Audiotool account.'
+			message: ''
 		};
 	}
 
@@ -111,7 +111,7 @@ function toStatus(
 	return {
 		state: 'disconnected',
 		configured: true,
-		message: 'Not connected. Connect to upload samples to Audiotool.'
+		message: 'Connect to upload.'
 	};
 }
 
@@ -183,14 +183,14 @@ export async function connectAudiotool(): Promise<AudiotoolAuthStatus> {
 		return {
 			state: 'connecting',
 			configured: true,
-			message: 'Redirecting to Audiotool for authorization…'
+			message: 'Opening Audiotool…'
 		};
 	}
 
 	return {
 		state: 'error',
 		configured: true,
-		message: 'Audiotool OAuth client is unavailable.',
+		message: 'Login unavailable.',
 		error: createAppError('AUDIOTOOL_AUTH_FAILED', 'Could not start the Audiotool login flow.', {
 			recoverable: true
 		})
@@ -207,7 +207,7 @@ export async function disconnectAudiotool(): Promise<AudiotoolAuthStatus> {
 	return {
 		state: 'disconnected',
 		configured: getPublicAppConfig().audiotool.configured,
-		message: 'Disconnected from Audiotool.'
+		message: 'Disconnected.'
 	};
 }
 

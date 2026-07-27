@@ -23,4 +23,19 @@ describe('actionToast', () => {
 		actionToast.show('   ');
 		expect(getActionToastSnapshot()).toBeNull();
 	});
+
+	it('replaces an active toast in place without a new id', () => {
+		vi.useFakeTimers();
+		actionToast.show('Discarding 6 Local Files…', 1000);
+		const first = getActionToastSnapshot();
+		expect(first?.message).toBe('Discarding 6 Local Files…');
+
+		actionToast.show('6 Local Files discarded', 1000);
+		const second = getActionToastSnapshot();
+		expect(second?.message).toBe('6 Local Files discarded');
+		expect(second?.id).toBe(first?.id);
+
+		vi.advanceTimersByTime(1000);
+		expect(getActionToastSnapshot()).toBeNull();
+	});
 });

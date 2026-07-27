@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { RECORDING_MAX_SECONDS } from '$lib/config/recording';
 import { createSession } from '$lib/domain/metadata';
 import { isTakeSavedLocally } from '$lib/domain/metadata';
-import { assertImportDurationAllowed, buildImportTakeDraft } from '$lib/state/import-take';
+import { assertImportDurationAllowed, buildImportTake } from '$lib/state/import-take';
 
 describe('import take helpers', () => {
 	it('rejects audio longer than the shared capture limit', () => {
@@ -16,9 +16,9 @@ describe('import take helpers', () => {
 		}
 	});
 
-	it('builds an import draft with sourceType and originalFileName', () => {
+	it('builds an import take with sourceType and originalFileName', () => {
 		const session = createSession('Field import');
-		const draft = buildImportTakeDraft({
+		const draft = buildImportTake({
 			session,
 			sequence: 2,
 			file: { name: 'door-hit.wav', type: 'audio/wav', size: 4096 },
@@ -42,7 +42,7 @@ describe('import take helpers', () => {
 
 	it('falls back mime type when the file reports empty type', () => {
 		const session = createSession('Field import');
-		const draft = buildImportTakeDraft({
+		const draft = buildImportTake({
 			session,
 			sequence: 1,
 			file: { name: 'mystery.bin', type: '', size: 128 },

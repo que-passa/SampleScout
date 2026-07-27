@@ -43,6 +43,7 @@ a {
 	color: inherit;
 	text-decoration-thickness: 1px;
 	text-underline-offset: 2px;
+	cursor: default;
 }
 
 a:hover {
@@ -57,8 +58,10 @@ textarea {
 	color: inherit;
 }
 
-button {
-	cursor: pointer;
+button,
+[role='button'],
+summary {
+	cursor: default;
 }
 
 button:disabled {

@@ -104,7 +104,8 @@
 		flex-shrink: 0;
 		padding: var(--space-3) var(--space-4);
 		border-bottom: 1px solid var(--line);
-		background: var(--surface);
+		/* Match SheetOverlay: paper chrome so Ghost states contrast like top-bar Back. */
+		background: var(--paper);
 	}
 
 	.title {
