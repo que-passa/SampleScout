@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { deleteAllLocalData } from '$lib/persistence';
+	import { installGuideKind, installPrompt, openInstallFlow } from '$lib/pwa';
 	import { actionToast, audiotoolAuth, captureController, connect, disconnect } from '$lib/state';
 	import ConfirmDialog from '$lib/ui/components/ConfirmDialog.svelte';
 	import GhostButton from '$lib/ui/components/GhostButton.svelte';
@@ -9,6 +10,7 @@
 
 	let clearing = $state(false);
 	let confirmOpen = $state(false);
+	let installBusy = $state(false);
 
 	async function handleConnect() {
 		await connect();
@@ -44,10 +46,28 @@
 		}
 	}
 
+	async function handleInstall() {
+		if (installBusy) return;
+		installBusy = true;
+		try {
+			await openInstallFlow();
+		} finally {
+			installBusy = false;
+		}
+	}
+
 	const auth = $derived(audiotoolAuth.status);
 	const authBusy = $derived(audiotoolAuth.busy);
 	const identityLabel = $derived(auth.displayName || auth.userName);
 	const authTone = $derived(auth.state === 'connected' ? 'brand' : 'signal');
+	const installGuide = $derived(
+		installGuideKind({
+			standalone: installPrompt.standalone,
+			dismissed: installPrompt.dismissed,
+			ios: installPrompt.ios,
+			canNativePrompt: installPrompt.canNativePrompt
+		})
+	);
 </script>
 
 <section class="block">
@@ -84,6 +104,32 @@
 		{/if}
 	</div>
 </section>
+
+{#if installGuide !== 'none'}
+	<section class="block">
+		<div class="panel">
+			<h2>Home screen</h2>
+			<p class="body">
+				{#if installGuide === 'ios'}
+					Add SampleScout from Share for one-tap Capture. Safari has no install button.
+				{:else}
+					Install SampleScout for one-tap Capture from your home screen.
+				{/if}
+			</p>
+		</div>
+		<div class="actions">
+			{#if installGuide === 'native'}
+				<PrimaryButton disabled={installBusy} onclick={() => void handleInstall()}>
+					{installBusy ? 'Working…' : 'Install app'}
+				</PrimaryButton>
+			{:else}
+				<GhostButton disabled={installBusy} onclick={() => void handleInstall()}>
+					How to install
+				</GhostButton>
+			{/if}
+		</div>
+	</section>
+{/if}
 
 <section class="block">
 	<div class="panel">

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { MediaQuery } from 'svelte/reactivity';
 	import { DEFAULT_SESSION_NAME, SESSION_NAME_PRESETS, normalizeSessionName } from '$lib/domain';
 	import PrimaryButton from '$lib/ui/components/PrimaryButton.svelte';
 	import SheetOverlay from '$lib/ui/components/SheetOverlay.svelte';
@@ -20,6 +21,9 @@
 	let draft = $state('');
 	let busy = $state(false);
 
+	/** Match SheetOverlay desktop breakpoint — avoid autofocus so mobile keyboard doesn't cover chips. */
+	const desktop = new MediaQuery('min-width: 900px');
+
 	const visibleUserPresets = $derived(
 		userPresets.filter((preset) => {
 			const trimmed = preset.trim();
@@ -32,6 +36,7 @@
 	function prepareInput(node: HTMLInputElement) {
 		draft = name;
 		busy = false;
+		if (!desktop.current) return;
 		node.focus();
 		node.select();
 	}

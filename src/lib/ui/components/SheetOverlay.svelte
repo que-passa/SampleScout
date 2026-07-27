@@ -9,13 +9,16 @@
 		title,
 		onclose,
 		children,
-		dismissible = true
+		dismissible = true,
+		elevated = false
 	}: {
 		title: string;
 		onclose: () => void;
 		children: Snippet;
 		/** When false, Escape / backdrop / close cannot dismiss (e.g. active upload). */
 		dismissible?: boolean;
+		/** Stack above another SheetOverlay (e.g. install guide over Account). */
+		elevated?: boolean;
 	} = $props();
 
 	const uid = $props.id();
@@ -50,7 +53,12 @@
 
 <svelte:window onkeydown={onKeydown} />
 
-<div class="backdrop" role="presentation" transition:fade={{ duration }} onclick={onBackdropClick}>
+<div
+	class={['backdrop', elevated && 'elevated']}
+	role="presentation"
+	transition:fade={{ duration }}
+	onclick={onBackdropClick}
+>
 	<div
 		class="panel"
 		role="dialog"
@@ -84,6 +92,11 @@
 		justify-content: center;
 		padding: 0;
 		background: color-mix(in srgb, var(--ink) 40%, transparent);
+	}
+
+	.backdrop.elevated {
+		/* Above default sheets (50); below ConfirmDialog (60) and toast-host (70). */
+		z-index: 55;
 	}
 
 	.panel {

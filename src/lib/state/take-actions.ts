@@ -31,12 +31,13 @@ export async function notifyTakeInventoryChanged(): Promise<void> {
 
 /**
  * Collect a retained trim into a new Local File (shared source).
+ * Child recipe clones the collectable parent recipe (bounds, fades, normalize, …).
  * Parent source stays intact; the take page resets parent recipe to identity after Collect.
  */
 export async function collectSelectionAsLocalFile(input: {
 	parentTakeId: TakeId;
-	startSeconds: number;
-	endSeconds: number;
+	/** Collectable recipe to commit; defaults to the persisted parent recipe. */
+	recipe?: EditRecipe;
 }): Promise<Take> {
 	const take = await extractTakeFromSelection(input);
 	await notifyTakeInventoryChanged();

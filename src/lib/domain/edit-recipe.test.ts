@@ -5,9 +5,11 @@ import {
 	applyFadeIn,
 	applyFadeOut,
 	cutSelection,
+	disablePeakNormalization,
 	enablePeakNormalization,
 	isIdentityRecipe,
 	recipeDurationSeconds,
+	recipeFromWorkingRegion,
 	retainedSourceRanges,
 	trimToSelection
 } from './edit-recipe';
@@ -99,6 +101,30 @@ describe('fades and normalize', () => {
 
 	it('enables peak normalization at −1 dBFS', () => {
 		const recipe = enablePeakNormalization(createInitialEditRecipe(1));
+		expect(recipe.peakNormalization?.enabled).toBe(true);
+		expect(recipe.peakNormalization?.targetDbfs).toBe(-1);
+	});
+
+	it('disables peak normalization', () => {
+		const on = enablePeakNormalization(createInitialEditRecipe(1));
+		const off = disablePeakNormalization(on);
+		expect(off.peakNormalization).toBeUndefined();
+	});
+});
+
+describe('recipeFromWorkingRegion', () => {
+	it('builds a normalized single segment with optional fades', () => {
+		const recipe = recipeFromWorkingRegion({
+			startSeconds: 1,
+			endSeconds: 4,
+			fadeInSeconds: 0.1,
+			fadeOutSeconds: 0.2
+		});
+		expect(recipe.segments).toHaveLength(1);
+		expect(recipe.segments[0]?.sourceStartSeconds).toBe(1);
+		expect(recipe.segments[0]?.sourceEndSeconds).toBe(4);
+		expect(recipe.segments[0]?.fadeInSeconds).toBeCloseTo(0.1);
+		expect(recipe.segments[0]?.fadeOutSeconds).toBeCloseTo(0.2);
 		expect(recipe.peakNormalization?.enabled).toBe(true);
 		expect(recipe.peakNormalization?.targetDbfs).toBe(-1);
 	});

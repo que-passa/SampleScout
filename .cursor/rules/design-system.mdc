@@ -18,7 +18,7 @@ Before UI edits, read [`DESIGN.md`](DESIGN.md). Tokens live in `src/lib/styles/t
 - `--brand` / `--brand-soft` for primary CTA faces (`PrimaryButton`), action-toast border/fill, active waveform selection, active trim drag, **and** Collection `UploadStatusChip` queued/uploaded faces (neon blue-green; not record/destructive)
 - Collection take rows use `UploadStatusChip` (morphing Local / Queued / Busy / Uploaded / Failed) — not a remounted `StatusLabel` swap
 - Take play/pause uses `PlaybackControl` (smaller Record-style well; `--ink` face, not `--signal`)
-- Discarded (outside-trim) waveform regions use `--disabled` wash + peaks; retained peaks stay `--ink`
+- Discarded (outside-trim) waveform regions use `--disabled` wash + peaks; retained peaks stay `--ink`; peak-normalize preview gain uses one display scale across retained and discarded
 - Reuse `$lib/ui` components; keep state as text + color (busy chip may be spinner-only with `aria-label`; phase copy lives in the upload sheet)
 - Label `/collection` as Collection, groups as Field Sessions, and existing take metadata/details as Field Notes
 - **Collect** is the take primary for retained trim → Local File; Collection **Upload** is a brand-well primary CTA with confirm→progress sheet

@@ -9,6 +9,8 @@
 	import AccountOverlay from '$lib/ui/components/AccountOverlay.svelte';
 	import AccountPanel from '$lib/ui/components/AccountPanel.svelte';
 	import BackButton from '$lib/ui/components/BackButton.svelte';
+	import InstallAppSheet from '$lib/ui/components/InstallAppSheet.svelte';
+	import { installPrompt } from '$lib/pwa';
 
 	let { children }: { children?: Snippet } = $props();
 
@@ -69,6 +71,8 @@
 			<AccountPanel />
 		</AccountOverlay>
 	{/if}
+
+	<InstallAppSheet open={installPrompt.sheetOpen} />
 </div>
 
 <style>

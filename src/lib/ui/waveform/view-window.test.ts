@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
 	MIN_VIEW_SPAN,
+	SELECTION_AUTOFIT_REL_THRESHOLD,
 	clampView,
 	fitSelectionWindow,
 	panView,
+	shouldAutoFitSelection,
 	viewZoomLevel,
 	zoomView
 } from './view-window';
@@ -63,6 +65,33 @@ describe('fitSelectionWindow', () => {
 		const view = fitSelectionWindow(2, 4, 10, 0.25);
 		expect(view.start).toBeCloseTo(0.15, 8);
 		expect(view.end).toBeCloseTo(0.45, 8);
+	});
+});
+
+describe('shouldAutoFitSelection', () => {
+	const view = { start: 0.1, end: 0.5 };
+	const duration = 10;
+
+	it('fits when there is no prior selection', () => {
+		expect(shouldAutoFitSelection(null, 2, 4, view, duration)).toBe(true);
+	});
+
+	it('skips micro edge nudges that stay framed', () => {
+		const prev = { lo: 2, hi: 4 };
+		/* 2s span → 5% nudge = 0.1s, below 20% threshold; still inside view [1,5]. */
+		expect(shouldAutoFitSelection(prev, 2.05, 4, view, duration)).toBe(false);
+		expect(SELECTION_AUTOFIT_REL_THRESHOLD).toBe(0.2);
+	});
+
+	it('fits when span changes enough', () => {
+		const prev = { lo: 2, hi: 4 };
+		expect(shouldAutoFitSelection(prev, 2, 4.5, view, duration)).toBe(true);
+	});
+
+	it('fits when the selection leaves the comfortable frame', () => {
+		const prev = { lo: 2, hi: 4 };
+		const tight = { start: 0.2, end: 0.4 }; /* view = 2–4s */
+		expect(shouldAutoFitSelection(prev, 1.9, 4, tight, duration)).toBe(true);
 	});
 });
 

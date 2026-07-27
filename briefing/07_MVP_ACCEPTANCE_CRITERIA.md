@@ -126,7 +126,7 @@ Safari failure is a release decision because no backend fallback will exist.
 
 - With a usable retained trim (narrower than the full source), Collect creates a new Local File in the same Field Session.
 - Parent source binary remains shared/intact; parent recipe returns to full-source identity after Collect so further regions can be trimmed.
-- Collected take shares the parent source binary (`fileRef`) and retains only the trim bounds in its edit recipe.
+- Collected take shares the parent source binary (`fileRef`) and clones the selection-shaped edit recipe (bounds, fades, normalize, and future recipe ops).
 - Collected take appears in Collection with its own Field Notes; upload starts from Collection only (no Upload on take).
 - Collect is a brand primary in the take transport; it depends on trim result state, not a temporary waveform selection. User can Collect multiple regions from the same parent without leaving the parent editor.
 - Discarding a collected file does not delete the shared OPFS source while the parent (or another child) still references it.

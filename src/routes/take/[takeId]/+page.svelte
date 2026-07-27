@@ -13,6 +13,7 @@
 		collectableRetainedBounds,
 		deriveCatalogReference,
 		deriveSpecimenMark,
+		disablePeakNormalization,
 		enablePeakNormalization,
 		formatRecordingDate,
 		formatUploadStateLabel,
@@ -21,8 +22,8 @@
 		isIdentityRecipe,
 		isTakeSavedLocally,
 		recipeDurationSeconds,
+		recipeFromWorkingRegion,
 		retainedSourceRanges,
-		trimToSelection,
 		uploadStateTone,
 		type EditRecipe,
 		type Take,
@@ -96,6 +97,9 @@
 	let historyEpoch = $state(0);
 	let selectionStart = $state<number | null>(null);
 	let selectionEnd = $state<number | null>(null);
+	/** Fades on the working selection (Collect loop); not persisted until Collect. */
+	let selectionFadeIn = $state(0);
+	let selectionFadeOut = $state(0);
 	let savingFieldNotes = $state(false);
 	let fieldNotesSheetOpen = $state(false);
 	let loopPreview = $state(false);
@@ -135,25 +139,71 @@
 		currentRecipe ? recipeDurationSeconds(currentRecipe) : sourceDuration
 	);
 
-	/** Always pass ranges (including identity 0→duration) so trim grips stay visible. */
-	const retainedRanges = $derived(currentRecipe ? retainedSourceRanges(currentRecipe) : undefined);
-
 	const hasUsableSelection = $derived(
 		selectionStart != null &&
 			selectionEnd != null &&
 			Math.abs(selectionEnd - selectionStart) >= MIN_SEGMENT_SECONDS
 	);
 
-	/** Collect commits the retained trim result, not a temporary waveform selection. */
-	const hasUsableTrim = $derived(
-		currentRecipe != null && collectableRetainedBounds(currentRecipe, sourceDuration) != null
+	/** Wave retained chrome: working selection, else committed recipe on non-identity takes. */
+	const waveRetainedRanges = $derived.by(() => {
+		if (hasUsableSelection && selectionStart != null && selectionEnd != null) {
+			const start = Math.min(selectionStart, selectionEnd);
+			const end = Math.max(selectionStart, selectionEnd);
+			return [
+				{
+					start,
+					end,
+					fadeInSeconds: selectionFadeIn,
+					fadeOutSeconds: selectionFadeOut
+				}
+			];
+		}
+		if (!identity && currentRecipe) return retainedSourceRanges(currentRecipe);
+		return undefined;
+	});
+
+	const workingRecipe = $derived.by((): EditRecipe | null => {
+		if (!hasUsableSelection || selectionStart == null || selectionEnd == null) return null;
+		try {
+			return recipeFromWorkingRegion({
+				startSeconds: selectionStart,
+				endSeconds: selectionEnd,
+				fadeInSeconds: selectionFadeIn,
+				fadeOutSeconds: selectionFadeOut
+			});
+		} catch {
+			return null;
+		}
+	});
+
+	/** Playback / preview follows the working selection when present. */
+	const activePlaybackRecipe = $derived(workingRecipe ?? currentRecipe);
+
+	const showTrimGrips = $derived(!hasUsableSelection && !identity);
+
+	const wavePeakNormalization = $derived(
+		workingRecipe?.peakNormalization ?? currentRecipe?.peakNormalization
+	);
+
+	const normalizeOn = $derived(
+		(workingRecipe?.peakNormalization?.enabled ?? currentRecipe?.peakNormalization?.enabled) ===
+			true
+	);
+
+	/** Collect from a usable selection (scouted or manual). */
+	const canCollect = $derived(
+		hasUsableSelection &&
+			workingRecipe != null &&
+			sourceDuration > 0 &&
+			collectableRetainedBounds(workingRecipe, sourceDuration) != null
 	);
 
 	const suggestionEligible = $derived(isEligibleForSuggestedRegions(sourceDuration));
 	const suggestionCount = $derived(suggestions.length);
 	const showSuggestionChrome = $derived(suggestionStatus === 'ready' && suggestionCount > 0);
-	/** Next only after the user engages the scouted control (selects first). */
-	const showSuggestionNext = $derived(showSuggestionChrome && suggestionIndex != null);
+	/** Prev/Next nav only after the user engages the scouted control (selects first). */
+	const showSuggestionNav = $derived(showSuggestionChrome && suggestionIndex != null);
 	const suggestionLabel = $derived.by(() => {
 		if (suggestionIndex == null) {
 			return suggestionCount === 1 ? '1 scouted' : `${suggestionCount} scouted`;
@@ -173,6 +223,25 @@
 		showManualAnalyze = false;
 	}
 
+	function clearSelectionFades() {
+		selectionFadeIn = 0;
+		selectionFadeOut = 0;
+	}
+
+	function clampSelectionFades(start: number, end: number) {
+		const length = Math.max(0, end - start);
+		let fadeIn = Math.max(0, selectionFadeIn);
+		let fadeOut = Math.max(0, selectionFadeOut);
+		const sum = fadeIn + fadeOut;
+		if (sum > length && sum > 0) {
+			const scale = length / sum;
+			fadeIn *= scale;
+			fadeOut *= scale;
+		}
+		selectionFadeIn = Math.min(fadeIn, length);
+		selectionFadeOut = Math.min(fadeOut, length);
+	}
+
 	function applySuggestionAt(index: number) {
 		if (uploadLocked) return;
 		const region = suggestions[index];
@@ -180,15 +249,12 @@
 		suggestionIndex = index;
 		selectionStart = region.startSeconds;
 		selectionEnd = region.endSeconds;
-		if (playing) {
-			playback?.pause();
-			playing = false;
-			stopPlayheadLoop();
-		}
+		clearSelectionFades();
+		disposePlayback();
 		onSeek(region.startSeconds);
 	}
 
-	/** First click engages: select scouted 0 and reveal Next. Click again exits scouted mode. */
+	/** First click engages: select scouted 0 and reveal Prev/Next. Click again exits scouted mode. */
 	function onSuggestionScoutedActivate() {
 		if (!showSuggestionChrome || suggestionCount === 0) return;
 		if (suggestionIndex != null) {
@@ -198,8 +264,13 @@
 		applySuggestionAt(0);
 	}
 
+	function onSuggestionPrev() {
+		if (!showSuggestionNav || suggestionCount === 0 || suggestionIndex == null) return;
+		applySuggestionAt((suggestionIndex - 1 + suggestionCount) % suggestionCount);
+	}
+
 	function onSuggestionNext() {
-		if (!showSuggestionNext || suggestionCount === 0 || suggestionIndex == null) return;
+		if (!showSuggestionNav || suggestionCount === 0 || suggestionIndex == null) return;
 		applySuggestionAt((suggestionIndex + 1) % suggestionCount);
 	}
 
@@ -320,12 +391,15 @@
 	function onSelectionChange(start: number, end: number) {
 		selectionStart = start;
 		selectionEnd = end;
+		clampSelectionFades(Math.min(start, end), Math.max(start, end));
 	}
 
 	function onSelectionGestureEnd(start: number, end: number) {
 		const lo = Math.min(start, end);
 		const hi = Math.max(start, end);
 		if (hi - lo < MIN_SEGMENT_SECONDS) return;
+		clampSelectionFades(lo, hi);
+		disposePlayback();
 		if (playing) {
 			playback?.pause();
 			playing = false;
@@ -361,31 +435,30 @@
 		}
 	}
 
-	async function onTrim() {
-		if (!hasUsableSelection || selectionStart == null || selectionEnd == null) return;
-		const start = selectionStart;
-		const end = selectionEnd;
-		const ok = await applyRecipeMutation(
-			(recipe) => trimToSelection(recipe, start, end),
-			'Trim applied'
-		);
-		if (ok) {
-			selectionStart = null;
-			selectionEnd = null;
-		}
-	}
-
 	async function onTrimBoundaryCommit(detail: {
 		rangeIndex: number;
 		edge: 'start' | 'end';
 		seconds: number;
 	}) {
+		if (hasUsableSelection) return;
 		await applyRecipeMutation((recipe) =>
 			adjustRetainedBoundary(recipe, detail.rangeIndex, detail.edge, detail.seconds, sourceDuration)
 		);
 	}
 
 	async function onFadeBoundaryCommit(detail: { edge: 'in' | 'out'; seconds: number }) {
+		if (hasUsableSelection) {
+			if (detail.edge === 'in') selectionFadeIn = Math.max(0, detail.seconds);
+			else selectionFadeOut = Math.max(0, detail.seconds);
+			if (selectionStart != null && selectionEnd != null) {
+				clampSelectionFades(
+					Math.min(selectionStart, selectionEnd),
+					Math.max(selectionStart, selectionEnd)
+				);
+			}
+			disposePlayback();
+			return;
+		}
 		await applyRecipeMutation((recipe) =>
 			detail.edge === 'in'
 				? applyFadeIn(recipe, detail.seconds)
@@ -395,18 +468,17 @@
 
 	async function onCollect() {
 		if (uploadLocked) return;
-		if (!take || !editHistory || !currentRecipe || sourceDuration <= 0) return;
-		const bounds = collectableRetainedBounds(currentRecipe, sourceDuration);
-		if (!bounds) return;
+		if (!take || !editHistory || !workingRecipe || sourceDuration <= 0) return;
+		if (!canCollect) return;
 		try {
 			await collectSelectionAsLocalFile({
 				parentTakeId: take.id,
-				startSeconds: bounds.start,
-				endSeconds: bounds.end
+				recipe: workingRecipe
 			});
 			selectionStart = null;
 			selectionEnd = null;
-			// Return parent to full-source identity so the next region can be trimmed and collected.
+			clearSelectionFades();
+			// Return parent to full-source identity so the next region can be selected and collected.
 			const next = editHistory.resetToIdentity(sourceDuration);
 			bumpHistory();
 			await persistRecipe(next);
@@ -416,12 +488,19 @@
 					? String((cause as { message: string }).message)
 					: cause instanceof Error
 						? cause.message
-						: 'Could not collect trim';
-			actionToast.show(message.trim() || 'Could not collect trim');
+						: 'Could not collect region';
+			actionToast.show(message.trim() || 'Could not collect region');
 		}
 	}
 
 	async function onNormalize() {
+		if (uploadLocked) return;
+		// Selection auto-enables normalize for Collect preview — locked on while selecting.
+		if (hasUsableSelection) return;
+		if (normalizeOn) {
+			await applyRecipeMutation((recipe) => disablePeakNormalization(recipe), 'Normalize off');
+			return;
+		}
 		await applyRecipeMutation((recipe) => enablePeakNormalization(recipe), 'Normalize applied');
 	}
 
@@ -431,6 +510,9 @@
 			const next = editHistory.resetToIdentity(sourceDuration);
 			bumpHistory();
 			await persistRecipe(next);
+			selectionStart = null;
+			selectionEnd = null;
+			clearSelectionFades();
 			actionToast.show('Edits reset');
 		} catch (cause) {
 			const message =
@@ -496,27 +578,22 @@
 		}
 	}
 
-	/** Playback-timeline bounds for selection preview (edited seconds when recipe is non-identity). */
+	/** Playback-timeline bounds (edited seconds of the active playback recipe). */
 	function getSelectionPlaybackBoundsEdited(): { start: number; end: number } | null {
-		if (!currentRecipe || transportDuration <= 0) return null;
-		if (hasUsableSelection && selectionStart != null && selectionEnd != null) {
-			const srcLo = Math.min(selectionStart, selectionEnd);
-			const srcHi = Math.max(selectionStart, selectionEnd);
-			if (identity) {
-				return { start: srcLo, end: srcHi };
-			}
-			const start = sourceTimeToEditedTime(currentRecipe, srcLo);
-			const end = sourceTimeToEditedTime(currentRecipe, srcHi);
-			if (end - start < MIN_SEGMENT_SECONDS) return { start: 0, end: transportDuration };
-			return { start, end };
+		if (!activePlaybackRecipe || transportDuration <= 0) return null;
+		if (hasUsableSelection) {
+			return { start: 0, end: transportDuration };
 		}
 		return { start: 0, end: transportDuration };
 	}
 
 	function syncPlayheadFromHandle(handle: PlaybackHandle) {
-		if (!currentRecipe) return;
+		if (!activePlaybackRecipe) return;
 		currentTime = handle.getCurrentTime();
-		displayPlayhead = identity ? currentTime : editedTimeToSourceTime(currentRecipe, currentTime);
+		const useSourceClock = identity && !hasUsableSelection;
+		displayPlayhead = useSourceClock
+			? currentTime
+			: editedTimeToSourceTime(activePlaybackRecipe, currentTime);
 	}
 
 	async function wrapLoopPlayback(handle: PlaybackHandle) {
@@ -537,7 +614,7 @@
 	function startPlayheadLoop() {
 		stopPlayheadLoop();
 		const tick = () => {
-			if (!playback || !currentRecipe) return;
+			if (!playback || !activePlaybackRecipe) return;
 			syncPlayheadFromHandle(playback);
 			playing = playback.isPlaying();
 
@@ -662,23 +739,28 @@
 		(peaks?.channels ?? take?.source.channelCount ?? 1) > 1 ? 'Stereo' : 'Mono'
 	);
 
-	const transportDuration = $derived(identity ? sourceDuration : editedDuration);
+	const transportDuration = $derived(
+		activePlaybackRecipe && (hasUsableSelection || !identity)
+			? recipeDurationSeconds(activePlaybackRecipe)
+			: sourceDuration
+	);
 
 	async function ensurePlayback(): Promise<PlaybackHandle | null> {
-		if (!take?.source.fileRef || !currentRecipe) return null;
+		if (!take?.source.fileRef || !activePlaybackRecipe) return null;
 
-		const key = recipeKey(currentRecipe);
+		const key = recipeKey(activePlaybackRecipe);
 		if (playback && playbackRecipeKey === key) return playback;
 
 		disposePlayback();
 
 		let handle: PlaybackHandle;
-		if (isIdentityRecipe(currentRecipe, sourceDuration)) {
+		const useFile = identity && !hasUsableSelection;
+		if (useFile) {
 			handle = await createPlaybackFromFileRef(take.source.fileRef, take.source.mimeType);
 		} else {
 			const file = await readBinary(take.source.fileRef);
 			const planar = await decodeAudioPlanar(file, take.source.mimeType);
-			const rendered = renderRecipePlanar(planar, currentRecipe);
+			const rendered = renderRecipePlanar(planar, activePlaybackRecipe);
 			const buffer = planarToAudioBuffer(rendered);
 			previewBuffer = buffer;
 			handle = await createPlaybackFromAudioBuffer(buffer);
@@ -757,8 +839,11 @@
 		void (async () => {
 			try {
 				const handle = await ensurePlayback();
-				if (!handle || !currentRecipe) return;
-				const seekTime = identity ? seconds : sourceTimeToEditedTime(currentRecipe, seconds);
+				if (!handle || !activePlaybackRecipe) return;
+				const useSourceClock = identity && !hasUsableSelection;
+				const seekTime = useSourceClock
+					? seconds
+					: sourceTimeToEditedTime(activePlaybackRecipe, seconds);
 				handle.seek(seekTime);
 				syncPlayheadFromHandle(handle);
 			} catch {
@@ -929,9 +1014,10 @@
 						{ensureDetailPcm}
 						bind:selectionStart
 						bind:selectionEnd
-						{retainedRanges}
+						retainedRanges={waveRetainedRanges}
 						scoutedRegions={scoutedRegionsForWave}
-						peakNormalization={currentRecipe?.peakNormalization}
+						peakNormalization={wavePeakNormalization}
+						showTrimGrips={showTrimGrips}
 						{onSeek}
 						{onSelectionChange}
 						{onSelectionGestureEnd}
@@ -944,15 +1030,19 @@
 						}}
 					>
 						{#snippet chromeActions()}
-							<GhostButton compact disabled={uploadLocked} onclick={() => void onNormalize()}>
-								Normalize
-							</GhostButton>
 							<GhostButton
 								compact
-								disabled={uploadLocked || !hasUsableSelection}
-								onclick={() => void onTrim()}
+								disabled={uploadLocked}
+								active={normalizeOn}
+								aria-pressed={normalizeOn}
+								title={hasUsableSelection
+									? 'Peak normalize is on for the selection'
+									: normalizeOn
+										? 'Normalize on — tap to turn off'
+										: 'Normalize'}
+								onclick={() => void onNormalize()}
 							>
-								Trim
+								Normalize
 							</GhostButton>
 						{/snippet}
 					</WaveformOverview>
@@ -1007,7 +1097,16 @@
 												{suggestionLabel}
 											</span>
 										</GhostButton>
-										{#if showSuggestionNext}
+										{#if showSuggestionNav}
+											<GhostButton
+												compact
+												disabled={uploadLocked}
+												aria-label="Previous scouted region"
+												title="Previous"
+												onclick={onSuggestionPrev}
+											>
+												Previous
+											</GhostButton>
 											<GhostButton
 												compact
 												disabled={uploadLocked}
@@ -1043,7 +1142,7 @@
 									<Icon name="field-notes" />
 								</GhostButton>
 								<PrimaryButton
-									disabled={uploadLocked || !hasUsableTrim}
+									disabled={uploadLocked || !canCollect}
 									onclick={() => void onCollect()}
 								>
 									Collect

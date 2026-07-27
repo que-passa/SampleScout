@@ -3,6 +3,12 @@
 	 * Idle Capture plot. Scan travels right→left to match live-wave scroll
 	 * (newest energy enters on the right; older samples leave left).
 	 */
+	let {
+		ariaLabel = 'Capture plot on standby'
+	}: {
+		ariaLabel?: string;
+	} = $props();
+
 	const SCAN_PERIOD_MS = 5200;
 
 	let frame: HTMLDivElement | undefined;
@@ -172,7 +178,7 @@
 	});
 </script>
 
-<div class="standby-plot" {@attach observeFrame} role="img" aria-label="Capture plot on standby">
+<div class="standby-plot" {@attach observeFrame} role="img" aria-label={ariaLabel}>
 	<canvas {@attach bindCanvas}></canvas>
 </div>
 

@@ -39,7 +39,7 @@ Capture is a single open composition (not a dashboard of panels):
 - Session rename: tap the title to open a **bottom sheet** (input + suggestion chips). Do not use inline click-to-edit on Capture.
 - Capability / storage warnings only when something blocks recording or saving
 
-Capture fills the available viewport (shell top bar fixed; no bottom tab bar). It is **not** a scrollable document — the record control and Field Session sit in a stable lower band (same position idle and while recording); the plot stage fills remaining height above. Idle shows a standby plot frame (zero axis, edge ticks, `STANDBY` in the timer header slot, slow right→left scan — no fake waveform; header height matches Capture timer so the axis aligns with the live wave; respect `prefers-reduced-motion`). While recording, the same stage shows the live meters/waveform. Do not rely on page-level scrolling for Capture.
+Capture fills the available viewport (shell top bar fixed; no bottom tab bar). It is **not** a scrollable document — the record control and Field Session sit in a stable lower band (same position idle and while recording); the plot stage fills remaining height above. Idle shows a standby plot frame (zero axis, edge ticks, decoration label in the timer header slot, slow right→left scan — no fake waveform; header height matches Capture timer so the axis aligns with the live wave; respect `prefers-reduced-motion`). The idle header label is `STANDBY` when capture is armed; once capabilities report recording unavailable it switches to `NO MIC` (detail + Import still live in the capability overlay banner). While recording, the same stage shows the live meters/waveform. Do not rely on page-level scrolling for Capture.
 
 Do **not** crowd the capture screen with connection chips, storage estimates, developer config, or a recent-takes list. Takes live under **Collection**.
 
@@ -101,6 +101,7 @@ Default session name: **`Session`**. Datetime is **not** part of the name; Colle
 
 - Text input at the top (current name); **Done** commits (empty → `Session`) and closes.
 - Below: up to **12 user presets** (custom names remembered on this device, newest first, FIFO) then ~**21 built-in** location/activity chips (e.g. Atmo, Walk, Home, Forest, Beach, City…).
+- On mobile / narrow viewports, do **not** autofocus the input (keyboard would cover chips). Desktop may autofocus + select for quick typing. Tap the field when typing is needed.
 - Tap a chip **applies that name and closes** the sheet.
 - User chips are visually distinct from built-ins. Case-insensitive match to a built-in does not create a duplicate user pill.
 - **If the active session already has Local Files**, applying a _different_ name **seals** that session (`inactive`) and starts a **new** active session with the chosen name. Existing files stay under the previous session group in Collection. Capture cannot record into sealed sessions.
@@ -151,27 +152,27 @@ Use an in-app confirmation dialog (`ConfirmDialog`) for Collection single discar
 
 ## 7. Collect flow (multi-sample from one recording)
 
-Typical field path: one longer take contains several useful sounds. **Collect** turns the current retained **trim** into its own Local File without destroying the parent source. Selection is temporary (for Trim / preview); the trim recipe is the result state Collect commits. Single-region and multi-region cases use the same primary control (once vs repeatedly).
+Typical field path: one longer take contains several useful sounds. **Collect** turns the current **working selection** (with fades + auto peak-normalize) into its own Local File without destroying the parent source. There is no separate Trim step. Single-region and multi-region cases use the same primary control (once vs repeatedly).
 
 **Suggested Regions** (see [`11_SUGGESTED_REGIONS.md`](11_SUGGESTED_REGIONS.md)) may auto-propose rough source ranges on takes longer than 3 s (energy-island analysis). Action-row **left** shows `collection` icon + **`N scouted`**; tapping engages (selects first, label → `01/N`, reveals **Next**, shows muted scouted markers on the wave). Applying a suggestion sets **selection only**. Empty/fail hides that chrome. After Collect, the suggestion list for the open take is kept (no re-analyze). Manual Trim → Collect remains the authority.
 
 1. User opens a saved take (recording or import).
-2. Sets retained bounds via Trim (from a selection) and/or trim boundary grips.
-3. Taps **Collect** (brand primary in the take bottom bar; enabled only when the retained trim is narrower than the full source).
+2. Adjusts the selection; applies fades on the selection; peak normalize is on for the selection so preview matches Collect.
+3. Taps **Collect** (brand primary in the take bottom bar; enabled when a usable selection is narrower than the full source).
 4. App creates a new Local File in the same Field Session:
    - Same source binary (`fileRef`) — do not copy OPFS audio for MVP
-   - Own edit recipe retaining only the trim bounds
+   - Own edit recipe cloned from the working selection (bounds, fades, normalize, and future recipe ops)
    - Optional `derivedFromTakeId` pointing at the parent
    - Generated short name: stem + two-digit number (e.g. `Rain 01`); never em/en dashes
    - Session defaults / Field Notes prefill like any new take
-5. Parent source stays intact; parent recipe returns to full-source identity so the next region can be trimmed and collected. Temporary selection clears.
+5. Parent source stays intact; parent recipe returns to full-source identity so the next region can be selected and collected. Temporary selection and selection fades clear.
 6. Collection updates so the new file is visible (count / row). Stay on the parent editor so the user can Collect again quickly; offer a quiet toast with an optional open-child action.
 7. User repeats for further regions, then ships from **Collection** (confirm upload sheet). Parents with collected children are excluded from the default upload pending set; lone takes without children remain pending.
 
 Rules:
 
-- Collect requires a usable retained trim (narrower than the full source; same minimum length as trim). It does **not** depend on a temporary waveform selection.
-- Collect is not Trim: Trim rewrites the current take’s recipe; Collect adds a Collection item from that trim result, then restores the parent recipe to identity.
+- Collect requires a usable working selection (narrower than the full source; same minimum length as before). Fades on that selection are included.
+- There is no Trim step: Collect commits the selection-shaped recipe into a new Local File, then restores the parent recipe to identity.
 - Collect is not Cut: Cut removes material from the current recipe output; Collect leaves the parent source timeline available for further Collects.
 - Discarding a collected file removes only that take record (and its rendered assets). Shared source cleanup must not delete the OPFS binary while any take still references it.
 - Discarding the parent must not orphan children unsafely: keep the shared source for remaining children (MVP).
@@ -211,8 +212,8 @@ Structure:
 - Waveform stage: precise waveform sits on page `--paper` (not a boxed pane/card) and uses the available vertical space between header and bottom bar; no redundant “Waveform” label or status header (positional time lives on the waveform ruler; duration / channel / selection facts live in Field Notes — no separate playhead clock in transport)
 - Overview navigator strip and compact zoom controls (±) pin in the bottom bar above transport
 - Pinned bottom bar: wave chrome (zoom + overview) → transport row (`PlaybackControl` center, Loop right) → action row (**Scouted** left when available — icon + `N scouted`, then `01/N` + **Next** after engage; **Field Notes** icon immediately left of **Collect** brand primary on the right). No Upload on take — shipping is Collection-only.
-- Field Notes sheet holds metadata/details and **Discard**. No Cut, Undo, or Redo in the UI. **Reset** lives in the editor header (not the sheet). **Normalize** and **Trim** live as quick actions on the zoom row. Selection is waveform-only (no numeric sel inputs in the sheet). **Fade in/out** are waveform grips above the take wave. There is no Retake action; capture a new take instead. Successful edit actions, Collect, and discards show a compact action toast.
-- **Collect** is the primary commit when a retained trim exists: create a new Local File from the trim bounds, restore parent recipe to identity, stay on the parent for another Collect
+- Field Notes sheet holds metadata/details and **Discard**. No Cut, Undo, Redo, or Trim in the UI. **Reset** lives in the editor header (not the sheet). **Normalize** lives as a quick action on the zoom row: auto-on while a selection is active (control reads as latched on, not disabled/grey); without a selection it toggles the committed recipe. Selection is waveform-only (no numeric sel inputs in the sheet). **Fade in/out** are waveform grips on the working selection (or on the committed recipe when editing a non-identity child). There is no Retake action; capture a new take instead. Successful edit actions, Collect, and discards show a compact action toast.
+- **Collect** is the primary commit when a usable selection exists: create a new Local File from selection bounds + fades + normalize, restore parent recipe to identity, stay on the parent for another Collect
 - Do **not** duplicate Capture/Collection links in the footer; stack back chrome covers navigation
 
 MVP `/take/[takeId]` follows this: editor header with top-left back → `/collection` labeled Collection, centered filename, and top-right Reset; waveform-first stage filling available height; pinned bottom bar (zoom/nav + transport); **Field Notes** opens from the transport icon button. No primary bottom tabs; hide the SampleScout brand/top bar while on the take route (no Account in the editor header).
@@ -291,8 +292,11 @@ User-facing content only:
 
 - Signed-in identity (display name / username)
 - Connect / Disconnect
+- **Install / Add to Home Screen** when the app is not already running standalone: Chromium uses the deferred `beforeinstallprompt` native dialog; iOS / iPadOS shows a short Share → Add to Home Screen sheet (no fake one-tap install). Hidden after install, dismissal (`Not now`), or `localStorage` dismiss flag.
 - Honest local-data copy (no cloud backup, no cross-device sync)
 - Delete all local data
+
+A soft action-toast tip (“Add to Home Screen…”) may appear once after the first Local File exists (delayed so it does not fight Capture save feedback). It does not block Capture.
 
 Open from the shell top bar on Capture / Collection / Debug (Audiotool avatar when available, accessible “Account” label). OAuth returns to `/capture`; route `/account` is an overlay deep-link and shows the same Account UI.
 

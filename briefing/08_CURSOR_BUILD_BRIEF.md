@@ -235,11 +235,9 @@ Non-destructive recipe:
 
 Tools:
 
-- Collect (retained trim → new Local File; parent source unchanged, parent recipe resets to identity; shared source; brand primary on take; no take Upload)
-- Trim
-- Fade in
-- Fade out
-- Normalize to -1 dBFS
+- Collect (working selection → new Local File; fades + auto peak-normalize on selection; child clones full recipe; parent source unchanged, parent recipe resets to identity; shared source; brand primary on take; no Trim step; no take Upload)
+- Fade in / Fade out (waveform grips on selection or committed region; zero until dragged)
+- Normalize to -1 dBFS (auto on selection; manual on committed recipe)
 - Reset (header icon; restores identity recipe)
 - Preview
 
@@ -414,7 +412,7 @@ Create reusable components for:
 11. Build metadata defaults.
 12. Build upload queue.
 13. Complete responsive desktop UI.
-14. Add PWA/update behavior.
+14. Add PWA guided install (Account + soft tip; Chromium BIP / iOS Share steps) and optional SW update toast later.
 15. Run device validation.
 
 At each phase, implement errors and restart recovery before proceeding.

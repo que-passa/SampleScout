@@ -6,9 +6,9 @@
 
 ## 1. Intent
 
-Field takes are often **one longer recording with several useful sounds**. Today the user finds those by eye on the waveform, selects, Trims, and Collects. That path stays primary.
+Field takes are often **one longer recording with several useful sounds**. Today the user finds those by eye on the waveform, selects, fades, and Collects. That path stays primary.
 
-**Suggested Regions** accelerates the same path: after the take’s audio is available, SampleScout may propose a short list of **rough time ranges** the user can step through. Each suggestion sets a **waveform selection only**. The user still decides whether to refine, Trim, Collect, skip, or ignore — no dedicated “accept suggestion” workflow in v1.
+**Suggested Regions** accelerates the same path: after the take’s audio is available, SampleScout may propose a short list of **rough time ranges** the user can step through. Each suggestion sets a **waveform selection only**. The user still decides whether to refine, fade, Collect, skip, or ignore — no dedicated “accept suggestion” workflow in v1.
 
 This is **not**:
 
@@ -20,7 +20,7 @@ This is **not**:
 
 Honesty framing (agent / secondary copy only — primary chrome is icon + count):
 
-> Suggested cuts from loudness gaps — not guaranteed samples. You still Trim and Collect.
+> Suggested cuts from loudness gaps — not guaranteed samples. You still Collect.
 
 Do not imply ML taste, Audiotool-side processing, or that suggestions are “correct.”
 
@@ -35,7 +35,7 @@ Do not imply ML taste, Audiotool-side processing, or that suggestions are “cor
 
 Visible chrome: **`collection` icon + count** (same glyph family as Capture → Collection shortcut), not the word “suggested.” Prev/next for navigation. `aria-label`s carry the full meaning (e.g. “3 suggested regions”, “Next suggested region”).
 
-Collect, Trim, selection, Local File, Field Notes retain existing meanings (`00_README.md`, ADR 0003).
+Collect, selection, Local File, Field Notes retain existing meanings (`00_README.md`, ADR 0003). No separate Trim step.
 
 ## 3. Locked decisions
 
@@ -43,7 +43,7 @@ Collect, Trim, selection, Local File, Field Notes retain existing meanings (`00_
 | --- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | Detection                | **Adaptive energy islands** (silence/gap splits) with **cheap energy backtrack** on region starts — see §5. No user-facing mode switch. No spectral-flux / librosa-class onset stack in v1.                                                                                                                                                                                      |
 | 2   | When to run              | **Auto on open** when eligible and the energy path stays within budget (expected). **Manual Analyze** control (same bottom-left chrome) if analysis is too heavy, fails, or user wants a retry after a soft failure. **Duration gate: source duration > 3 s** (below that the whole take is usually one gesture; 5 s is unnecessarily shy for two spaced hits).                  |
-| 3   | Apply                    | **Selection only** + fit view. No Trim-to-suggestion / accept workflow in v1. Existing Trim / Collect / grips remain the control surface.                                                                                                                                                                                                                                        |
+| 3   | Apply                    | **Selection only** + fit view. No accept-suggestion workflow in v1. Selection fades + Collect remain the control surface.                                                                                                                                                                                                                                                        |
 | 4   | After Collect            | **Keep** the suggestion set; user may go to **next** suggestion or edit manually. **Do not** re-analyze. Index may advance to next if current still selected, but do not remove or rewrite ranges.                                                                                                                                                                               |
 | 5   | Recipe / timeline        | Always analyze the **entire source** take (full file), never the visible zoom window alone. Suggestions are **source-second** ranges (same coordinate system as selection). Non-identity recipes do **not** block analyze or browse; applying a suggestion still sets source selection. User refines with existing tools (including Reset). No edited-timeline remapping for v1. |
 | 6   | Persistence              | **Cache in IndexedDB** per take (`suggestedRegions` table). Keyed by `takeId` with a **source fingerprint** (`fileRef` + byteLength + duration + algorithm version) so stale rows re-analyze. Manual Analyze forces recompute + overwrite. Drop row on take discard / wipe.                                                                                                      |
@@ -62,7 +62,7 @@ Collect, Trim, selection, Local File, Field Notes retain existing meanings (`00_
 4. If analysis finishes with **N ≥ 1**: show action-row **left** chrome — `collection` icon + **`N scouted`**. **No Next yet. Do not** auto-select on load.
 5. User taps the scouted control → select suggestion `0` (fit view), switch label to **`01/N`**, reveal **Next**, and show muted scouted markers on the wave + navigator. Further taps on the control re-focus the current index.
 6. **Next** advances to the following suggestion (wraps; label updates e.g. `02/10`). No Previous control in v1.
-7. User may refine grips, Trim, Collect, skip, or ignore.
+7. User may refine selection, apply fades, Collect, skip, or ignore.
 8. After Collect: parent recipe → identity (existing); suggestion set **unchanged**; user may Next or work manually — **no** re-analyze.
 9. If N = 0 or hard failure: **hide** suggestion UI.
 10. If auto path skipped for cost/error: show manual **Analyze** (collection icon) in the same action-row left slot when duration gate passes.
@@ -163,7 +163,7 @@ When hidden (short take / empty / ineligible): action-row left empty.
 
 - Sets `selectionStart` / `selectionEnd` in **source** seconds.
 - Triggers existing selection auto-fit.
-- Does **not** Trim, Collect, or change recipe.
+- Does **not** Collect or change the persisted parent recipe (selection + fade preview only).
 - Manual selection drag after apply: user owns the selection; suggestion index may remain as “last jumped” without re-writing on every drag.
 
 ### 6.3 Accessibility
@@ -178,7 +178,7 @@ When hidden (short take / empty / ineligible): action-row left empty.
 | ------------ | --------------------------------------- | --------------------------------------------------------------------------------------- |
 | Take route   | `src/routes/take/[takeId]/+page.svelte` | Suggestion state; transport left chrome; apply → selection                              |
 | Selection    | `WaveformOverview.svelte` bindings      | Reuse brand selection + auto-fit                                                        |
-| Collect      | ADR 0003 / `hasUsableTrim`              | Suggestions never enable Collect directly                                               |
+| Collect      | ADR 0003 / selection working region     | Suggestions set selection; Collect enabled when selection is usable                     |
 | Peaks        | `$lib/audio/peaks`                      | Overview peaks are coarse; **not** sufficient alone for region ends — need PCM/envelope |
 | Decode cache | take zoom PCM path                      | Share buffer with analyzer when possible                                                |
 | Workers      | peaks / mp3 client pattern              | `suggest-regions` Worker + main-thread fallback, timeout, cancel                        |

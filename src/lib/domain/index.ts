@@ -48,6 +48,7 @@ export {
 export type { TakeMetadataPatch } from './metadata';
 export {
 	buildExtractTake,
+	cloneEditRecipeForCollect,
 	collectableRetainedBounds,
 	formatExtractClock,
 	formatExtractDisplayName
@@ -73,9 +74,11 @@ export {
 	applyFadeOut,
 	cloneEditRecipe,
 	cutSelection,
+	disablePeakNormalization,
 	enablePeakNormalization,
 	isIdentityRecipe,
 	recipeDurationSeconds,
+	recipeFromWorkingRegion,
 	resetEditRecipe,
 	retainedSourceRanges,
 	segmentDurationSeconds,

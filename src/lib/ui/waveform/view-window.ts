@@ -74,6 +74,52 @@ export function fitSelectionWindow(
 	return clampView(start, end);
 }
 
+/**
+ * Relative change vs the last auto-fitted selection below which post-gesture
+ * auto-fit is skipped (micro edge / move nudges). Compared to prior span:
+ * span delta or either-edge delta ≥ this fraction counts as significant.
+ */
+export const SELECTION_AUTOFIT_REL_THRESHOLD = 0.2;
+
+export type SelectionBounds = { lo: number; hi: number };
+
+/**
+ * Whether a selection change is large enough to warrant auto-fitting the view.
+ * Always true when there is no prior fitted selection. Micro-adjustments that
+ * stay comfortably inside the current view return false.
+ */
+export function shouldAutoFitSelection(
+	prev: SelectionBounds | null,
+	nextLo: number,
+	nextHi: number,
+	view: ViewWindow,
+	durationSeconds: number,
+	relThreshold = SELECTION_AUTOFIT_REL_THRESHOLD
+): boolean {
+	const lo = Math.min(nextLo, nextHi);
+	const hi = Math.max(nextLo, nextHi);
+	if (!(hi > lo) || !(durationSeconds > 0)) return false;
+	if (!prev || !(prev.hi > prev.lo)) return true;
+
+	const prevSpan = prev.hi - prev.lo;
+	const nextSpan = hi - lo;
+	const spanDelta = Math.abs(nextSpan - prevSpan) / prevSpan;
+	const startDelta = Math.abs(lo - prev.lo) / prevSpan;
+	const endDelta = Math.abs(hi - prev.hi) / prevSpan;
+	if (spanDelta >= relThreshold || startDelta >= relThreshold || endDelta >= relThreshold) {
+		return true;
+	}
+
+	/* Selection left the comfortable frame — re-fit even for a smaller delta. */
+	const v0 = view.start * durationSeconds;
+	const v1 = view.end * durationSeconds;
+	const viewSpan = Math.max(1e-9, v1 - v0);
+	const margin = viewSpan * 0.05;
+	if (lo < v0 + margin || hi > v1 - margin) return true;
+
+	return false;
+}
+
 export function viewZoomLevel(view: ViewWindow): number {
 	return Math.max(1, 1 / Math.max(1e-6, view.end - view.start));
 }

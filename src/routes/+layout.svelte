@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { onNavigate } from '$app/navigation';
-	import logoMark from '$lib/assets/logo-mark.svg';
 	import { handlePageTransition } from '$lib/navigation/page-transitions';
 	import '$lib/styles/app.css';
 	import { audiotoolAuth, hydrateAudiotoolAuth } from '$lib/state/audiotool-auth.svelte';
 	import { hydrateUploadQueue, uploadQueue } from '$lib/state/upload-queue.svelte';
+	import { hydrateInstallPrompt } from '$lib/pwa';
 	import ActionToast from '$lib/ui/components/ActionToast.svelte';
 	import AuthSplash from '$lib/ui/components/AuthSplash.svelte';
 
@@ -24,10 +24,15 @@
 			void hydrateUploadQueue();
 		}
 	});
+
+	$effect(() => {
+		if (connected) {
+			hydrateInstallPrompt();
+		}
+	});
 </script>
 
 <svelte:head>
-	<link rel="icon" href={logoMark} />
 	<title>SampleScout</title>
 </svelte:head>
 

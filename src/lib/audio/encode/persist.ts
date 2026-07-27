@@ -55,6 +55,9 @@ export async function encodeAndPersistTakeOutput(
 			? renderedWavPath(take.sessionId, take.id, shortHash(encoded.hash))
 			: renderedMp3Path(take.sessionId, take.id, shortHash(encoded.hash));
 
+	// Build the Blob before OPFS write — Safari's sync-handle worker path may transfer
+	// a copy of the buffer, and callers must not depend on post-write byte views.
+	const blob = new Blob([encoded.bytes], { type: encoded.mimeType });
 	const written = await writeBinary(path, encoded.bytes);
 	const asset: RenderedAsset = {
 		fileRef: written.fileRef,
@@ -82,6 +85,6 @@ export async function encodeAndPersistTakeOutput(
 	return {
 		take: updated,
 		encoded,
-		blob: new Blob([new Uint8Array(encoded.bytes)], { type: encoded.mimeType })
+		blob
 	};
 }

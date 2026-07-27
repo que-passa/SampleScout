@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 1200 630" role="img" aria-label="SampleScout">
+	<title>SampleScout - Capture sounds on the go.</title>
+	<rect width="1200" height="630" fill="#f0f0ec" />
+	<svg x="480" y="105" width="240" height="240" viewBox="0 0 30 30" fill="none">
+		<title>SampleScout</title>
+	<path fill="#00F0C8" d="M0 0h30v30H0z"/>
+	<path stroke="#000" d="M4.5 18.5v7h7m0-21h-7v7m21 0v-7h-7m0 21h7v-7"/>
+	<path stroke="#000" stroke-width="2" d="M8 15h1.75l1.75 4 3.5-9 3.5 9 1.75-4H22"/>
+	<path stroke="#FF1F2E" stroke-width="2" d="M1 15h4M15.007 1 15 5m10 10h4M15 25l.007 4"/>
+	</svg>
+	<text
+		x="600"
+		y="420"
+		text-anchor="middle"
+		font-family="Geist Mono"
+		font-size="56"
+		font-weight="600"
+		fill="#111111"
+		letter-spacing="0.04em"
+	>SampleScout</text>
+	<text
+		x="600"
+		y="480"
+		text-anchor="middle"
+		font-family="Geist Mono"
+		font-size="28"
+		font-weight="400"
+		fill="#5c5c58"
+		letter-spacing="0.06em"
+	>Capture sounds on the go.</text>
+</svg>

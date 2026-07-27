@@ -5,7 +5,7 @@ import {
 	isUploadPendingTake,
 	type TakeMetadataPatch
 } from '$lib/domain/metadata';
-import type { CaptureSession, Take, TakeId } from '$lib/domain/types';
+import type { CaptureSession, EditRecipe, Take, TakeId } from '$lib/domain/types';
 import { cloneForIdb } from './clone-for-idb';
 import { getDatabase } from './db';
 import { enqueueCleanup, filterUnheldFileRefs } from './cleanup';
@@ -268,13 +268,14 @@ export async function discardTake(takeId: TakeId): Promise<Take> {
 }
 
 /**
- * Create a Local File from a selection on an existing take.
+ * Create a Local File from a retained trim on an existing take (Collect).
  * Shares the parent OPFS source; commits metadata only (source already on disk).
+ * Child recipe clones the collectable parent recipe (bounds, fades, normalize, …).
  */
 export async function extractTakeFromSelection(input: {
 	parentTakeId: TakeId;
-	startSeconds: number;
-	endSeconds: number;
+	/** Collectable recipe to commit; defaults to the persisted parent recipe. */
+	recipe?: EditRecipe;
 }): Promise<Take> {
 	const parent = await getTake(input.parentTakeId);
 	if (!parent || parent.lifecycleState !== 'saved') {
@@ -300,8 +301,7 @@ export async function extractTakeFromSelection(input: {
 			parent,
 			session,
 			sequence,
-			startSeconds: input.startSeconds,
-			endSeconds: input.endSeconds,
+			recipe: input.recipe,
 			existingDisplayNames
 		});
 	} catch (cause) {

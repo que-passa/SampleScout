@@ -78,8 +78,10 @@ async function writeViaSyncAccessWorker(path: FileRef, data: ArrayBuffer): Promi
 		);
 	}
 
+	// Transfer a copy — never detach the caller's buffer (encode/persist may still read it).
+	const transfer = data.slice(0);
 	const id = createId();
-	const request: OpfsWriteWorkerRequest = { type: 'write', id, path, data };
+	const request: OpfsWriteWorkerRequest = { type: 'write', id, path, data: transfer };
 
 	return await new Promise<number>((resolve, reject) => {
 		const timeout = window.setTimeout(() => {
@@ -127,7 +129,7 @@ async function writeViaSyncAccessWorker(path: FileRef, data: ArrayBuffer): Promi
 
 		worker.addEventListener('message', onMessage);
 		worker.addEventListener('error', onError);
-		worker.postMessage(request, [data]);
+		worker.postMessage(request, [transfer]);
 	});
 }
 

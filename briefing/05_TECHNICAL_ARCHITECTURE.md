@@ -312,7 +312,8 @@ Support:
 - Local capture when the app shell is cached
 - App icons
 - Theme/background colors
-- Update notification
+- Guided install UX (Account affordance + optional soft tip): Chromium `beforeinstallprompt`; iOS Share → Add to Home Screen sheet; hide when `display-mode: standalone` / iOS `navigator.standalone` or dismissed
+- Update notification (optional later — toast when a new service worker activates)
 
 Do not cache Audiotool API responses indiscriminately.
 
@@ -337,7 +338,7 @@ At startup, assess:
 
 Return a capability report used by the UI.
 
-Avoid browser-name checks unless a documented SDK incompatibility requires them.
+Avoid browser-name checks unless a documented SDK incompatibility requires them. **Exception:** PWA guided install may use iOS / iPadOS UA + touch heuristics because Safari never fires `beforeinstallprompt` — see `$lib/pwa`.
 
 ## 14. Security and privacy
 

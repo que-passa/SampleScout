@@ -1,6 +1,6 @@
 import { createId, nowIso } from './ids';
-import { createInitialEditRecipe, generateTakeMetadata, stemFromSessionName } from './metadata';
-import { MIN_SEGMENT_SECONDS, retainedSourceRanges, trimToSelection } from './edit-recipe';
+import { generateTakeMetadata, stemFromSessionName } from './metadata';
+import { cloneEditRecipe, MIN_SEGMENT_SECONDS, retainedSourceRanges } from './edit-recipe';
 import type { CaptureSession, EditRecipe, Take, TakeId } from './types';
 
 /**
@@ -26,15 +26,36 @@ export function collectableRetainedBounds(
 }
 
 /**
+ * Clone the parent retained recipe for a collected child.
+ * Copies segment fades / gain and take-level ops (e.g. peak normalize) so Collect
+ * commits the shaped result, not bounds alone. New segment ids; shared source.
+ * Returns null when the recipe is not collectable.
+ */
+export function cloneEditRecipeForCollect(
+	recipe: EditRecipe,
+	sourceDurationSeconds: number
+): EditRecipe | null {
+	if (collectableRetainedBounds(recipe, sourceDurationSeconds) == null) return null;
+	const cloned = cloneEditRecipe(recipe);
+	cloned.segments = cloned.segments.map((segment) => ({
+		...segment,
+		id: createId()
+	}));
+	return cloned;
+}
+
+/**
  * Build a new Local File from a parent retained trim (Collect). Shares the
- * parent source binary; recipe retains only the trim bounds. Does not write storage.
+ * parent source binary; child recipe clones the collectable parent recipe
+ * (bounds, fades, normalize, and future recipe fields via {@link cloneEditRecipe}).
+ * Does not write storage.
  */
 export function buildExtractTake(input: {
 	parent: Take;
 	session: CaptureSession;
 	sequence: number;
-	startSeconds: number;
-	endSeconds: number;
+	/** Collectable parent recipe to commit (defaults to `parent.editRecipe`). */
+	recipe?: EditRecipe;
 	/** Prior display names in session order (oldest → newest). */
 	existingDisplayNames?: string[];
 	titleStem?: string;
@@ -44,18 +65,14 @@ export function buildExtractTake(input: {
 		throw new Error('Only a saved Local File can be collected from.');
 	}
 
-	const start = Math.min(input.startSeconds, input.endSeconds);
-	const end = Math.max(input.startSeconds, input.endSeconds);
-	if (end - start < MIN_SEGMENT_SECONDS) {
-		throw new Error(`Trim must be at least ${MIN_SEGMENT_SECONDS * 1000} ms.`);
-	}
-
-	if (start < -1e-9 || end > parent.source.durationSeconds + 1e-6) {
-		throw new Error('Trim is outside the source duration.');
-	}
-
 	if (!parent.source.fileRef) {
 		throw new Error('Parent take has no local source file.');
+	}
+
+	const sourceRecipe = input.recipe ?? parent.editRecipe;
+	const editRecipe = cloneEditRecipeForCollect(sourceRecipe, parent.source.durationSeconds);
+	if (!editRecipe) {
+		throw new Error('Collect needs a retained trim narrower than the full source.');
 	}
 
 	const timestamp = nowIso();
@@ -68,9 +85,6 @@ export function buildExtractTake(input: {
 		existingDisplayNames: input.existingDisplayNames,
 		titleStem: stem
 	});
-
-	const identity = createInitialEditRecipe(parent.source.durationSeconds);
-	const editRecipe = trimToSelection(identity, start, end);
 
 	return {
 		id: createId(),

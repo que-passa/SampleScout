@@ -92,6 +92,13 @@
 	});
 
 	const canRecord = $derived(capabilities?.canRecord ?? false);
+	/** Idle header decoration: STANDBY when armed; NO MIC once capabilities say record is unavailable. */
+	const standbyLabel = $derived(capabilities && !canRecord ? 'NO MIC' : 'STANDBY');
+	const standbyPlotAria = $derived(
+		capabilities && !canRecord
+			? 'Capture plot — microphone not available'
+			: 'Capture plot on standby'
+	);
 	const isRecording = $derived(snap.phase === 'recording');
 	const showTimer = $derived(
 		isRecording || (snap.elapsedSeconds > 0 && snap.phase === 'finalizing')
@@ -207,7 +214,7 @@
 						/>
 					{:else}
 						<div class="standby-header" aria-hidden="true">
-							<div class="standby-title">STANDBY</div>
+							<div class="standby-title">{standbyLabel}</div>
 							<div class="standby-remaining"></div>
 						</div>
 					{/if}
@@ -228,7 +235,7 @@
 							active={isRecording}
 						/>
 					{:else}
-						<StandbyPlot />
+						<StandbyPlot ariaLabel={standbyPlotAria} />
 					{/if}
 				</div>
 			</div>

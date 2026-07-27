@@ -226,7 +226,7 @@ Mitigation:
 - Mono-by-default policy
 - Exact storage safety margin
 - Whether source-format pass-through belongs in MVP
-- Whether app installation is promoted before Safari validation
+- ~~Whether app installation is promoted before Safari validation~~ → **promote** via Account + soft tip after first Local File; iOS uses Share steps (no native install API). Safari record/persist validation remains a separate release risk.
 
 ## 6. Current implementation focus
 

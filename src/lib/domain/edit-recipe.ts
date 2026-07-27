@@ -11,6 +11,7 @@ export const DEFAULT_NORMALIZE_TARGET_DBFS = -1;
 /** Minimum retained region length (seconds). */
 export const MIN_SEGMENT_SECONDS = 0.01;
 
+/** Deep-copy an edit recipe. Extend when new take-level recipe fields are added (Collect uses this). */
 export function cloneEditRecipe(recipe: EditRecipe): EditRecipe {
 	return {
 		version: 1,
@@ -142,24 +143,43 @@ function createSegment(
 }
 
 /**
- * Trim: retain only the selected source range as a single segment.
- * Enables peak normalize so gain is recalculated for the new retained bounds.
+ * Working region from a source selection (Collect loop / preview).
+ * Always enables peak normalize so the user sees and hears the effect before Collect.
  */
-export function trimToSelection(
-	_recipe: EditRecipe,
-	startSeconds: number,
-	endSeconds: number
-): EditRecipe {
-	const { start, end } = normalizeSelection(startSeconds, endSeconds);
+export function recipeFromWorkingRegion(input: {
+	startSeconds: number;
+	endSeconds: number;
+	fadeInSeconds?: number;
+	fadeOutSeconds?: number;
+}): EditRecipe {
+	const { start, end } = normalizeSelection(input.startSeconds, input.endSeconds);
 	return {
 		version: 1,
-		segments: [createSegment(start, end)],
+		segments: [
+			createSegment(start, end, {
+				fadeInSeconds: input.fadeInSeconds ?? 0,
+				fadeOutSeconds: input.fadeOutSeconds ?? 0
+			})
+		],
 		peakNormalization: {
 			enabled: true,
 			targetDbfs: DEFAULT_NORMALIZE_TARGET_DBFS,
 			calculatedGainDb: undefined
 		}
 	};
+}
+
+/**
+ * Trim: retain only the selected source range as a single segment.
+ * Enables peak normalize so gain is recalculated for the new retained bounds.
+ * @deprecated Prefer {@link recipeFromWorkingRegion} for the Collect working-region loop.
+ */
+export function trimToSelection(
+	_recipe: EditRecipe,
+	startSeconds: number,
+	endSeconds: number
+): EditRecipe {
+	return recipeFromWorkingRegion({ startSeconds, endSeconds });
 }
 
 /**
@@ -312,6 +332,15 @@ export function enablePeakNormalization(
 			targetDbfs,
 			calculatedGainDb: undefined
 		}
+	};
+}
+
+/** Clear peak normalization from the recipe (manual toggle off). */
+export function disablePeakNormalization(recipe: EditRecipe): EditRecipe {
+	return {
+		version: 1,
+		segments: recipe.segments.map((segment) => ({ ...segment })),
+		peakNormalization: undefined
 	};
 }
 

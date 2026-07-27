@@ -344,7 +344,7 @@ Allowed:
 - Processing indicator
 - Panel reveal
 - Selection movement
-- Capture idle standby scan — one slow right→left marker on the zero axis (matches live-wave scroll; instrument “armed”), not a fake waveform; header slot matches timer height so the axis aligns with recording; pause when hidden; off under `prefers-reduced-motion`
+- Capture idle standby scan — one slow right→left marker on the zero axis (matches live-wave scroll; instrument “armed”), not a fake waveform; header slot matches timer height so the axis aligns with recording (`STANDBY` when armed, `NO MIC` when record capabilities are unavailable); pause when hidden; off under `prefers-reduced-motion`
 
 Avoid:
 

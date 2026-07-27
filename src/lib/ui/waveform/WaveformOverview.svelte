@@ -19,8 +19,10 @@
 		fitFull,
 		fitSelectionWindow,
 		panView,
+		shouldAutoFitSelection,
 		viewZoomLevel,
 		zoomView,
+		type SelectionBounds,
 		type ViewWindow
 	} from './view-window';
 	import { edgeScrollCanPan, edgeScrollDeltaAbs, edgeScrollIntensity } from './edge-scroll';
@@ -45,6 +47,8 @@
 		selectionEnd = $bindable(null),
 		retainedRanges = undefined,
 		peakNormalization = undefined,
+		/** When false, hide retained trim grips/markers (selection is the working region). */
+		showTrimGrips = true,
 		/** Stable id for the take/source so detail PCM cache resets on navigation. */
 		detailSourceKey = null,
 		/** Lazy full decode for sample-accurate peaks when zoomed past overview density. */
@@ -84,6 +88,7 @@
 			fadeOutSeconds?: number;
 		}>;
 		peakNormalization?: EditRecipe['peakNormalization'];
+		showTrimGrips?: boolean;
 		detailSourceKey?: string | null;
 		ensureDetailPcm?: () => Promise<DecodedPlanarAudio | null>;
 		onSeek?: (seconds: number) => void;
@@ -194,8 +199,11 @@
 		selectionLo != null && selectionHi != null && selectionHi > selectionLo && durationSeconds > 0
 	);
 
-	/** Bounding box of committed retained ranges (not live drag preview). */
+	/** Bounding box of committed retained ranges for Fit-trim (not working-selection chrome). */
 	const trimFitBounds = $derived.by(() => {
+		/* While a selection is active, take page mirrors it into retainedRanges for dimming —
+		   that must not drive trim auto-fit (would chase the pointer during select-drag). */
+		if (!showTrimGrips) return null;
 		if (!retainedRanges || retainedRanges.length === 0 || !(durationSeconds > 0)) return null;
 		const sorted = [...retainedRanges]
 			.map((r) => ({
@@ -267,7 +275,12 @@
 	function fitToSelection() {
 		if (selectionLo == null || selectionHi == null) return;
 		applyView(fitSelectionWindow(selectionLo, selectionHi, durationSeconds));
-		lastSelectionFitKey = selectionFitKey(selectionLo, selectionHi);
+		rememberSelectionFit(selectionLo, selectionHi);
+	}
+
+	function rememberSelectionFit(lo: number, hi: number) {
+		lastSelectionFitKey = selectionFitKey(lo, hi);
+		lastFittedSelection = { lo, hi };
 	}
 
 	function fitToTrim() {
@@ -511,6 +524,7 @@
 	};
 
 	const visibleTrimHandles = $derived.by((): TrimHandle[] => {
+		if (!showTrimGrips) return [];
 		if (analyzing || !data || cssWidth <= 0 || durationSeconds <= 0) return [];
 		const ranges = sortedRetainedRanges();
 		if (ranges.length === 0) return [];
@@ -528,7 +542,7 @@
 			for (const edge of ['start', 'end'] as const) {
 				const edgeT = range[edge];
 				if (edgeT < t0 - marginT || edgeT > t1 + marginT) continue;
-				const edgeLabel = edge === 'start' ? 'Trim start' : 'Trim end';
+				const edgeLabel = edge === 'start' ? 'Region start' : 'Region end';
 				handles.push({
 					key: `${i}-${edge}`,
 					rangeIndex: i,
@@ -707,6 +721,7 @@
 		stroke: string,
 		active?: { rangeIndex: number; edge: 'start' | 'end'; stroke: string } | null
 	) {
+		if (!showTrimGrips) return;
 		const sorted = sortedRetainedRanges();
 		if (sorted.length === 0) return;
 
@@ -884,7 +899,9 @@
 					min *= gain;
 					max *= gain;
 				}
-				if (applyNormalizeViz && timeInRetained(tMid, fadeRanges)) {
+				/* Same preview gain across the view so edge-finding stays continuous;
+				   discarded material is marked by --disabled color, not a different scale. */
+				if (applyNormalizeViz) {
 					min *= normalizePreviewGain;
 					max *= normalizePreviewGain;
 				}
@@ -991,6 +1008,23 @@
 		if (showDiscarded) {
 			drawDiscardedRegions(ctx, waveTop, waveH, t0, t1, viewDur, cssWidth, disabled);
 		}
+
+		/* Selection wash under peaks so ink stays crisp (not tinted by brand-soft). */
+		let selectionEdgeX: { x0: number; x1: number } | null = null;
+		if (selectionLo != null && selectionHi != null && selectionHi > selectionLo) {
+			const selStart = Math.max(selectionLo, t0);
+			const selEnd = Math.min(selectionHi, t1);
+			if (selEnd > selStart) {
+				const x0 = xForTime(selStart, t0, viewDur, cssWidth);
+				const x1 = xForTime(selEnd, t0, viewDur, cssWidth);
+				ctx.fillStyle = brandSoft;
+				ctx.globalAlpha = 0.8;
+				ctx.fillRect(x0, waveTop, Math.max(1, x1 - x0), waveH);
+				ctx.globalAlpha = 1;
+				selectionEdgeX = { x0, x1 };
+			}
+		}
+
 		drawPeaks(
 			ctx,
 			waveTop,
@@ -1017,27 +1051,16 @@
 		);
 		drawScoutedRegions(ctx, waveTop, waveTop + waveH, t0, t1, viewDur, cssWidth, muted, muted);
 
-		if (selectionLo != null && selectionHi != null && selectionHi > selectionLo) {
-			const selStart = Math.max(selectionLo, t0);
-			const selEnd = Math.min(selectionHi, t1);
-			if (selEnd > selStart) {
-				const x0 = xForTime(selStart, t0, viewDur, cssWidth);
-				const x1 = xForTime(selEnd, t0, viewDur, cssWidth);
-				/* brand-soft wash at ~0.5 so selection reads clearly on paper. */
-				ctx.fillStyle = brandSoft;
-				ctx.globalAlpha = 0.5;
-				ctx.fillRect(x0, waveTop, Math.max(1, x1 - x0), waveH);
-				ctx.globalAlpha = 1;
-
-				ctx.strokeStyle = brand;
-				ctx.lineWidth = 1;
-				ctx.beginPath();
-				ctx.moveTo(x0 + 0.5, waveTop);
-				ctx.lineTo(x0 + 0.5, waveTop + waveH);
-				ctx.moveTo(x1 + 0.5, waveTop);
-				ctx.lineTo(x1 + 0.5, waveTop + waveH);
-				ctx.stroke();
-			}
+		if (selectionEdgeX) {
+			const { x0, x1 } = selectionEdgeX;
+			ctx.strokeStyle = brand;
+			ctx.lineWidth = 1;
+			ctx.beginPath();
+			ctx.moveTo(x0 + 0.5, waveTop);
+			ctx.lineTo(x0 + 0.5, waveTop + waveH);
+			ctx.moveTo(x1 + 0.5, waveTop);
+			ctx.lineTo(x1 + 0.5, waveTop + waveH);
+			ctx.stroke();
 		}
 	}
 
@@ -1256,6 +1279,8 @@
 	/** Skip selection auto-fit while a selection gesture is in progress. */
 	let suppressSelectionFit = $state(false);
 	let lastSelectionFitKey = '';
+	/** Selection bounds from the last auto/manual fit — micro-adjusts compare against this. */
+	let lastFittedSelection: SelectionBounds | null = null;
 	/** Skip trim auto-fit while a trim-edge gesture is in progress. */
 	let suppressTrimFit = $state(false);
 	let lastTrimFitKey = '';
@@ -1503,6 +1528,7 @@
 		clientX: number,
 		clientY?: number
 	): { rangeIndex: number; edge: 'start' | 'end' } | null {
+		if (!showTrimGrips) return null;
 		if (!canvas || cssWidth <= 0 || durationSeconds <= 0) return null;
 		/* Ruler band belongs to fade when grips coincide at zero fade. */
 		if (clientY != null && pointerInFadeGripBand(clientY)) return null;
@@ -2505,25 +2531,38 @@
 	});
 
 	/**
-	 * Auto-fit when selection changes (waveform gesture release or Edit sheet inputs).
+	 * Auto-fit when selection changes (waveform gesture release or Edit sheet / scout jump).
 	 * Suppressed while a selection drag is active so the view doesn't chase the pointer.
+	 * After release, skip micro-adjustments that stay comfortably framed (see shouldAutoFitSelection).
+	 * View is read via untrack so pan/zoom alone never re-triggers auto-fit.
 	 */
 	$effect(() => {
-		if (suppressSelectionFit) return;
-		if (selectionLo == null || selectionHi == null || !(selectionHi > selectionLo)) {
+		const suppressed = suppressSelectionFit;
+		const lo = selectionLo;
+		const hi = selectionHi;
+		const dur = durationSeconds;
+		if (suppressed) return;
+		if (lo == null || hi == null || !(hi > lo)) {
 			lastSelectionFitKey = '';
+			lastFittedSelection = null;
 			return;
 		}
-		if (!(durationSeconds > 0)) return;
-		const key = selectionFitKey(selectionLo, selectionHi);
+		if (!(dur > 0)) return;
+		const key = selectionFitKey(lo, hi);
 		if (key === lastSelectionFitKey) return;
-		lastSelectionFitKey = key;
-		applyView(fitSelectionWindow(selectionLo, selectionHi, durationSeconds));
+		const view = untrack(() => ({ start: viewStart, end: viewEnd }));
+		if (!shouldAutoFitSelection(lastFittedSelection, lo, hi, view, dur)) {
+			/* Mark seen so suppress toggles (e.g. seek tap) don't re-evaluate; keep last fit for deltas. */
+			lastSelectionFitKey = key;
+			return;
+		}
+		rememberSelectionFit(lo, hi);
+		applyView(fitSelectionWindow(lo, hi, dur));
 	});
 
 	/**
-	 * Auto-fit when retained (trim) bounds change — open, Edit Trim/Cut/undo, or after
-	 * a trim-edge gesture (gesture also fits immediately from preview).
+	 * Auto-fit when committed retained (trim) bounds change — open, Edit Trim/Cut/undo, or after
+	 * a trim-edge gesture. Skips while selection chrome owns retainedRanges (showTrimGrips false).
 	 */
 	$effect(() => {
 		if (suppressTrimFit) return;
@@ -2553,6 +2592,7 @@
 		void previewRetainedRanges;
 		void peakNormalization;
 		void normalizePreviewGain;
+		void showTrimGrips;
 		void trimDrag;
 		void detailPcm;
 		void scoutedRegions;
@@ -2592,6 +2632,7 @@
 		void previewRetainedRanges;
 		void peakNormalization;
 		void normalizePreviewGain;
+		void showTrimGrips;
 		void trimDrag;
 		void scoutedRegions;
 		void selectionStart;
