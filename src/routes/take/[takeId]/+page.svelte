@@ -996,11 +996,9 @@
 											active={suggestionIndex != null}
 											disabled={uploadLocked}
 											aria-pressed={suggestionIndex != null}
-											aria-label={
-												suggestionIndex == null
-													? suggestionLabel
-													: `Scouted region ${suggestionLabel}`
-											}
+											aria-label={suggestionIndex == null
+												? suggestionLabel
+												: `Scouted region ${suggestionLabel}`}
 											title={suggestionLabel}
 											onclick={onSuggestionScoutedActivate}
 										>

@@ -118,7 +118,9 @@
 				{/if}
 			{/if}
 
-			<GhostButton onclick={oncancel}>{hasFailures && !progressCurrent ? 'Close' : 'Cancel'}</GhostButton>
+			<GhostButton onclick={oncancel}
+				>{hasFailures && !progressCurrent ? 'Close' : 'Cancel'}</GhostButton
+			>
 		</div>
 	{:else}
 		<!-- Confirm phase -->

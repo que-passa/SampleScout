@@ -8,14 +8,14 @@ Dexie database name: `samplescout`.
 
 ## IndexedDB tables
 
-| Table               | Key      | Indexes                                                | Purpose                             |
-| ------------------- | -------- | ------------------------------------------------------ | ----------------------------------- |
-| `sessions`          | `id`     | `status`, `updatedAt`                                  | Capture sessions                    |
-| `takes`             | `id`     | `sessionId`, `sequence`, `lifecycleState`, `updatedAt` | Take metadata + recipe              |
-| `uploadJobs`        | `id`     | `takeId`, `state`, `updatedAt`                         | Persistent upload queue             |
-| `cleanupJobs`       | `id`     | `deleteAfter`                                          | Deferred OPFS deletes after Undo    |
-| `settings`          | `id`     | —                                                      | App preferences (`id = 'settings'`) |
-| `suggestedRegions`  | `takeId` | `updatedAt`                                            | Cached Suggested Regions analysis   |
+| Table              | Key      | Indexes                                                | Purpose                             |
+| ------------------ | -------- | ------------------------------------------------------ | ----------------------------------- |
+| `sessions`         | `id`     | `status`, `updatedAt`                                  | Capture sessions                    |
+| `takes`            | `id`     | `sessionId`, `sequence`, `lifecycleState`, `updatedAt` | Take metadata + recipe              |
+| `uploadJobs`       | `id`     | `takeId`, `state`, `updatedAt`                         | Persistent upload queue             |
+| `cleanupJobs`      | `id`     | `deleteAfter`                                          | Deferred OPFS deletes after Undo    |
+| `settings`         | `id`     | —                                                      | App preferences (`id = 'settings'`) |
+| `suggestedRegions` | `takeId` | `updatedAt`                                            | Cached Suggested Regions analysis   |
 
 `suggestedRegions` rows store `{ takeId, sourceFingerprint, algorithmVersion, regions[], analyzedAt, updatedAt }`. Fingerprint is `fileRef|byteLength|durationSeconds|algorithmVersion`. Dropped when a take is discarded or on wipe. See `briefing/11_SUGGESTED_REGIONS.md`.
 

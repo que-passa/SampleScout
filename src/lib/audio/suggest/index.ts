@@ -12,11 +12,7 @@ import {
 	SUGGEST_REGIONS_PAD_PRE_SECONDS,
 	SUGGEST_REGIONS_PEAK_PERCENTILE
 } from '$lib/config/suggest-regions';
-import {
-	adaptiveEnergyThreshold,
-	computeRmsEnvelope,
-	monoDownmix
-} from './envelope';
+import { adaptiveEnergyThreshold, computeRmsEnvelope, monoDownmix } from './envelope';
 import { findEnergyIslands, islandsToRegions, mergeCloseIslands } from './segment';
 import type { SuggestRegionsInput, SuggestRegionsResult } from './types';
 
@@ -32,8 +28,7 @@ export function suggestRegionsFromPlanar(input: SuggestRegionsInput): SuggestReg
 
 	const mono = monoDownmix(input.channels);
 	const frameCount = mono.length;
-	const durationSeconds =
-		input.durationSeconds ?? (frameCount > 0 ? frameCount / sampleRate : 0);
+	const durationSeconds = input.durationSeconds ?? (frameCount > 0 ? frameCount / sampleRate : 0);
 	if (durationSeconds <= 0 || frameCount === 0) {
 		return { regions: [], algorithmVersion: SUGGEST_REGIONS_ALGORITHM_VERSION };
 	}

@@ -57,5 +57,7 @@ export function isSuggestedRegionsCacheFresh(
 	take: Take
 ): record is SuggestedRegionsRecord {
 	if (!record) return false;
-	return record.sourceFingerprint === suggestedRegionsSourceFingerprint(take, record.algorithmVersion);
+	return (
+		record.sourceFingerprint === suggestedRegionsSourceFingerprint(take, record.algorithmVersion)
+	);
 }

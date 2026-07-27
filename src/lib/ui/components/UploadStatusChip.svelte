@@ -220,7 +220,10 @@
 
 	@media (prefers-reduced-motion: reduce) {
 		.chip.ready {
-			transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+			transition:
+				background-color 120ms ease,
+				border-color 120ms ease,
+				color 120ms ease;
 		}
 	}
 

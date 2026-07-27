@@ -22,5 +22,4 @@ export interface SuggestRegionsWorkerFailure {
 }
 
 export type SuggestRegionsWorkerResponse =
-	| SuggestRegionsWorkerSuccess
-	| SuggestRegionsWorkerFailure;
+	SuggestRegionsWorkerSuccess | SuggestRegionsWorkerFailure;

@@ -88,10 +88,7 @@ export function islandsToRegions(
 			island.startFrame,
 			options.backtrackFrames
 		);
-		const startSeconds = Math.max(
-			0,
-			(startFrame * hopFrames) / sampleRate - options.padPreSeconds
-		);
+		const startSeconds = Math.max(0, (startFrame * hopFrames) / sampleRate - options.padPreSeconds);
 		const endSeconds = Math.min(
 			durationSeconds,
 			(island.endFrame * hopFrames) / sampleRate + options.padPostSeconds

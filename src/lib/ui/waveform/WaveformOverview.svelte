@@ -742,9 +742,7 @@
 
 		const height = Math.max(1, y1 - y0);
 		const activeLo =
-			selectionLo != null && selectionHi != null && selectionHi > selectionLo
-				? selectionLo
-				: null;
+			selectionLo != null && selectionHi != null && selectionHi > selectionLo ? selectionLo : null;
 		const activeHi = activeLo != null ? selectionHi : null;
 
 		for (const region of regions) {
@@ -1017,17 +1015,7 @@
 			signal,
 			trimDrag ? { rangeIndex: trimDrag.rangeIndex, edge: trimDrag.edge, stroke: brand } : null
 		);
-		drawScoutedRegions(
-			ctx,
-			waveTop,
-			waveTop + waveH,
-			t0,
-			t1,
-			viewDur,
-			cssWidth,
-			muted,
-			muted
-		);
+		drawScoutedRegions(ctx, waveTop, waveTop + waveH, t0, t1, viewDur, cssWidth, muted, muted);
 
 		if (selectionLo != null && selectionHi != null && selectionHi > selectionLo) {
 			const selStart = Math.max(selectionLo, t0);
@@ -2659,11 +2647,7 @@
 			onpointerleave={onNavPointerLeave}
 		></canvas>
 		{#if navPlayheadFrac != null}
-			<div
-				class="playhead"
-				aria-hidden="true"
-				style:left="{navPlayheadFrac * 100}%"
-			></div>
+			<div class="playhead" aria-hidden="true" style:left="{navPlayheadFrac * 100}%"></div>
 		{/if}
 	</div>
 {/snippet}
@@ -2742,11 +2726,7 @@
 					onpointerleave={onMainPointerLeave}
 				></canvas>
 				{#if mainPlayheadFrac != null}
-					<div
-						class="playhead"
-						aria-hidden="true"
-						style:left="{mainPlayheadFrac * 100}%"
-					></div>
+					<div class="playhead" aria-hidden="true" style:left="{mainPlayheadFrac * 100}%"></div>
 				{/if}
 			</div>
 

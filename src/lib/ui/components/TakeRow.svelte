@@ -1,9 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import {
-		type SpecimenMark as SpecimenMarkValue,
-		type TakeUploadState
-	} from '$lib/domain';
+	import { type SpecimenMark as SpecimenMarkValue, type TakeUploadState } from '$lib/domain';
 	import SpecimenMark from './SpecimenMark.svelte';
 	import UploadStatusChip from './UploadStatusChip.svelte';
 	import GhostButton from './GhostButton.svelte';

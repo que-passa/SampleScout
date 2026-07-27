@@ -48,18 +48,18 @@ Collection delight stays bounded to catalog rhythm, indexing, and those determin
 
 ## Documents
 
-| File                                | Purpose                                                                 |
-| ----------------------------------- | ----------------------------------------------------------------------- |
-| `01_PRODUCT_CONCEPT.md`             | Product definition, principles, scope, limitations                      |
-| `02_UX_INFORMATION_ARCHITECTURE.md` | Navigation, flows, responsive behavior, screen requirements             |
-| `03_VISUAL_DESIGN_SYSTEM.md`        | Bright monochrome technical style and component rules                   |
-| `04_WAVEFORM_AND_AUDIO_EDITOR.md`   | Precise waveform rendering and editor interaction specification         |
-| `05_TECHNICAL_ARCHITECTURE.md`      | Browser-only Svelte architecture, audio, storage, Audiotool integration |
-| `06_DATA_MODEL_AND_STATES.md`       | Suggested TypeScript domain model and state machines                    |
-| `07_MVP_ACCEPTANCE_CRITERIA.md`     | MVP scope, acceptance criteria, validation gates                        |
-| `08_CURSOR_BUILD_BRIEF.md`          | Copy-ready implementation instruction for Cursor                        |
-| `09_GITHUB_PAGES_DEPLOYMENT.md`     | Static deployment, base paths, OAuth redirects, PWA constraints         |
-| `10_RESEARCH_AND_OPEN_RISKS.md`     | Verified facts, unresolved API questions, backend-required features     |
+| File                                | Purpose                                                                                                   |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `01_PRODUCT_CONCEPT.md`             | Product definition, principles, scope, limitations                                                        |
+| `02_UX_INFORMATION_ARCHITECTURE.md` | Navigation, flows, responsive behavior, screen requirements                                               |
+| `03_VISUAL_DESIGN_SYSTEM.md`        | Bright monochrome technical style and component rules                                                     |
+| `04_WAVEFORM_AND_AUDIO_EDITOR.md`   | Precise waveform rendering and editor interaction specification                                           |
+| `05_TECHNICAL_ARCHITECTURE.md`      | Browser-only Svelte architecture, audio, storage, Audiotool integration                                   |
+| `06_DATA_MODEL_AND_STATES.md`       | Suggested TypeScript domain model and state machines                                                      |
+| `07_MVP_ACCEPTANCE_CRITERIA.md`     | MVP scope, acceptance criteria, validation gates                                                          |
+| `08_CURSOR_BUILD_BRIEF.md`          | Copy-ready implementation instruction for Cursor                                                          |
+| `09_GITHUB_PAGES_DEPLOYMENT.md`     | Static deployment, base paths, OAuth redirects, PWA constraints                                           |
+| `10_RESEARCH_AND_OPEN_RISKS.md`     | Verified facts, unresolved API questions, backend-required features                                       |
 | `11_SUGGESTED_REGIONS.md`           | Suggested Regions: energy-island suggestions → selection → Trim/Collect (decisions locked; not built yet) |
 
 ## Reading order for implementation
