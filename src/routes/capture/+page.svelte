@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { resolve } from '$app/paths';
 	import {
 		captureController,
 		getCaptureSnapshot,
@@ -10,6 +9,7 @@
 	import { detectCapabilities } from '$lib/capabilities';
 	import { countCollectionDrafts } from '$lib/persistence';
 	import CaptureTimer from '$lib/ui/components/CaptureTimer.svelte';
+	import CollectionShortcut from '$lib/ui/components/CollectionShortcut.svelte';
 	import GhostButton from '$lib/ui/components/GhostButton.svelte';
 	import LiveWaveform from '$lib/ui/components/LiveWaveform.svelte';
 	import RecordControl from '$lib/ui/components/RecordControl.svelte';
@@ -97,6 +97,13 @@
 			snap.phase === 'blocked'
 	);
 	const showDraftsLink = $derived(!isRecording);
+	const collectionAriaLabel = $derived(
+		totalDraftCount > 0
+			? pendingDraftCount > 0
+				? `${pendingDraftCount} pending of ${totalDraftCount} Local Draft${totalDraftCount === 1 ? '' : 's'} in Collection`
+				: `${totalDraftCount} Local Draft${totalDraftCount === 1 ? '' : 's'} in Collection`
+			: 'Open Collection'
+	);
 
 	function startTitleEdit() {
 		titleBeforeEdit = sessionName;
@@ -151,7 +158,7 @@
 
 		importing = true;
 		importError = null;
-		importStatus = `Importing ${files.length} file${files.length === 1 ? '' : 's'}…`;
+		importStatus = 'Importing…';
 
 		try {
 			const result = await importAudioFiles(files);
@@ -161,9 +168,9 @@
 				await refreshPendingDraftCount();
 			}
 			if (ok > 0 && fail === 0) {
-				importStatus = `Imported ${ok} Local Draft${ok === 1 ? '' : 's'}.`;
+				importStatus = `Imported ${ok}.`;
 			} else if (ok > 0 && fail > 0) {
-				importStatus = `Imported ${ok}; ${fail} failed.`;
+				importStatus = `${ok} imported, ${fail} failed.`;
 				importError = result.errors.map((error) => error.message).join(' ');
 			} else {
 				importStatus = null;
@@ -245,33 +252,12 @@
 						/>
 					</div>
 					<div class="record-side record-side-end">
-						<a
-							class="drafts-link"
-							class:slot-hidden={!showDraftsLink}
-							href={resolve('/drafts')}
-							tabindex={showDraftsLink ? undefined : -1}
-							aria-hidden={!showDraftsLink}
-							aria-label={totalDraftCount > 0
-								? pendingDraftCount > 0
-									? `${pendingDraftCount} pending of ${totalDraftCount} Local Draft${totalDraftCount === 1 ? '' : 's'} in Collection`
-									: `${totalDraftCount} Local Draft${totalDraftCount === 1 ? '' : 's'} in Collection`
-								: 'Open Collection'}
-							title="Collection"
-						>
-							<span class="well">
-								<span class="face">
-									<Icon name="collection" />
-									<span class="drafts-counts">
-										{#if pendingDraftCount > 0}
-											<span class="pending-bubble" aria-hidden="true"
-												>{String(pendingDraftCount).padStart(2, '0')}</span
-											>
-										{/if}
-										<span class="drafts-total">{String(totalDraftCount).padStart(2, '0')}</span>
-									</span>
-								</span>
-							</span>
-						</a>
+						<CollectionShortcut
+							totalCount={totalDraftCount}
+							pendingCount={pendingDraftCount}
+							hidden={!showDraftsLink}
+							ariaLabel={collectionAriaLabel}
+						/>
 					</div>
 				</div>
 
@@ -333,14 +319,9 @@
 								support.
 							</p>
 							{#if capabilities.canPersistDrafts}
-								<button
-									type="button"
-									class="import-fallback"
-									onclick={openImportPicker}
-									disabled={importing}
-								>
+								<GhostButton onclick={openImportPicker} disabled={importing}>
 									Import audio instead
-								</button>
+								</GhostButton>
 							{/if}
 						</div>
 					{/if}
@@ -461,7 +442,7 @@
 		pointer-events: none;
 	}
 
-	.capture-alerts :is(.error-banner, .warning-banner, .import-fallback) {
+	.capture-alerts :is(.error-banner, .warning-banner) {
 		pointer-events: auto;
 	}
 
@@ -502,159 +483,6 @@
 	.slot-hidden {
 		visibility: hidden;
 		pointer-events: none;
-	}
-
-	.drafts-link {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		flex-shrink: 0;
-		min-width: var(--touch-min);
-		min-height: var(--touch-min);
-		padding: 0;
-		border: none;
-		border-radius: var(--radius-control);
-		background: transparent;
-		color: var(--ink-muted);
-		text-decoration: none;
-		font-size: var(--text-meta);
-		font-weight: 600;
-		cursor: pointer;
-	}
-
-	.drafts-link:focus-visible {
-		outline: none;
-	}
-
-	.drafts-link:focus-visible .well {
-		outline: 2px solid var(--ink);
-		outline-offset: var(--space-1);
-	}
-
-	.drafts-link .well {
-		position: relative;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		/* Slightly taller than base touch chip for the stacked counts. */
-		min-height: calc(var(--touch-min) + var(--space-2));
-		padding: var(--space-1);
-		box-sizing: border-box;
-		border-radius: calc(var(--radius-control) + var(--space-1));
-		background: var(--surface-subtle);
-		/* Soft recessed pad — same language as AccountButton. */
-		box-shadow:
-			inset 0 var(--space-1) var(--space-2) color-mix(in srgb, var(--ink) 14%, transparent),
-			inset 0 calc(var(--space-1) * -1) var(--space-1)
-				color-mix(in srgb, var(--paper) 70%, transparent);
-	}
-
-	.drafts-link .face {
-		display: inline-flex;
-		align-items: center;
-		gap: var(--space-2);
-		min-height: calc(var(--touch-min) + var(--space-2) - var(--space-1) * 2);
-		/* well space-1 + face space-2 ≈ original padding space-3 */
-		padding: 0 var(--space-2);
-		box-sizing: border-box;
-		border-radius: var(--radius-control);
-		background: var(--surface);
-		/* Quiet face depth. */
-		box-shadow:
-			inset 0 1px 0 color-mix(in srgb, var(--paper) 22%, transparent),
-			inset 0 -1px 0 color-mix(in srgb, var(--ink) 18%, transparent);
-	}
-
-	.drafts-counts {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: calc(var(--space-1) / 2);
-		min-width: calc(var(--text-meta) * 1.5);
-		font-variant-numeric: tabular-nums;
-		letter-spacing: 0.02em;
-	}
-
-	.pending-bubble {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		min-width: calc(var(--space-4) + var(--space-1));
-		min-height: var(--space-4);
-		padding: 0 var(--space-1);
-		border-radius: var(--radius-round);
-		/* Record/signal fill with bright numerals. */
-		background: var(--signal);
-		color: var(--paper);
-		font-size: var(--text-label);
-		font-weight: 700;
-		line-height: 1;
-	}
-
-	.drafts-total {
-		color: var(--ink);
-		font-size: var(--text-meta);
-		font-weight: 600;
-		line-height: 1;
-	}
-
-	@media (prefers-reduced-motion: no-preference) {
-		.drafts-link {
-			transition: color 140ms ease;
-		}
-
-		.drafts-link .well {
-			transition:
-				background-color 140ms ease,
-				box-shadow 140ms ease;
-		}
-
-		.drafts-link .face {
-			transition:
-				background-color 140ms ease,
-				box-shadow 140ms ease;
-		}
-	}
-
-	@media (hover: hover) {
-		.drafts-link:hover {
-			color: var(--ink);
-		}
-
-		.drafts-link:hover .well {
-			background: color-mix(in srgb, var(--surface-subtle) 82%, var(--ink));
-			box-shadow:
-				inset 0 var(--space-1) var(--space-2) color-mix(in srgb, var(--ink) 6%, transparent),
-				inset 0 calc(var(--space-1) * -1) var(--space-1)
-					color-mix(in srgb, var(--paper) 90%, transparent);
-		}
-
-		.drafts-link:hover .face {
-			background: color-mix(in srgb, var(--surface) 42%, var(--paper));
-			box-shadow:
-				inset 0 1px 0 color-mix(in srgb, var(--paper) 55%, transparent),
-				inset 0 -1px 0 color-mix(in srgb, var(--ink) 10%, transparent);
-		}
-	}
-
-	.drafts-link:active {
-		color: var(--brand);
-	}
-
-	.drafts-link:active .well {
-		box-shadow:
-			inset 0 var(--space-1) var(--space-2) color-mix(in srgb, var(--ink) 30%, transparent),
-			inset 0 calc(var(--space-1) * -1) var(--space-1)
-				color-mix(in srgb, var(--paper) 48%, transparent);
-	}
-
-	.drafts-link:active .face {
-		background: color-mix(in srgb, var(--surface) 88%, var(--ink));
-	}
-
-	.drafts-link:active .drafts-total {
-		color: var(--brand);
 	}
 
 	.session-title {
@@ -768,20 +596,8 @@
 		margin: 0;
 	}
 
-	.import-fallback {
+	.capture-alerts :global(.ss-ghost-button) {
 		margin-top: var(--space-3);
-		min-height: var(--touch-min);
-		padding: 0 var(--space-4);
-		border: 1px solid var(--ink);
-		border-radius: var(--radius-control);
-		background: var(--surface);
-		color: var(--ink);
-		font-size: var(--text-button);
-		font-weight: 600;
-	}
-
-	.import-fallback:disabled {
-		opacity: 0.5;
 	}
 
 	.import-status {

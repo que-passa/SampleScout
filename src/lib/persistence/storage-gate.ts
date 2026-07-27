@@ -73,11 +73,9 @@ async function checkStorageForBytes(
 
 export async function checkStorageForRecording(): Promise<StorageGateResult> {
 	return checkStorageForBytes(estimateMaxRecordingBytes(), {
-		unavailable:
-			'Storage estimate is unavailable; recording will proceed without a quota pre-check.',
-		insufficient:
-			'Not enough local storage for a full-length capture. Free space or delete Local Drafts from Collection, then try again.',
-		failed: 'Could not verify local storage before recording.'
+		unavailable: 'Storage estimate unavailable.',
+		insufficient: 'Not enough storage.',
+		failed: 'Storage check failed.'
 	});
 }
 
@@ -85,9 +83,8 @@ export async function checkStorageForRecording(): Promise<StorageGateResult> {
 export async function checkStorageForImport(byteLength: number): Promise<StorageGateResult> {
 	const requiredBytes = Math.max(0, byteLength) + STORAGE_SAFETY_MARGIN_BYTES;
 	return checkStorageForBytes(requiredBytes, {
-		unavailable: 'Storage estimate is unavailable; import will proceed without a quota pre-check.',
-		insufficient:
-			'Not enough local storage for this import. Free space or delete Local Drafts from Collection, then try again.',
-		failed: 'Could not verify local storage before import.'
+		unavailable: 'Storage estimate unavailable.',
+		insufficient: 'Not enough storage for import.',
+		failed: 'Storage check failed.'
 	});
 }

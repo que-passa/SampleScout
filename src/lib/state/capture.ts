@@ -116,8 +116,8 @@ class CaptureController {
 				takes,
 				phase: 'ready',
 				statusMessage: takes.length
-					? `${takes.length} Local Draft${takes.length === 1 ? '' : 's'} restored from this device.`
-					: 'Ready to capture.'
+					? `Restored ${takes.length} draft${takes.length === 1 ? '' : 's'}.`
+					: 'Ready.'
 			});
 		})();
 
@@ -125,12 +125,11 @@ class CaptureController {
 			await this.#hydratePromise;
 		} catch (cause) {
 			this.#hydratePromise = undefined;
-			const error = createAppError(
-				'SESSION_HYDRATE_FAILED',
-				'Could not restore the local capture session.',
-				{ cause, recoverable: true }
-			);
-			this.#set({ ready: true, phase: 'error', error, statusMessage: error.message });
+			const error = createAppError('SESSION_HYDRATE_FAILED', 'Could not restore session.', {
+				cause,
+				recoverable: true
+			});
+			this.#set({ ready: true, phase: 'error', error, statusMessage: '' });
 		}
 	}
 
@@ -161,7 +160,7 @@ class CaptureController {
 			this.#set({
 				phase: 'blocked',
 				error: gate.error ?? null,
-				statusMessage: gate.error?.message ?? 'Storage check failed.'
+				statusMessage: ''
 			});
 			return;
 		}
@@ -173,7 +172,7 @@ class CaptureController {
 			warning: 'none',
 			levels: idleLevels(),
 			livePeaks: [],
-			statusMessage: 'Requesting microphone…'
+			statusMessage: 'Requesting mic…'
 		});
 
 		try {
@@ -191,11 +190,11 @@ class CaptureController {
 					});
 				},
 				onAutoStop: () => {
-					this.#set({ statusMessage: 'Ten-minute limit reached — saving…' });
+					this.#set({ statusMessage: 'Saving…' });
 					void this.stopRecording();
 				},
 				onError: (error) => {
-					this.#set({ error, statusMessage: error.message });
+					this.#set({ error, statusMessage: '' });
 				}
 			});
 			await this.#recorder.start();
@@ -216,7 +215,7 @@ class CaptureController {
 			this.#set({
 				phase: 'error',
 				error,
-				statusMessage: error.message,
+				statusMessage: '',
 				levels: idleLevels(),
 				livePeaks: []
 			});
@@ -229,7 +228,7 @@ class CaptureController {
 
 		this.#set({
 			phase: 'finalizing',
-			statusMessage: 'Finalizing take…',
+			statusMessage: 'Saving…',
 			levels: idleLevels()
 		});
 
@@ -244,7 +243,7 @@ class CaptureController {
 				remainingSeconds: RECORDING_MAX_SECONDS,
 				warning: 'none',
 				livePeaks: [],
-				statusMessage: 'Recording canceled.'
+				statusMessage: 'Canceled.'
 			});
 			return;
 		}
@@ -261,7 +260,7 @@ class CaptureController {
 				session: saved.session,
 				takes: saved.takes,
 				// Success feedback is the action toast; avoid a sticky Capture status line.
-				statusMessage: savedLocally ? '' : 'Take finalized but not marked saved.'
+				statusMessage: savedLocally ? '' : 'Not saved locally.'
 			});
 			if (savedLocally) {
 				const label = saved.take.metadata.displayName || deriveCatalogReference(saved.take);
@@ -282,9 +281,7 @@ class CaptureController {
 						: '';
 			const error = createAppError(
 				'SOURCE_SAVE_FAILED',
-				detail
-					? `Capture finished but could not be saved on this device. ${detail}`
-					: 'Capture finished but could not be saved on this device.',
+				detail ? `Could not save locally. ${detail}` : 'Could not save locally.',
 				{ cause, recoverable: true }
 			);
 			const takes = this.session ? await listTakesForSession(this.session.id) : this.takes;
@@ -293,7 +290,7 @@ class CaptureController {
 				error,
 				livePeaks: [],
 				takes,
-				statusMessage: error.message
+				statusMessage: ''
 			});
 		}
 	}
@@ -311,7 +308,7 @@ class CaptureController {
 			warning: 'none',
 			levels: idleLevels(),
 			livePeaks: [],
-			statusMessage: 'Recording discarded.'
+			statusMessage: 'Discarded.'
 		});
 	}
 
@@ -390,18 +387,13 @@ class CaptureController {
 	}
 
 	#recordingStatus(tick: CaptureTick): string {
-		const elapsed = formatDuration(tick.elapsedSeconds);
 		switch (tick.warning) {
 			case 'passive':
-				return `Recording ${elapsed} · past 5 minutes`;
-			case 'remaining':
-				return `Recording ${elapsed} · ${formatDuration(tick.remainingSeconds)} left`;
-			case 'strong':
-				return `Recording ${elapsed} · under 1 minute left`;
+				return 'Past 5 min';
 			case 'limit':
-				return 'Limit reached — saving…';
+				return 'Saving…';
 			default:
-				return `Recording ${elapsed}`;
+				return '';
 		}
 	}
 

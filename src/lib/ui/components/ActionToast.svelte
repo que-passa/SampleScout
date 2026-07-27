@@ -3,6 +3,7 @@
 	import { MediaQuery } from 'svelte/reactivity';
 	import type { TransitionConfig } from 'svelte/transition';
 	import { actionToast, getActionToastSnapshot, type ActionToastEntry } from '$lib/state';
+	import GhostButton from '$lib/ui/components/GhostButton.svelte';
 
 	let entry = $state<ActionToastEntry | null>(getActionToastSnapshot());
 	let busy = $state(false);
@@ -76,9 +77,9 @@
 		>
 			<span class="message">{entry.message}</span>
 			{#if entry.actionLabel && entry.onAction}
-				<button type="button" class="action" disabled={busy} onclick={() => void onAction()}>
+				<GhostButton compact disabled={busy} onclick={() => void onAction()}>
 					{entry.actionLabel}
-				</button>
+				</GhostButton>
 			{/if}
 		</div>
 	{/key}
@@ -111,30 +112,5 @@
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
-	}
-
-	.action {
-		align-self: center;
-		min-height: 1.75rem;
-		padding: 0 var(--space-2);
-		border: 1px solid var(--brand);
-		border-radius: var(--radius-control);
-		background: var(--surface);
-		color: var(--ink);
-		font-size: var(--text-annotation);
-		font-weight: 700;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-		cursor: pointer;
-	}
-
-	.action:disabled {
-		opacity: 0.5;
-		cursor: wait;
-	}
-
-	.action:focus-visible {
-		outline: 2px solid var(--ink);
-		outline-offset: 1px;
 	}
 </style>

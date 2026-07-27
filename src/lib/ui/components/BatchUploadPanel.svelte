@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { deriveSpecimenMark, parseTagList, type Take } from '$lib/domain';
 	import PrimaryButton from './PrimaryButton.svelte';
+	import GhostButton from './GhostButton.svelte';
 	import SpecimenMark from './SpecimenMark.svelte';
 
 	let {
@@ -95,7 +96,7 @@
 				</div>
 			{/if}
 
-			<button type="button" class="cancel-button" onclick={oncancel}> Cancel </button>
+			<GhostButton onclick={oncancel}>Cancel</GhostButton>
 		</div>
 	{:else}
 		<!-- Confirm phase -->
@@ -111,15 +112,16 @@
 					<SpecimenMark mark={deriveSpecimenMark(take)} size="compact" />
 					<span class="take-name">{take.metadata.displayName}</span>
 					{#if hasRemove}
-						<button
-							type="button"
-							class="remove-button"
+						<GhostButton
+							icon
+							compact
+							danger
 							onclick={() => handleRemove(take.id)}
 							aria-label="Remove from upload"
 							title="Remove"
 						>
 							×
-						</button>
+						</GhostButton>
 					{/if}
 				</div>
 			{/each}
@@ -161,9 +163,7 @@
 		</div>
 
 		<div class="actions">
-			<button type="button" class="cancel-button" onclick={oncancel} disabled={busy}>
-				Cancel
-			</button>
+			<GhostButton onclick={oncancel} disabled={busy}>Cancel</GhostButton>
 			<PrimaryButton type="submit" disabled={!canConfirm}>
 				{busy ? 'Uploading…' : 'Upload'}
 			</PrimaryButton>
@@ -305,28 +305,6 @@
 		white-space: nowrap;
 	}
 
-	.remove-button {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: var(--space-5);
-		height: var(--space-5);
-		padding: 0;
-		border: 1px solid var(--line);
-		border-radius: var(--radius-round);
-		background: var(--surface-subtle);
-		color: var(--ink-muted);
-		font-size: var(--text-body);
-		font-weight: 600;
-		cursor: pointer;
-	}
-
-	.remove-button:hover {
-		background: var(--surface);
-		color: var(--signal);
-		border-color: var(--signal);
-	}
-
 	.fields {
 		display: grid;
 		gap: var(--space-3);
@@ -404,28 +382,5 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: var(--space-3);
-	}
-
-	.cancel-button {
-		min-height: var(--touch-min);
-		padding: 0 var(--space-3);
-		border: 1px solid var(--line);
-		border-radius: var(--radius-control);
-		background: var(--surface);
-		color: var(--ink-muted);
-		font-size: var(--text-annotation);
-		font-weight: 600;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-		cursor: pointer;
-	}
-
-	.cancel-button:hover:not(:disabled) {
-		background: var(--surface-subtle);
-	}
-
-	.cancel-button:disabled {
-		opacity: 0.45;
-		cursor: not-allowed;
 	}
 </style>

@@ -1,4 +1,7 @@
 <script lang="ts">
+	import GhostButton from '$lib/ui/components/GhostButton.svelte';
+	import PrimaryButton from '$lib/ui/components/PrimaryButton.svelte';
+
 	let {
 		title,
 		body,
@@ -23,12 +26,10 @@
 	{#if (actionLabel && onaction) || (secondaryActionLabel && onsecondaryaction)}
 		<div class="actions">
 			{#if actionLabel && onaction}
-				<button type="button" class="primary" onclick={onaction}>{actionLabel}</button>
+				<PrimaryButton onclick={onaction}>{actionLabel}</PrimaryButton>
 			{/if}
 			{#if secondaryActionLabel && onsecondaryaction}
-				<button type="button" class="secondary" onclick={onsecondaryaction}
-					>{secondaryActionLabel}</button
-				>
+				<GhostButton onclick={onsecondaryaction}>{secondaryActionLabel}</GhostButton>
 			{/if}
 		</div>
 	{/if}
@@ -66,27 +67,5 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: var(--space-3);
-	}
-
-	.primary,
-	.secondary {
-		justify-self: start;
-		min-height: var(--touch-min);
-		padding: 0 var(--space-4);
-		border-radius: var(--radius-control);
-		font-size: var(--text-button);
-		font-weight: 600;
-	}
-
-	.primary {
-		border: 1px solid var(--ink);
-		background: var(--ink);
-		color: var(--surface);
-	}
-
-	.secondary {
-		border: 1px solid var(--ink);
-		background: var(--surface);
-		color: var(--ink);
 	}
 </style>

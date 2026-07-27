@@ -92,7 +92,8 @@
 		align-items: center;
 		column-gap: var(--space-2);
 		min-height: var(--touch-min);
-		padding: var(--space-2);
+		/* Reduce vertical padding; keep touch-height via min-height. */
+		padding: var(--space-1) var(--space-2);
 		background: var(--paper);
 	}
 

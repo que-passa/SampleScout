@@ -47,6 +47,25 @@ export function retainedSourceRanges(recipe: EditRecipe): RetainedSourceRange[] 
 		.sort((a, b) => a.start - b.start);
 }
 
+/** Build a transient recipe from retained ranges (waveform preview / gain measurement). */
+export function previewEditRecipeFromRanges(
+	ranges: RetainedSourceRange[],
+	peakNormalization?: EditRecipe['peakNormalization']
+): EditRecipe {
+	return {
+		version: 1,
+		segments: ranges.map((range, index) => ({
+			id: `preview-${index}`,
+			sourceStartSeconds: range.start,
+			sourceEndSeconds: range.end,
+			fadeInSeconds: range.fadeInSeconds,
+			fadeOutSeconds: range.fadeOutSeconds,
+			gainDb: 0
+		})),
+		peakNormalization: peakNormalization ? { ...peakNormalization } : undefined
+	};
+}
+
 export function isIdentityRecipe(recipe: EditRecipe, sourceDurationSeconds: number): boolean {
 	if (recipe.peakNormalization?.enabled) return false;
 	if (recipe.segments.length !== 1) return false;

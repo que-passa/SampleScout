@@ -1,5 +1,5 @@
 :root {
-	--paper: #f7f7f3;
+	--paper: #f0f0ec;
 	--surface: #ffffff;
 	--surface-subtle: #efefeb;
 	--ink: #111111;
@@ -44,6 +44,9 @@
 	--space-6: 32px;
 	--space-7: 48px;
 
+	/* Horizontal page inset — mobile tighter, desktop roomier */
+	--page-gutter: var(--space-3);
+
 	/* Brief-aligned radii (see DESIGN.md) */
 	--radius-control: 4px;
 	--radius-panel: 6px;
@@ -67,4 +70,10 @@
 	--text-annotation: 0.8125rem; /* 13px */
 	--text-micro: 0.6875rem; /* 11px — compact chips / Local Draft */
 	--text-button: 0.9375rem; /* 15px */
+}
+
+@media (min-width: 900px) {
+	:root {
+		--page-gutter: var(--space-5);
+	}
 }

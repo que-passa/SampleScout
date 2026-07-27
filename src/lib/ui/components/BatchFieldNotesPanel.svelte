@@ -5,6 +5,8 @@
 		type TakeMetadataPatch,
 		type Visibility
 	} from '$lib/domain';
+	import GhostButton from '$lib/ui/components/GhostButton.svelte';
+	import PrimaryButton from '$lib/ui/components/PrimaryButton.svelte';
 
 	let {
 		selectedCount,
@@ -76,7 +78,7 @@
 		<p class="batch-title">
 			Field Notes · {selectedCount} selected
 		</p>
-		<button type="button" class="clear" onclick={onclear} disabled={busy}>Clear</button>
+		<GhostButton compact onclick={onclear} disabled={busy}>Clear</GhostButton>
 	</header>
 
 	<p class="hint">
@@ -184,9 +186,9 @@
 		</div>
 	{/if}
 
-	<button type="submit" class="apply" disabled={!canApply}>
+	<PrimaryButton type="submit" disabled={!canApply}>
 		{busy ? 'Applying…' : 'Apply to selected'}
-	</button>
+	</PrimaryButton>
 </form>
 
 <style>
@@ -217,20 +219,6 @@
 		margin: 0;
 		font-size: var(--text-body);
 		font-weight: 600;
-	}
-
-	.clear {
-		min-height: var(--touch-min);
-		padding: 0 var(--space-3);
-		border: 1px solid var(--line);
-		border-radius: var(--radius-control);
-		background: var(--surface);
-		color: var(--ink-muted);
-		font-size: var(--text-annotation);
-		font-weight: 600;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-		cursor: pointer;
 	}
 
 	.hint {
@@ -383,25 +371,5 @@
 		background: var(--surface);
 		color: var(--disabled);
 		box-shadow: none;
-	}
-
-	.apply {
-		min-height: var(--touch-min);
-		padding: 0 var(--space-4);
-		border: 1px solid var(--ink);
-		border-radius: var(--radius-control);
-		background: var(--ink);
-		color: var(--surface);
-		font-size: var(--text-button);
-		font-weight: 600;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-		cursor: pointer;
-	}
-
-	.apply:disabled {
-		border-color: var(--line);
-		background: var(--line);
-		cursor: not-allowed;
 	}
 </style>

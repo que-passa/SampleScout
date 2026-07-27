@@ -1,20 +1,24 @@
 <script lang="ts">
 	import logoMark from '$lib/assets/logo-mark.svg';
-	import { APP_NAME } from '$lib/config/recording';
+	import { APP_NAME, APP_TAGLINE } from '$lib/config/recording';
 	import { audiotoolAuth, connect } from '$lib/state/audiotool-auth.svelte';
+	import BusyIndicator from '$lib/ui/components/BusyIndicator.svelte';
+	import PrimaryButton from '$lib/ui/components/PrimaryButton.svelte';
 
 	const status = $derived(audiotoolAuth.status);
 	const ready = $derived(audiotoolAuth.ready);
 	const busy = $derived(audiotoolAuth.busy);
 
-	const buttonDisabled = $derived(
-		!ready || busy || !status.configured || status.state === 'connecting'
-	);
+	const pending = $derived(!ready || busy || status.state === 'connecting');
 
-	const buttonLabel = $derived.by(() => {
-		if (!ready) return 'Checking connection…';
-		if (busy || status.state === 'connecting') return 'Connecting…';
-		return 'Connect Audiotool';
+	const buttonDisabled = $derived(pending || !status.configured);
+
+	const statusMessage = $derived.by(() => {
+		if (!status.configured) return 'OAuth not configured.';
+		if (status.state === 'error') {
+			return status.message || 'Connection failed.';
+		}
+		return '';
 	});
 </script>
 
@@ -22,23 +26,25 @@
 	<div class="composition">
 		<img class="logo" src={logoMark} alt="" width="72" height="72" />
 		<h1 class="brand">{APP_NAME}</h1>
-		<p class="support">Connect Audiotool to Capture and manage your device-only Collection.</p>
+		<p class="support">{APP_TAGLINE}</p>
 
-		{#if !status.configured}
-			<p class="hint" role="status">
-				{status.message}
-			</p>
-		{:else if status.state === 'error'}
-			<p class="error" role="alert">{status.message}</p>
-		{:else if !ready}
-			<p class="hint" role="status">Checking connection…</p>
-		{:else if busy || status.state === 'connecting'}
-			<p class="hint" role="status">{status.message || 'Working…'}</p>
-		{/if}
+		<div class="status-slot" aria-live="polite">
+			{#if statusMessage}
+				<p
+					class="status-text"
+					class:error={status.state === 'error'}
+					role={status.state === 'error' ? 'alert' : 'status'}
+				>
+					{statusMessage}
+				</p>
+			{:else if pending}
+				<BusyIndicator label="Connecting" />
+			{/if}
+		</div>
 
-		<button type="button" class="action" onclick={() => void connect()} disabled={buttonDisabled}>
-			{buttonLabel}
-		</button>
+		<PrimaryButton class="connect" disabled={buttonDisabled} onclick={() => void connect()}>
+			Connect Audiotool
+		</PrimaryButton>
 	</div>
 </div>
 
@@ -82,40 +88,26 @@
 		max-width: 20rem;
 	}
 
-	.hint {
+	.status-slot {
+		display: grid;
+		place-items: center;
+		min-height: calc(var(--text-meta) * 1.4);
+		width: 100%;
+	}
+
+	.status-text {
 		margin: 0;
 		color: var(--ink-muted);
 		font-size: var(--text-meta);
 		max-width: 20rem;
 	}
 
-	.error {
-		margin: 0;
+	.status-text.error {
 		color: var(--signal);
-		font-size: var(--text-meta);
-		max-width: 20rem;
 	}
 
-	.action {
+	.composition :global(.connect) {
 		margin-top: var(--space-2);
-		min-height: var(--touch-min);
-		padding: 0 var(--space-5);
-		border: 1px solid var(--ink);
-		border-radius: var(--radius-control);
-		background: var(--ink);
-		color: var(--surface);
-		font-size: var(--text-button);
-		font-weight: 600;
-		cursor: pointer;
-	}
-
-	.action:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
-	.action:focus-visible {
-		outline: 2px solid var(--ink);
-		outline-offset: 2px;
+		min-width: 14.5rem;
 	}
 </style>

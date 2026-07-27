@@ -48,7 +48,6 @@
 		saveTakeMetadata,
 		uploadQueue
 	} from '$lib/state';
-	import AccountButton from '$lib/ui/components/AccountButton.svelte';
 	import BackButton from '$lib/ui/components/BackButton.svelte';
 	import ConfirmDialog from '$lib/ui/components/ConfirmDialog.svelte';
 	import EmptyState from '$lib/ui/components/EmptyState.svelte';
@@ -212,6 +211,18 @@
 		selectionEnd = end;
 	}
 
+	function onSelectionGestureEnd(start: number, end: number) {
+		const lo = Math.min(start, end);
+		const hi = Math.max(start, end);
+		if (hi - lo < MIN_SEGMENT_SECONDS) return;
+		if (playing) {
+			playback?.pause();
+			playing = false;
+			stopPlayheadLoop();
+		}
+		onSeek(lo);
+	}
+
 	async function persistRecipe(recipe: EditRecipe) {
 		if (!take) return;
 		disposePlayback();
@@ -371,8 +382,8 @@
 		}
 	}
 
-	/** Playback-timeline bounds for loop wrap (edited seconds when recipe is non-identity). */
-	function getLoopBoundsEdited(): { start: number; end: number } | null {
+	/** Playback-timeline bounds for selection preview (edited seconds when recipe is non-identity). */
+	function getSelectionPlaybackBoundsEdited(): { start: number; end: number } | null {
 		if (!currentRecipe || transportDuration <= 0) return null;
 		if (hasUsableSelection && selectionStart != null && selectionEnd != null) {
 			const srcLo = Math.min(selectionStart, selectionEnd);
@@ -395,7 +406,7 @@
 	}
 
 	async function wrapLoopPlayback(handle: PlaybackHandle) {
-		const bounds = getLoopBoundsEdited();
+		const bounds = getSelectionPlaybackBoundsEdited();
 		if (!bounds) return;
 		handle.seek(bounds.start);
 		syncPlayheadFromHandle(handle);
@@ -416,15 +427,23 @@
 			syncPlayheadFromHandle(playback);
 			playing = playback.isPlaying();
 
-			if (playing && loopPreview) {
-				const bounds = getLoopBoundsEdited();
-				if (bounds && currentTime >= bounds.end - 0.002) {
-					playback.seek(bounds.start);
-					syncPlayheadFromHandle(playback);
-				}
-			}
-
 			if (playing) {
+				if (hasUsableSelection) {
+					const bounds = getSelectionPlaybackBoundsEdited();
+					if (bounds && currentTime >= bounds.end - 0.002) {
+						if (loopPreview) {
+							playback.seek(bounds.start);
+							syncPlayheadFromHandle(playback);
+						} else {
+							playback.pause();
+							playing = false;
+							syncPlayheadFromHandle(playback);
+							stopPlayheadLoop();
+							return;
+						}
+					}
+				}
+
 				playheadRaf = requestAnimationFrame(tick);
 			} else {
 				playheadRaf = 0;
@@ -579,11 +598,11 @@
 				return;
 			}
 
-			if (loopPreview) {
-				const bounds = getLoopBoundsEdited();
+			if (hasUsableSelection) {
+				const bounds = getSelectionPlaybackBoundsEdited();
 				if (bounds) {
 					const outside = currentTime < bounds.start - 0.001 || currentTime >= bounds.end - 0.002;
-					if (hasUsableSelection || outside) {
+					if (outside) {
 						handle.seek(bounds.start);
 						syncPlayheadFromHandle(handle);
 					}
@@ -716,7 +735,7 @@
 			<header class="editor-header">
 				<div class="header-start">
 					<BackButton href={resolve('/drafts')} label="Collection" />
-					<SpecimenMark mark={deriveSpecimenMark(take)} size="compact" />
+					<SpecimenMark mark={deriveSpecimenMark(take)} size="editor" />
 				</div>
 				<div class="title-slot">
 					{#if editingName && !uploadLocked}
@@ -753,7 +772,6 @@
 					>
 						<Icon name="reset" />
 					</GhostButton>
-					<AccountButton />
 				</div>
 			</header>
 
@@ -775,8 +793,10 @@
 						bind:selectionStart
 						bind:selectionEnd
 						{retainedRanges}
+						peakNormalization={currentRecipe?.peakNormalization}
 						{onSeek}
 						{onSelectionChange}
+						{onSelectionGestureEnd}
 						{onTrimBoundaryCommit}
 						{onFadeBoundaryCommit}
 						editsLocked={uploadLocked}
@@ -786,22 +806,16 @@
 						}}
 					>
 						{#snippet chromeActions()}
-							<button
-								type="button"
-								class="chrome-action"
-								disabled={uploadLocked}
-								onclick={() => void onNormalize()}
-							>
+							<GhostButton compact disabled={uploadLocked} onclick={() => void onNormalize()}>
 								Normalize
-							</button>
-							<button
-								type="button"
-								class="chrome-action"
+							</GhostButton>
+							<GhostButton
+								compact
 								disabled={uploadLocked || !hasUsableSelection}
 								onclick={() => void onTrim()}
 							>
 								Trim
-							</button>
+							</GhostButton>
 						{/snippet}
 					</WaveformOverview>
 				</div>
@@ -816,12 +830,18 @@
 					></div>
 					<div class="transport-bar">
 						<div class="transport-left">
-							<button type="button" class="play-button" onclick={() => void togglePlayback()}>
-								{playing ? 'Pause' : 'Play'}
-							</button>
-							<button
-								type="button"
-								class={['loop-button', loopPreview && 'active']}
+							<GhostButton class="transport-play" onclick={() => void togglePlayback()}>
+								<span class="transport-play-inner">
+									<Icon name={playing ? 'pause' : 'play'} size={18} />
+									<span class="transport-play-label">
+										<span class:active={!playing} aria-hidden={playing}>Play</span>
+										<span class:active={playing} aria-hidden={!playing}>Pause</span>
+									</span>
+								</span>
+							</GhostButton>
+							<GhostButton
+								icon
+								active={loopPreview}
 								aria-label="Loop"
 								aria-pressed={loopPreview}
 								title="Loop"
@@ -829,15 +849,8 @@
 									loopPreview = !loopPreview;
 								}}
 							>
-								<span class="well">
-									<span class="face">
-										<Icon name="loop" size={18} />
-									</span>
-									{#if loopPreview}
-										<span class="live" aria-hidden="true"></span>
-									{/if}
-								</span>
-							</button>
+								<Icon name="loop" size={18} />
+							</GhostButton>
 						</div>
 						<div class="transport-right">
 							<GhostButton
@@ -1148,7 +1161,7 @@
 	.wave-chrome-row {
 		box-sizing: border-box;
 		min-width: 0;
-		padding: var(--space-2) var(--space-4);
+		padding: var(--space-2) var(--page-gutter);
 	}
 
 	.wave-chrome-row:empty {
@@ -1254,172 +1267,45 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: var(--space-2);
-		padding: var(--space-2) var(--space-4);
+		padding: var(--space-2) var(--page-gutter);
 		padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom, 0px));
 		background: var(--paper);
 	}
 
-	.transport-left,
+	.transport-left {
+		display: flex;
+		align-items: center;
+		gap: var(--space-1);
+	}
+
 	.transport-right {
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
 	}
-
-	.play-button {
-		min-height: var(--touch-min);
-		padding: 0 var(--space-4);
-		border-radius: var(--radius-control);
-		font-size: var(--text-button);
-		font-weight: 600;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-		cursor: pointer;
+	:global(.transport-play .face) {
+		display: inline-flex;
+		flex-direction: row;
+		align-items: center;
+		gap: var(--space-2);
 	}
 
-	/* Loop: Account-style recessed well + face; transport-sized; latched = brand LED. */
-	.loop-button {
+	.transport-play-inner {
 		display: inline-flex;
 		align-items: center;
-		justify-content: center;
-		flex-shrink: 0;
-		min-width: var(--touch-min);
-		min-height: var(--touch-min);
-		padding: 0;
-		border: none;
-		border-radius: var(--radius-control);
-		background: transparent;
-		color: var(--ink-muted);
-		cursor: pointer;
+		gap: var(--space-2);
 	}
 
-	.loop-button:focus-visible {
-		outline: none;
-	}
-
-	.loop-button:focus-visible .well {
-		outline: 2px solid var(--ink);
-		outline-offset: var(--space-1);
-	}
-
-	.loop-button .well {
-		position: relative;
+	.transport-play-label {
 		display: grid;
-		place-items: center;
-		width: calc(var(--space-6) + var(--space-2));
-		height: calc(var(--space-6) + var(--space-2));
-		flex-shrink: 0;
-		padding: var(--space-1);
-		box-sizing: border-box;
-		border-radius: calc(var(--radius-panel) + var(--space-1));
-		background: var(--surface-subtle);
-		box-shadow:
-			inset 0 var(--space-1) var(--space-2) color-mix(in srgb, var(--ink) 14%, transparent),
-			inset 0 calc(var(--space-1) * -1) var(--space-1)
-				color-mix(in srgb, var(--paper) 70%, transparent);
 	}
 
-	.loop-button .face {
-		display: grid;
-		place-items: center;
-		width: 100%;
-		height: 100%;
-		overflow: hidden;
-		border-radius: var(--radius-panel);
-		background: var(--surface);
-		box-shadow:
-			inset 0 1px 0 color-mix(in srgb, var(--paper) 22%, transparent),
-			inset 0 -1px 0 color-mix(in srgb, var(--ink) 18%, transparent);
+	.transport-play-label > span {
+		grid-area: 1 / 1;
+		visibility: hidden;
 	}
 
-	.loop-button .live {
-		position: absolute;
-		top: var(--space-2);
-		right: var(--space-2);
-		width: var(--space-1);
-		height: var(--space-1);
-		border-radius: var(--radius-round);
-		background: var(--brand);
-		pointer-events: none;
-	}
-
-	@media (prefers-reduced-motion: no-preference) {
-		.loop-button {
-			transition: color 140ms ease;
-		}
-
-		.loop-button .well {
-			transition:
-				background-color 140ms ease,
-				box-shadow 140ms ease;
-		}
-
-		.loop-button .face {
-			transition:
-				background-color 140ms ease,
-				box-shadow 140ms ease;
-		}
-
-		.loop-button.active .live {
-			animation: loop-live 2.4s ease-in-out infinite;
-		}
-	}
-
-	@keyframes loop-live {
-		0%,
-		100% {
-			background-color: var(--brand);
-		}
-		50% {
-			background-color: color-mix(in srgb, var(--brand) 55%, var(--ink));
-		}
-	}
-
-	@media (hover: hover) {
-		.loop-button:hover {
-			color: var(--ink);
-		}
-
-		.loop-button:hover .well {
-			background: color-mix(in srgb, var(--surface-subtle) 82%, var(--ink));
-			box-shadow:
-				inset 0 var(--space-1) var(--space-2) color-mix(in srgb, var(--ink) 6%, transparent),
-				inset 0 calc(var(--space-1) * -1) var(--space-1)
-					color-mix(in srgb, var(--paper) 90%, transparent);
-		}
-
-		.loop-button:hover .face {
-			background: color-mix(in srgb, var(--surface) 42%, var(--paper));
-			box-shadow:
-				inset 0 1px 0 color-mix(in srgb, var(--paper) 55%, transparent),
-				inset 0 -1px 0 color-mix(in srgb, var(--ink) 10%, transparent);
-		}
-	}
-
-	.loop-button:active {
-		color: var(--brand);
-	}
-
-	.loop-button:active .well {
-		box-shadow:
-			inset 0 var(--space-1) var(--space-2) color-mix(in srgb, var(--ink) 30%, transparent),
-			inset 0 calc(var(--space-1) * -1) var(--space-1)
-				color-mix(in srgb, var(--paper) 48%, transparent);
-	}
-
-	.loop-button:active .face {
-		background: color-mix(in srgb, var(--surface) 88%, var(--ink));
-	}
-
-	.play-button {
-		min-width: calc(var(--touch-min) * 2.5);
-		border: 1px solid var(--ink);
-		background: var(--ink);
-		color: var(--surface);
-	}
-
-	.play-button:hover {
-		background: var(--surface);
-		color: var(--ink);
+	.transport-play-label > span.active {
+		visibility: visible;
 	}
 </style>

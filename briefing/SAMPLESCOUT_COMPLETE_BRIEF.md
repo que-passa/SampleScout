@@ -777,7 +777,7 @@ The interface should communicate trust through alignment, truthful data, and sta
 ### Core palette
 
 ```css
---paper: #f7f7f3;
+--paper: #f0f0ec;
 --surface: #ffffff;
 --surface-subtle: #efefeb;
 --ink: #111111;

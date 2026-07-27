@@ -49,20 +49,18 @@
 		box-sizing: border-box;
 		border-radius: calc(var(--radius-panel) + var(--space-1));
 		background: transparent;
-		box-shadow: none;
 	}
 
 	.face {
 		display: grid;
 		place-items: center;
-		min-height: calc(var(--touch-min) - var(--space-2));
-		min-width: calc(var(--touch-min) - var(--space-2));
-		padding: 0 var(--space-4);
+		width: calc(var(--touch-min) - var(--space-2));
+		height: calc(var(--touch-min) - var(--space-2));
+		padding: 0;
 		box-sizing: border-box;
 		overflow: hidden;
 		border-radius: var(--radius-panel);
 		background: transparent;
-		box-shadow: none;
 	}
 
 	@media (prefers-reduced-motion: no-preference) {
@@ -70,20 +68,12 @@
 			transition: color 140ms ease;
 		}
 
-		.well {
-			transition:
-				background-color 140ms ease,
-				box-shadow 140ms ease;
-		}
-
+		.well,
 		.face {
-			transition:
-				background-color 140ms ease,
-				box-shadow 140ms ease;
+			transition: background-color 140ms ease;
 		}
 	}
 
-	/* Flat well + face on hover — recessed chrome is press only. */
 	@media (hover: hover) {
 		.back-button:hover .well {
 			background: var(--surface-subtle);
@@ -95,21 +85,14 @@
 	}
 
 	.back-button:active {
-		color: var(--brand);
+		background: var(--surface);
 	}
 
 	.back-button:active .well {
-		background: var(--surface-subtle);
-		box-shadow:
-			inset 0 var(--space-1) var(--space-2) color-mix(in srgb, var(--ink) 30%, transparent),
-			inset 0 calc(var(--space-1) * -1) var(--space-1)
-				color-mix(in srgb, var(--paper) 48%, transparent);
+		background: var(--surface);
 	}
 
 	.back-button:active .face {
-		background: color-mix(in srgb, var(--surface) 88%, var(--ink));
-		box-shadow:
-			inset 0 1px 0 color-mix(in srgb, var(--paper) 22%, transparent),
-			inset 0 -1px 0 color-mix(in srgb, var(--ink) 18%, transparent);
+		background: var(--surface);
 	}
 </style>

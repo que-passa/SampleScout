@@ -116,6 +116,14 @@ function measurePeak(channels: Float32Array[]): number {
 	return peak;
 }
 
+/** Linear gain applied by peak normalization (1 when disabled or peak is zero). */
+export function recipeNormalizeGainLinear(source: DecodedPlanarAudio, recipe: EditRecipe): number {
+	if (!recipe.peakNormalization?.enabled) return 1;
+	const peak = measureRecipePeak(source, recipe);
+	if (peak <= 0) return 1;
+	return dbToLinear(recipe.peakNormalization.targetDbfs) / peak;
+}
+
 /** Peak of rendered output before peak-normalization gain. */
 export function measureRecipePeak(source: DecodedPlanarAudio, recipe: EditRecipe): number {
 	const withoutNorm: EditRecipe = {

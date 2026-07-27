@@ -9,7 +9,10 @@
 		class: className,
 		active = false,
 		icon = false,
+		compact = false,
 		danger = false,
+		muted = false,
+		live = false,
 		focusOnMount = false,
 		children,
 		...rest
@@ -18,12 +21,18 @@
 		disabled?: boolean;
 		onclick?: (event: MouseEvent) => void;
 		class?: string;
-		/** Sticky on — show instrument well chrome without hover (e.g. Select Done). */
+		/** Sticky on — flat well highlight (e.g. Field Notes open, Loop latched). */
 		active?: boolean;
-		/** Icon-only: fixed Account-sized well; otherwise padded text face. */
+		/** Icon-only: square face; otherwise padded text face. */
 		icon?: boolean;
+		/** Compact waveform / toolbar hit size (~30px). */
+		compact?: boolean;
+		/** Destructive ghost — signal label/icon only. */
 		danger?: boolean;
-		/** Focus the control when mounted (sheet close, etc.). */
+		/** Idle label/icon uses muted ink (nav chrome). */
+		muted?: boolean;
+		/** Brand status LED on the well (connected account, latched loop). */
+		live?: boolean;
 		focusOnMount?: boolean;
 		children: Snippet;
 	} & Omit<HTMLButtonAttributes, 'type' | 'disabled' | 'onclick' | 'class' | 'children'> = $props();
@@ -37,7 +46,16 @@
 	{type}
 	{disabled}
 	{onclick}
-	class={['ss-ghost-button', icon && 'icon', danger && 'danger', active && 'active', className]}
+	class={[
+		'ss-ghost-button',
+		icon && 'icon',
+		compact && 'compact',
+		danger && 'danger',
+		muted && 'muted',
+		active && 'active',
+		live && 'live-on',
+		className
+	]}
 	{@attach focusAttach}
 	{...rest}
 >
@@ -45,6 +63,9 @@
 		<span class="face">
 			{@render children()}
 		</span>
+		{#if live}
+			<span class="live" aria-hidden="true"></span>
+		{/if}
 	</span>
 </button>
 
@@ -67,6 +88,10 @@
 		cursor: pointer;
 	}
 
+	.ss-ghost-button.muted:not(:disabled):not(.active) {
+		color: var(--ink-muted);
+	}
+
 	.ss-ghost-button.danger {
 		color: var(--signal);
 	}
@@ -85,6 +110,7 @@
 	}
 
 	.well {
+		position: relative;
 		display: grid;
 		place-items: center;
 		min-height: var(--space-6);
@@ -92,7 +118,6 @@
 		box-sizing: border-box;
 		border-radius: calc(var(--radius-panel) + var(--space-1));
 		background: transparent;
-		box-shadow: none;
 	}
 
 	.icon .well {
@@ -101,15 +126,43 @@
 		min-height: 0;
 	}
 
+	.compact {
+		min-width: 30px;
+		min-height: 30px;
+		font-size: var(--text-label);
+		letter-spacing: 0.04em;
+	}
+
+	.compact .well {
+		min-height: 0;
+		padding: 0;
+		border-radius: var(--radius-control);
+	}
+
+	.compact .face {
+		min-height: 30px;
+		padding: 0 var(--space-2);
+		border-radius: var(--radius-control);
+	}
+
+	.compact.icon .well {
+		width: 30px;
+		height: 30px;
+	}
+
+	.compact.icon .face {
+		min-height: 0;
+		padding: 0;
+	}
+
 	.face {
 		display: grid;
 		place-items: center;
 		min-height: calc(var(--touch-min) - var(--space-2));
-		padding: 0 var(--space-4);
+		padding: 0 var(--space-3);
 		box-sizing: border-box;
 		border-radius: var(--radius-panel);
 		background: transparent;
-		box-shadow: none;
 	}
 
 	.icon .face {
@@ -120,26 +173,51 @@
 		overflow: hidden;
 	}
 
+	.live {
+		position: absolute;
+		top: var(--space-2);
+		right: var(--space-2);
+		width: var(--space-1);
+		height: var(--space-1);
+		border-radius: var(--radius-round);
+		background: var(--brand);
+		pointer-events: none;
+	}
+
 	@media (prefers-reduced-motion: no-preference) {
 		.ss-ghost-button {
 			transition: color 140ms ease;
 		}
 
-		.well {
-			transition:
-				background-color 140ms ease,
-				box-shadow 140ms ease;
+		.well,
+		.face {
+			transition: background-color 140ms ease;
 		}
 
-		.face {
-			transition:
-				background-color 140ms ease,
-				box-shadow 140ms ease;
+		.live-on .live {
+			animation: ghost-live 2.4s ease-in-out infinite;
 		}
 	}
 
-	/* Flat well + face on hover — recessed chrome is sticky on / press only. */
+	@keyframes ghost-live {
+		0%,
+		100% {
+			background-color: var(--brand);
+		}
+		50% {
+			background-color: color-mix(in srgb, var(--brand) 55%, var(--ink));
+		}
+	}
+
 	@media (hover: hover) {
+		.ss-ghost-button:hover:not(:disabled) {
+			color: var(--ink);
+		}
+
+		.ss-ghost-button.danger:hover:not(:disabled) {
+			color: var(--signal);
+		}
+
 		.ss-ghost-button:hover:not(:disabled) .well {
 			background: var(--surface-subtle);
 		}
@@ -149,47 +227,40 @@
 		}
 	}
 
-	/* Sticky on: Account / Collection recessed well + surface face. */
+	.ss-ghost-button.active:not(:disabled) {
+		color: var(--ink);
+	}
+
 	.ss-ghost-button.active:not(:disabled) .well {
 		background: var(--surface-subtle);
-		box-shadow:
-			inset 0 var(--space-1) var(--space-2) color-mix(in srgb, var(--ink) 14%, transparent),
-			inset 0 calc(var(--space-1) * -1) var(--space-1)
-				color-mix(in srgb, var(--paper) 70%, transparent);
 	}
 
 	.ss-ghost-button.active:not(:disabled) .face {
 		background: var(--surface);
-		box-shadow:
-			inset 0 1px 0 color-mix(in srgb, var(--paper) 22%, transparent),
-			inset 0 -1px 0 color-mix(in srgb, var(--ink) 18%, transparent);
 	}
 
 	.ss-ghost-button:active:not(:disabled) {
-		color: var(--brand);
-	}
-
-	.ss-ghost-button.danger:active:not(:disabled) {
-		color: var(--signal);
+		background: var(--surface);
 	}
 
 	.ss-ghost-button:active:not(:disabled) .well {
-		background: var(--surface-subtle);
-		box-shadow:
-			inset 0 var(--space-1) var(--space-2) color-mix(in srgb, var(--ink) 30%, transparent),
-			inset 0 calc(var(--space-1) * -1) var(--space-1)
-				color-mix(in srgb, var(--paper) 48%, transparent);
+		background: var(--surface);
 	}
 
 	.ss-ghost-button:active:not(:disabled) .face {
-		background: color-mix(in srgb, var(--surface) 88%, var(--ink));
-		box-shadow:
-			inset 0 1px 0 color-mix(in srgb, var(--paper) 22%, transparent),
-			inset 0 -1px 0 color-mix(in srgb, var(--ink) 18%, transparent);
+		background: var(--surface);
 	}
 
 	.ss-ghost-button:disabled {
 		color: var(--disabled);
 		cursor: not-allowed;
+	}
+
+	:global(.ss-ghost-button .avatar) {
+		width: 100%;
+		height: 100%;
+		border-radius: var(--radius-panel);
+		object-fit: cover;
+		display: block;
 	}
 </style>

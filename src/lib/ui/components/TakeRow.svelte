@@ -70,30 +70,35 @@
 	const showTrailing = $derived(Boolean(statusText || hasActions));
 </script>
 
-<div class="take-row" class:expanded class:openable class:selected>
-	{#if openable && takeHref}
+<div
+	class="take-row"
+	class:expanded
+	class:openable={openable && !selectable}
+	class:selectable
+	class:selected
+>
+	{#if openable && takeHref && !selectable}
 		<a class="row-link" href={resolve(takeHref)} aria-label="Open {name}"></a>
 	{/if}
 
 	{#if selectable}
 		<button
 			type="button"
-			class="select-toggle"
-			class:checked={selected}
+			class="row-select"
 			aria-pressed={selected}
 			aria-label={selected ? `Deselect ${name}` : `Select ${name}`}
-			onclick={(event) => {
-				event.preventDefault();
-				event.stopPropagation();
-				onselect?.(!selected);
-			}}
-		>
-			<span class="select-mark" aria-hidden="true">
+			onclick={() => onselect?.(!selected)}
+		></button>
+	{/if}
+
+	{#if selectable}
+		<span class="select-toggle" class:checked={selected} aria-hidden="true">
+			<span class="select-mark">
 				{#if selected}
 					<Icon name="check" size={12} />
 				{/if}
 			</span>
-		</button>
+		</span>
 	{/if}
 
 	<div class="catalog-identity">
@@ -116,24 +121,17 @@
 			{/if}
 
 			{#if onplay}
-				<button
-					type="button"
-					class="icon-button"
-					class:playing
-					onclick={onplay}
-					aria-label={playing ? 'Pause' : 'Play'}
-				>
+				<GhostButton icon aria-label={playing ? 'Pause' : 'Play'} onclick={onplay}>
 					<Icon name={playing ? 'pause' : 'play'} />
-				</button>
+				</GhostButton>
 			{/if}
 
 			{#if onretry}
-				<button
-					type="button"
-					class="retry-button"
+				<GhostButton
+					compact
+					disabled={retryBusy}
 					aria-label="Retry upload for {name}"
 					title="Retry"
-					disabled={retryBusy}
 					onclick={(event) => {
 						event.preventDefault();
 						event.stopPropagation();
@@ -141,7 +139,7 @@
 					}}
 				>
 					{retryBusy ? '…' : 'Retry'}
-				</button>
+				</GhostButton>
 			{/if}
 
 			{#if ondiscard}
@@ -184,7 +182,8 @@
 		min-height: var(--touch-min);
 	}
 
-	.take-row.openable {
+	.take-row.openable,
+	.take-row.selectable {
 		cursor: pointer;
 	}
 
@@ -198,7 +197,8 @@
 	}
 
 	@media (hover: hover) {
-		.take-row.openable:hover {
+		.take-row.openable:hover,
+		.take-row.selectable:hover {
 			background: var(--surface);
 			box-shadow:
 				0 var(--space-1) var(--space-2) color-mix(in srgb, var(--ink) 8%, transparent),
@@ -209,7 +209,8 @@
 	}
 
 	@media (hover: hover) and (prefers-reduced-motion: no-preference) {
-		.take-row.openable:hover {
+		.take-row.openable:hover,
+		.take-row.selectable:hover {
 			transform: translateY(-1px);
 		}
 	}
@@ -225,18 +226,28 @@
 		transform: none;
 	}
 
-	.row-link {
+	.row-link,
+	.row-select {
 		position: absolute;
 		inset: 0;
 		z-index: 0;
 		border-radius: inherit;
 	}
 
-	.row-link:focus {
+	.row-select {
+		padding: 0;
+		border: none;
+		background: transparent;
+		cursor: pointer;
+	}
+
+	.row-link:focus,
+	.row-select:focus {
 		outline: none;
 	}
 
-	.row-link:focus-visible {
+	.row-link:focus-visible,
+	.row-select:focus-visible {
 		outline: 2px solid var(--ink);
 		outline-offset: 2px;
 	}
@@ -250,20 +261,8 @@
 		width: var(--touch-min);
 		height: var(--touch-min);
 		flex-shrink: 0;
-		padding: 0;
-		border: none;
-		background: transparent;
+		pointer-events: none;
 		color: var(--ink);
-		cursor: pointer;
-	}
-
-	.select-toggle:focus {
-		outline: none;
-	}
-
-	.select-toggle:focus-visible {
-		outline: 2px solid var(--ink);
-		outline-offset: 2px;
 	}
 
 	.select-mark {
@@ -351,76 +350,5 @@
 		align-items: center;
 		flex-shrink: 0;
 		gap: var(--space-1);
-	}
-
-	.icon-button {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: var(--touch-min);
-		height: var(--touch-min);
-		border: none;
-		border-radius: var(--radius-control);
-		background: transparent;
-		cursor: pointer;
-		flex-shrink: 0;
-		font-size: var(--text-body);
-		font-weight: 700;
-		color: var(--ink);
-	}
-
-	.icon-button:hover {
-		background: var(--surface-subtle);
-	}
-
-	.icon-button:active {
-		background: var(--surface-subtle);
-		color: var(--brand);
-	}
-
-	.icon-button:focus {
-		outline: none;
-	}
-
-	.icon-button:focus-visible {
-		outline: 2px solid var(--ink);
-		outline-offset: 2px;
-	}
-
-	.retry-button {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		flex-shrink: 0;
-		min-width: var(--touch-min);
-		height: var(--touch-min);
-		padding: 0 var(--space-3);
-		border: 1px solid var(--ink);
-		border-radius: var(--radius-control);
-		background: var(--surface);
-		color: var(--ink);
-		cursor: pointer;
-		font-size: var(--text-annotation);
-		font-weight: 600;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-	}
-
-	.retry-button:hover:not(:disabled) {
-		background: var(--surface-subtle);
-	}
-
-	.retry-button:disabled {
-		opacity: 0.5;
-		cursor: wait;
-	}
-
-	.retry-button:focus {
-		outline: none;
-	}
-
-	.retry-button:focus-visible {
-		outline: 2px solid var(--ink);
-		outline-offset: 2px;
 	}
 </style>

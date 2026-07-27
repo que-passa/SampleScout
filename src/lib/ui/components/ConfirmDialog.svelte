@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { MediaQuery } from 'svelte/reactivity';
 	import { fade, fly } from 'svelte/transition';
+	import GhostButton from '$lib/ui/components/GhostButton.svelte';
 
 	let {
 		title,
@@ -28,10 +29,6 @@
 
 	const duration = $derived(reduceMotion.current ? 0 : 180);
 	const panelFly = $derived(desktop.current ? { y: 12, duration } : { y: 48, duration });
-
-	function autofocusCancel(node: HTMLButtonElement) {
-		node.focus();
-	}
 
 	function onKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape') {
@@ -66,18 +63,12 @@
 		<div class="body">
 			<p id={messageId} class="message">{message}</p>
 			<div class="actions">
-				<button
-					type="button"
-					class="cancel"
-					{@attach autofocusCancel}
-					disabled={busy}
-					onclick={oncancel}
-				>
+				<GhostButton focusOnMount disabled={busy} onclick={oncancel}>
 					{cancelLabel}
-				</button>
-				<button type="button" class="confirm" disabled={busy} onclick={onconfirm}>
+				</GhostButton>
+				<GhostButton danger disabled={busy} onclick={onconfirm}>
 					{busy ? 'Working…' : confirmLabel}
-				</button>
+				</GhostButton>
 			</div>
 		</div>
 	</div>
@@ -146,50 +137,6 @@
 		flex-wrap: wrap;
 		justify-content: flex-end;
 		gap: var(--space-2);
-	}
-
-	.cancel,
-	.confirm {
-		min-height: var(--touch-min);
-		padding: 0 var(--space-4);
-		border-radius: var(--radius-control);
-		font-size: var(--text-button);
-		font-weight: 600;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-		cursor: pointer;
-	}
-
-	.cancel {
-		border: 1px solid var(--ink);
-		background: var(--surface);
-		color: var(--ink);
-	}
-
-	.confirm {
-		border: 1px solid var(--signal);
-		background: var(--signal);
-		color: var(--surface);
-	}
-
-	.cancel:hover:not(:disabled) {
-		background: var(--surface-subtle);
-	}
-
-	.confirm:hover:not(:disabled) {
-		filter: brightness(0.95);
-	}
-
-	.cancel:disabled,
-	.confirm:disabled {
-		opacity: 0.5;
-		cursor: wait;
-	}
-
-	.cancel:focus-visible,
-	.confirm:focus-visible {
-		outline: 2px solid var(--ink);
-		outline-offset: 2px;
 	}
 
 	@media (min-width: 900px) {

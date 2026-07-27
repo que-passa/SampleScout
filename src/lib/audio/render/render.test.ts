@@ -8,7 +8,7 @@ import {
 } from '$lib/domain/edit-recipe';
 import { createInitialEditRecipe } from '$lib/domain/metadata';
 import type { DecodedPlanarAudio } from '$lib/audio/decode';
-import { measureRecipePeak, renderRecipePlanar } from './index';
+import { measureRecipePeak, recipeNormalizeGainLinear, renderRecipePlanar } from './index';
 
 function makeTone(opts: {
 	seconds: number;
@@ -72,6 +72,8 @@ describe('renderRecipePlanar', () => {
 		const recipe = enablePeakNormalization(createInitialEditRecipe(0.5), -1);
 		const peakBefore = measureRecipePeak(source, recipe);
 		expect(peakBefore).toBeCloseTo(0.25, 5);
+		const gain = recipeNormalizeGainLinear(source, recipe);
+		expect(gain).toBeCloseTo(Math.pow(10, -1 / 20) / 0.25, 5);
 		const out = renderRecipePlanar(source, recipe);
 		const target = Math.pow(10, -1 / 20);
 		let peak = 0;

@@ -69,7 +69,8 @@ export {
 	retainedSourceRanges,
 	segmentDurationSeconds,
 	trimToSelection,
-	adjustRetainedBoundary
+	adjustRetainedBoundary,
+	previewEditRecipeFromRanges
 } from './edit-recipe';
 export type { RetainedSourceRange } from './edit-recipe';
 export type * from './types';

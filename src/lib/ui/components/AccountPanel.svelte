@@ -3,6 +3,8 @@
 	import { deleteAllLocalData } from '$lib/persistence';
 	import { audiotoolAuth, captureController, connect, disconnect } from '$lib/state';
 	import ConfirmDialog from '$lib/ui/components/ConfirmDialog.svelte';
+	import GhostButton from '$lib/ui/components/GhostButton.svelte';
+	import PrimaryButton from '$lib/ui/components/PrimaryButton.svelte';
 	import StatusLabel from '$lib/ui/components/StatusLabel.svelte';
 
 	let clearing = $state(false);
@@ -67,18 +69,13 @@
 		<p class="error">{auth.error.message}</p>
 	{/if}
 	{#if auth.state === 'connected'}
-		<button type="button" class="action" onclick={handleDisconnect} disabled={authBusy}>
+		<GhostButton disabled={authBusy} onclick={handleDisconnect}>
 			{authBusy ? 'Working…' : 'Disconnect'}
-		</button>
+		</GhostButton>
 	{:else}
-		<button
-			type="button"
-			class="action"
-			onclick={handleConnect}
-			disabled={!auth.configured || authBusy}
-		>
+		<PrimaryButton disabled={!auth.configured || authBusy} onclick={handleConnect}>
 			{authBusy ? 'Working…' : 'Connect Audiotool'}
-		</button>
+		</PrimaryButton>
 	{/if}
 </section>
 
@@ -88,9 +85,9 @@
 		The Collection contains Local Drafts saved on this device only. There is no cloud backup and no
 		cross-device sync. Clearing site data in the browser also removes them.
 	</p>
-	<button type="button" class="danger" onclick={requestDeleteAll} disabled={clearing}>
+	<GhostButton danger disabled={clearing} onclick={requestDeleteAll}>
 		{clearing ? 'Clearing…' : 'Delete all local data'}
-	</button>
+	</GhostButton>
 	{#if clearMessage}
 		<p class="body">{clearMessage}</p>
 	{/if}
@@ -144,30 +141,6 @@
 
 	.error {
 		color: var(--signal);
-	}
-
-	.action,
-	.danger {
-		justify-self: start;
-		min-height: var(--touch-min);
-		padding: 0 var(--space-4);
-		border: 1px solid var(--ink);
-		border-radius: var(--radius-control);
-		background: var(--ink);
-		color: var(--surface);
-		font-size: var(--text-button);
-		font-weight: 600;
-	}
-
-	.action:disabled,
-	.danger:disabled {
-		opacity: 0.5;
-	}
-
-	.danger {
-		background: var(--surface);
-		color: var(--signal);
-		border-color: var(--signal);
 	}
 
 	.debug-link {

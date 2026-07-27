@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="SampleScout">
-	<rect width="192" height="192" fill="#f7f7f3"/>
+	<rect width="192" height="192" fill="#f0f0ec"/>
 	<rect x="16" y="16" width="160" height="160" fill="none" stroke="#111111" stroke-width="4"/>
 	<circle cx="96" cy="96" r="28" fill="#ff1f2e"/>
 	<text x="96" y="168" text-anchor="middle" font-family="monospace" font-size="18" fill="#111111">SS</text>

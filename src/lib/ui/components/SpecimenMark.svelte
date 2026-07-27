@@ -3,7 +3,7 @@
 
 	interface Props {
 		mark: SpecimenMark;
-		size?: 'default' | 'compact';
+		size?: 'default' | 'compact' | 'editor';
 	}
 
 	let { mark, size = 'default' }: Props = $props();
@@ -12,7 +12,11 @@
 </script>
 
 <span
-	class={['specimen-mark-frame', size === 'compact' && 'specimen-mark-frame--compact']}
+	class={[
+		'specimen-mark-frame',
+		size === 'compact' && 'specimen-mark-frame--compact',
+		size === 'editor' && 'specimen-mark-frame--editor'
+	]}
 	style:color={colorVar}
 >
 	<svg
@@ -58,6 +62,15 @@
 	.specimen-mark-frame--compact .specimen-mark {
 		width: var(--space-5);
 		height: var(--space-5);
+	}
+
+	.specimen-mark-frame--editor {
+		padding: var(--space-1);
+	}
+
+	.specimen-mark-frame--editor .specimen-mark {
+		width: calc(var(--space-5) - var(--space-1));
+		height: calc(var(--space-5) - var(--space-1));
 	}
 
 	rect {

@@ -9,6 +9,7 @@
 		type TakeMetadataPatch,
 		type Visibility
 	} from '$lib/domain';
+	import PrimaryButton from '$lib/ui/components/PrimaryButton.svelte';
 
 	let {
 		metadata,
@@ -236,9 +237,9 @@
 		{#if saving}
 			<span class="status" aria-live="polite">Saving…</span>
 		{/if}
-		<button type="submit" class="save" disabled={!canSave}>
+		<PrimaryButton type="submit" disabled={!canSave}>
 			{saving ? 'Saving…' : 'Save'}
-		</button>
+		</PrimaryButton>
 	</div>
 </form>
 
@@ -409,28 +410,6 @@
 		justify-content: flex-end;
 		gap: var(--space-3);
 		margin-top: var(--space-1);
-	}
-
-	.save {
-		min-height: var(--touch-min);
-		padding: 0 var(--space-4);
-		border: 1px solid var(--ink);
-		border-radius: var(--radius-control);
-		background: var(--ink);
-		color: var(--surface);
-		font-family: var(--font-mono);
-		font-size: var(--text-button);
-		font-weight: 600;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-		cursor: pointer;
-	}
-
-	.save:disabled {
-		border-color: var(--line);
-		background: var(--line);
-		color: var(--surface);
-		cursor: not-allowed;
 	}
 
 	.status {

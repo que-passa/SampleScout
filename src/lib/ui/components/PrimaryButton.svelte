@@ -72,7 +72,7 @@
 		display: grid;
 		place-items: center;
 		min-height: calc(var(--touch-min) - var(--space-2));
-		padding: 0 var(--space-4);
+		padding: 0 var(--space-3);
 		box-sizing: border-box;
 		border-radius: var(--radius-panel);
 		/* Brighter than pure --brand; hover lifts further toward --brand-soft. */

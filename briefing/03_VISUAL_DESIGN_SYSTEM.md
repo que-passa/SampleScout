@@ -49,7 +49,7 @@ Collection identity should add bounded delight through scientific catalog rhythm
 ### Core palette
 
 ```css
---paper: #f7f7f3;
+--paper: #f0f0ec;
 --surface: #ffffff;
 --surface-subtle: #efefeb;
 --ink: #111111;
@@ -173,14 +173,14 @@ Suggested tokens:
 
 ### Mobile
 
-- Outer padding: 16 px
+- Outer padding: 12 px (`--page-gutter` / `--space-3`)
 - List gap: 12 px (prefer air over packing)
 - Major section gap: 24 px
 - Fixed control safe-area padding: `env(safe-area-inset-bottom)`
 
 ### Desktop
 
-- Pane padding: 16–24 px
+- Pane padding: 16–24 px; page gutter: 24 px (`--page-gutter` / `--space-5`)
 - Pane separation: 1 px rule
 - Avoid floating cards where a structural panel is clearer
 
@@ -209,31 +209,23 @@ Use large pill shapes only for toggles, tags, or status where the shape has sema
 ### Primary
 
 - Recessed well (`--surface-subtle` + inset depth) with a raised `--brand` face and `--ink` label
-- Same physical stack as Account / Collection / Loop instrument chrome; brand face marks the CTA (parallel to Record’s signal face)
 - Clear hover (lighter well + slightly lifted brand face) and pressed (deeper well + darkened brand face) states
 - Minimum 44 px mobile height (`--touch-min`)
-- Use `PrimaryButton` for take **Collect**, Collection footer **Upload**, and upload-sheet confirm **Upload**
-
-### Secondary
-
-- Same recessed well + raised `--surface` face as Account, Capture Collection shortcut, and take-editor **Loop**
-- Quieter latch/status chrome; Loop latched shows a `--brand` live LED like Account connected
-- Flat ink-border secondary remains available for rarer text actions that are not instrument wells
+- **Only Primary and Record use 3D well/face chrome**
+- Use `PrimaryButton` for take **Collect**, Collection footer **Upload**, upload-sheet confirm **Upload**, and other main commit CTAs
 
 ### Ghost
 
-- Idle: transparent fill, no border, ink text/icon
-- Hover: flat `--surface-subtle` well + `--surface` face (no inset shadows)
-- Sticky on / expanded: Account / Collection default recessed well + raised `--surface` face
-- `:active` (while pressed): deeper well inset; `--brand` for text/icon fill (destructive ghosts keep `--signal`)
-- Use `GhostButton` / `BackButton` for Back, Collection **Select** / **Import** / select-mode **Edit data** / **Discard**, take-editor **Reset**, **Field Notes**, sheet close
+- Idle: transparent fill, no border, ink text/icon (nav chrome may use muted ink)
+- Hover / sticky on / press: flat `--surface-subtle` well + `--surface` face (no inset shadows)
+- `:active` (while pressed): `--brand` for text/icon fill; destructive ghosts keep `--signal`
+- Optional `compact` (~30px) for waveform toolbar; optional brand **live** LED for connected Account / latched Loop
+- Use `GhostButton` / `BackButton` for Back, Account, Collection shortcut, Loop, Collection **Select** / **Import** / select-mode actions, take-editor **Reset** / **Play** / **Field Notes**, sheet close, cancel, and destructive confirm labels
 - Collection **Upload** and take **Collect** use **Primary**, not Ghost
-- Compact waveform chrome (zoom ±, Normalize / Trim) may keep a smaller flat hit target for now
 
 ### Destructive
 
-- White background with signal border/text
-- Filled signal style only during confirmation or active destructive recording state
+- Same ghost treatment with `--signal` label/icon only (no filled signal button chrome)
 
 ### Record
 

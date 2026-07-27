@@ -36,6 +36,7 @@
 	import SheetOverlay from '$lib/ui/components/SheetOverlay.svelte';
 	import TakeRow from '$lib/ui/components/TakeRow.svelte';
 	import AppShell from '$lib/ui/layouts/AppShell.svelte';
+	import { Icon } from '$lib/ui/icons';
 	import { resolve } from '$app/paths';
 	import { goto } from '$app/navigation';
 
@@ -563,17 +564,6 @@
 				<p class="error-line" role="alert">{importError}</p>
 			{/if}
 
-			{#if selectMode && sessions.length > 0}
-				<div class="select-bar">
-					<p class="select-count">{selectedCount} selected</p>
-					<div class="select-actions">
-						<button type="button" class="text-button" onclick={selectAllVisible}>
-							Select all
-						</button>
-						<button type="button" class="text-button" onclick={clearSelection}>Clear</button>
-					</div>
-				</div>
-			{/if}
 			{#if batchStatus}
 				<p class="status-line" role="status">{batchStatus}</p>
 			{/if}
@@ -646,53 +636,69 @@
 			</p>
 		</div>
 
-		<footer class="actions-bar" aria-label="Collection actions">
-			{#if sessions.length > 0}
-				<GhostButton
-					active={selectMode}
-					onclick={toggleSelectMode}
-					disabled={uploading || discarding}
-				>
-					{selectMode ? 'Done' : 'Select'}
-				</GhostButton>
-			{/if}
+		<div class="bottom-chrome">
 			{#if selectMode && sessions.length > 0}
-				<div class="action-group">
-					<GhostButton disabled={!selectionActionsEnabled} onclick={openEditData}>
-						Edit data
-					</GhostButton>
-					<GhostButton danger disabled={!selectionActionsEnabled} onclick={requestBatchDiscard}>
-						Discard
-					</GhostButton>
-					<PrimaryButton
-						disabled={!selectionActionsEnabled || selectedPendingUploadTakes.length === 0}
-						onclick={uploadSelected}
-					>
-						Upload
-					</PrimaryButton>
+				<div class="select-bar" aria-label="Selection">
+					<GhostButton compact onclick={selectAllVisible}>Select all</GhostButton>
+					<p class="select-count">{selectedCount} selected</p>
 				</div>
-			{:else}
-				<GhostButton onclick={openImportPicker} disabled={importing || uploading}>
-					Import
-				</GhostButton>
-				{#if sessions.length > 0}
-					<PrimaryButton
-						onclick={uploadAllPending}
-						disabled={uploading || importing || pendingUploadTakes.length === 0}
-					>
-						Upload
-					</PrimaryButton>
-				{/if}
 			{/if}
-			<input
-				{@attach bindFileInput}
-				type="file"
-				accept="audio/*"
-				multiple
-				class="file-input"
-				onchange={(event) => void onImportFiles(event)}
-			/>
-		</footer>
+
+			<footer class="actions-bar" aria-label="Collection actions">
+				{#if sessions.length > 0}
+					<GhostButton onclick={toggleSelectMode} disabled={uploading || discarding}>
+						{selectMode ? 'Done' : 'Select'}
+					</GhostButton>
+				{/if}
+				{#if selectMode && sessions.length > 0}
+					<div class="action-group">
+						<GhostButton
+							icon
+							disabled={!selectionActionsEnabled}
+							onclick={openEditData}
+							aria-label="Field Notes"
+						>
+							<Icon name="field-notes" />
+						</GhostButton>
+						<GhostButton
+							icon
+							danger
+							disabled={!selectionActionsEnabled}
+							onclick={requestBatchDiscard}
+							aria-label="Discard"
+						>
+							<Icon name="trash" />
+						</GhostButton>
+						<PrimaryButton
+							disabled={!selectionActionsEnabled || selectedPendingUploadTakes.length === 0}
+							onclick={uploadSelected}
+						>
+							Upload
+						</PrimaryButton>
+					</div>
+				{:else}
+					<GhostButton onclick={openImportPicker} disabled={importing || uploading}>
+						Import
+					</GhostButton>
+					{#if sessions.length > 0}
+						<PrimaryButton
+							onclick={uploadAllPending}
+							disabled={uploading || importing || pendingUploadTakes.length === 0}
+						>
+							Upload
+						</PrimaryButton>
+					{/if}
+				{/if}
+				<input
+					{@attach bindFileInput}
+					type="file"
+					accept="audio/*"
+					multiple
+					class="file-input"
+					onchange={(event) => void onImportFiles(event)}
+				/>
+			</footer>
+		</div>
 	</section>
 
 	{#if editDataOpen}
@@ -772,7 +778,13 @@
 		display: grid;
 		align-content: start;
 		gap: var(--space-4);
-		padding: var(--space-4);
+		padding: var(--space-2) var(--page-gutter) var(--space-4);
+	}
+
+	.bottom-chrome {
+		border-top: 1px solid var(--line);
+		background: var(--paper);
+		z-index: 1;
 	}
 
 	.actions-bar {
@@ -780,11 +792,8 @@
 		align-items: center;
 		justify-content: flex-start;
 		gap: var(--space-3);
-		padding: var(--space-2) var(--space-4);
+		padding: var(--space-2) var(--page-gutter);
 		padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom, 0px));
-		border-top: 1px solid var(--line);
-		background: var(--paper);
-		z-index: 1;
 	}
 
 	.action-group {
@@ -819,41 +828,18 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: var(--space-3);
+		padding: var(--space-1) var(--page-gutter);
+		border-bottom: 1px solid var(--line);
 	}
 
 	.select-count {
 		margin: 0;
-		font-size: var(--text-meta);
+		font-size: var(--text-label);
 		font-weight: 600;
 		letter-spacing: 0.04em;
 		text-transform: uppercase;
 		color: var(--ink-muted);
-	}
-
-	.select-actions {
-		display: flex;
-		gap: var(--space-3);
-	}
-
-	.text-button {
-		min-height: var(--touch-min);
-		padding: 0;
-		border: none;
-		background: transparent;
-		color: var(--ink);
-		font-size: var(--text-annotation);
-		font-weight: 600;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-		text-decoration: underline;
-		text-underline-offset: var(--space-1);
-		cursor: pointer;
-	}
-
-	.text-button:disabled {
-		opacity: 0.5;
-		cursor: wait;
-		text-decoration: none;
+		flex-shrink: 0;
 	}
 
 	.loading {
@@ -872,7 +858,7 @@
 
 	.session-header {
 		display: flex;
-		align-items: flex-end;
+		align-items: center;
 		justify-content: space-between;
 		gap: var(--space-3);
 	}
@@ -905,12 +891,8 @@
 
 	@media (min-width: 900px) {
 		.drafts-scroll {
-			padding: var(--space-5);
-		}
-
-		.actions-bar {
-			padding-left: var(--space-5);
-			padding-right: var(--space-5);
+			padding-top: var(--space-3);
+			padding-bottom: var(--space-5);
 		}
 	}
 </style>

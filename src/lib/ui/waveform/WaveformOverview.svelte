@@ -8,7 +8,9 @@
 		resamplePeaksWindow
 	} from '$lib/audio/peaks';
 	import type { DecodedPlanarAudio } from '$lib/audio/decode';
-	import { MIN_SEGMENT_SECONDS } from '$lib/domain/edit-recipe';
+	import { MIN_SEGMENT_SECONDS, previewEditRecipeFromRanges } from '$lib/domain/edit-recipe';
+	import type { EditRecipe } from '$lib/domain/types';
+	import { recipeNormalizeGainLinear } from '$lib/audio/render';
 	import {
 		MIN_VIEW_SPAN,
 		ZOOM_STEP_IN,
@@ -22,6 +24,7 @@
 		type ViewWindow
 	} from './view-window';
 	import { Icon } from '$lib/ui/icons';
+	import GhostButton from '$lib/ui/components/GhostButton.svelte';
 
 	let {
 		data,
@@ -40,6 +43,7 @@
 		selectionStart = $bindable(null),
 		selectionEnd = $bindable(null),
 		retainedRanges = undefined,
+		peakNormalization = undefined,
 		/** Stable id for the take/source so detail PCM cache resets on navigation. */
 		detailSourceKey = null,
 		/** Lazy full decode for sample-accurate peaks when zoomed past overview density. */
@@ -47,6 +51,7 @@
 		onSeek,
 		onRetry,
 		onSelectionChange,
+		onSelectionGestureEnd,
 		onTrimBoundaryCommit,
 		onFadeBoundaryCommit,
 		/** When true, trim / fade / selection edits are disabled (zoom / pan / seek still work). */
@@ -72,11 +77,14 @@
 			fadeInSeconds?: number;
 			fadeOutSeconds?: number;
 		}>;
+		peakNormalization?: EditRecipe['peakNormalization'];
 		detailSourceKey?: string | null;
 		ensureDetailPcm?: () => Promise<DecodedPlanarAudio | null>;
 		onSeek?: (seconds: number) => void;
 		onRetry?: () => void;
 		onSelectionChange?: (start: number, end: number) => void;
+		/** Fires when a selection drag / edge / move gesture completes (not on tap-to-seek). */
+		onSelectionGestureEnd?: (start: number, end: number) => void;
 		onTrimBoundaryCommit?: (detail: {
 			rangeIndex: number;
 			edge: 'start' | 'end';
@@ -131,6 +139,8 @@
 	let detailPcm = $state.raw<DecodedPlanarAudio | null>(null);
 	/** Non-reactive: which `detailSourceKey` `detailPcm` belongs to. */
 	let detailForKey: string | null = null;
+	/** Linear gain for peak-normalize waveform preview (1 = off). */
+	let normalizePreviewGain = $state(1);
 
 	const DRAG_THRESHOLD_PX = 4;
 	/** ~half of `--touch-min` (44) for easier edge grabs. */
@@ -321,6 +331,11 @@
 		selectionStart = lo;
 		selectionEnd = hi;
 		onSelectionChange?.(lo, hi);
+	}
+
+	function notifySelectionGestureEnd() {
+		if (selectionLo == null || selectionHi == null || !(selectionHi > selectionLo)) return;
+		onSelectionGestureEnd?.(selectionLo, selectionHi);
 	}
 
 	function xForTime(t: number, t0: number, viewDur: number, width: number): number {
@@ -720,6 +735,7 @@
 		const viewDurAbs = Math.max(1e-6, (vEnd - vStart) * durationSeconds);
 		const fadeRanges = sortedRetainedRanges();
 		const applyFadeViz = fadeRanges.some((r) => r.fadeInSeconds > 1e-6 || r.fadeOutSeconds > 1e-6);
+		const applyNormalizeViz = normalizePreviewGain !== 1;
 
 		for (let lane = 0; lane < laneCount; lane += 1) {
 			const y0 = waveTop + lane * (laneH + laneGap);
@@ -765,6 +781,10 @@
 					min *= gain;
 					max *= gain;
 				}
+				if (applyNormalizeViz && timeInRetained(tMid, fadeRanges)) {
+					min *= normalizePreviewGain;
+					max *= normalizePreviewGain;
+				}
 				const y1 = midY - max * (laneH / 2);
 				const y2 = midY - min * (laneH / 2);
 				const top = Math.min(y1, y2);
@@ -802,7 +822,7 @@
 		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 		ctx.clearRect(0, 0, cssWidth, cssHeight);
 
-		const paper = isStage ? readCssVar('--paper', '#f7f7f3') : readCssVar('--surface', '#ffffff');
+		const paper = isStage ? readCssVar('--paper', '#f0f0ec') : readCssVar('--surface', '#ffffff');
 		const line = readCssVar('--line', '#c9c9c3');
 		const ink = readCssVar('--ink', '#111111');
 		const signal = readCssVar('--signal', '#ff1f2e');
@@ -944,7 +964,7 @@
 		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 		ctx.clearRect(0, 0, navWidth, navHeight);
 
-		const paper = readCssVar('--paper', '#f7f7f3');
+		const paper = readCssVar('--paper', '#f0f0ec');
 		const subtle = readCssVar('--surface-subtle', '#efefeb');
 		const ink = readCssVar('--ink', '#111111');
 		const signal = readCssVar('--signal', '#ff1f2e');
@@ -1417,6 +1437,7 @@
 			}
 		}
 		syncMainCursor(clientX);
+		notifySelectionGestureEnd();
 		return true;
 	}
 
@@ -1502,6 +1523,7 @@
 			}
 		}
 		syncMainCursor(clientX);
+		notifySelectionGestureEnd();
 		return true;
 	}
 
@@ -2053,13 +2075,17 @@
 		}
 
 		if (wasSelect && event.pointerId === wasSelect.pointerId) {
+			const dragged = wasSelect.dragged;
 			endSelectionGesture();
 			try {
 				(event.currentTarget as HTMLCanvasElement).releasePointerCapture(event.pointerId);
 			} catch {
 				/* already released */
 			}
-			if (!wasSelect.dragged && !event.shiftKey && event.button !== 1) {
+			if (dragged) {
+				notifySelectionGestureEnd();
+			}
+			if (!dragged && !event.shiftKey && event.button !== 1) {
 				const seekTime = timeAtClientX(event.clientX) ?? wasSelect.originTime;
 				onSeek?.(seekTime);
 			}
@@ -2171,6 +2197,34 @@
 	}
 
 	$effect(() => {
+		const norm = peakNormalization;
+		const loader = ensureDetailPcm;
+		const key = detailSourceKey ?? null;
+		const ranges = sortedRetainedRanges();
+
+		if (!norm?.enabled || !loader || !key || ranges.length === 0 || !(durationSeconds > 0)) {
+			normalizePreviewGain = 1;
+			return;
+		}
+
+		let cancelled = false;
+		const recipe = previewEditRecipeFromRanges(ranges, norm);
+
+		void loader()
+			.then((pcm) => {
+				if (cancelled || !pcm) return;
+				normalizePreviewGain = recipeNormalizeGainLinear(pcm, recipe);
+			})
+			.catch(() => {
+				if (!cancelled) normalizePreviewGain = 1;
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	});
+
+	$effect(() => {
 		const key = detailSourceKey ?? null;
 		const loader = ensureDetailPcm;
 		const need = wantsDetail;
@@ -2248,6 +2302,8 @@
 		void selectionEnd;
 		void retainedRanges;
 		void previewRetainedRanges;
+		void peakNormalization;
+		void normalizePreviewGain;
 		void trimDrag;
 		void detailPcm;
 		draw();
@@ -2268,6 +2324,8 @@
 		void navHeight;
 		void retainedRanges;
 		void previewRetainedRanges;
+		void peakNormalization;
+		void normalizePreviewGain;
 		void trimDrag;
 		drawNavigator();
 	});
@@ -2275,26 +2333,26 @@
 
 {#snippet zoomControls(compact: boolean)}
 	<div class={['zoom-controls', compact && 'zoom-compact']} role="group" aria-label="Waveform zoom">
-		<button
-			type="button"
-			class="zoom-btn"
+		<GhostButton
+			icon
+			compact
 			onclick={() => zoomBy(ZOOM_STEP_OUT)}
 			disabled={analyzing || !isZoomed}
 			aria-label="Zoom out"
 			title="Zoom out"
 		>
 			<Icon name="zoom-out" size={16} />
-		</button>
-		<button
-			type="button"
-			class="zoom-btn"
+		</GhostButton>
+		<GhostButton
+			icon
+			compact
 			onclick={() => zoomBy(ZOOM_STEP_IN)}
 			disabled={analyzing}
 			aria-label="Zoom in"
 			title="Zoom in"
 		>
 			<Icon name="zoom-in" size={16} />
-		</button>
+		</GhostButton>
 	</div>
 {/snippet}
 
@@ -2475,9 +2533,9 @@
 		</p>
 	{/if}
 	{#if error && onRetry}
-		<button type="button" class="zoom-btn label retry" onclick={() => onRetry()}
-			>Retry analysis</button
-		>
+		<div class="retry">
+			<GhostButton compact onclick={() => onRetry()}>Retry analysis</GhostButton>
+		</div>
 	{/if}
 </div>
 
@@ -2546,75 +2604,6 @@
 		justify-content: flex-end;
 		gap: var(--space-1);
 		min-width: 0;
-	}
-
-	.chrome-actions :global(.chrome-action) {
-		box-sizing: border-box;
-		min-width: 30px;
-		min-height: 30px;
-		padding: 0 var(--space-2);
-		border: none;
-		border-radius: var(--radius-control);
-		background: transparent;
-		color: var(--ink);
-		font-size: var(--text-label);
-		font-weight: 600;
-		letter-spacing: 0.04em;
-		line-height: 1;
-		text-transform: uppercase;
-		cursor: pointer;
-	}
-
-	.chrome-actions :global(.chrome-action:hover:not(:disabled)) {
-		background: var(--surface-subtle);
-	}
-
-	.chrome-actions :global(.chrome-action:active:not(:disabled)) {
-		background: var(--surface-subtle);
-		color: var(--brand);
-	}
-
-	.chrome-actions :global(.chrome-action:disabled) {
-		color: var(--disabled);
-		cursor: not-allowed;
-	}
-
-	.zoom-btn {
-		box-sizing: border-box;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		min-width: 30px;
-		min-height: 30px;
-		padding: 0 var(--space-1);
-		border: none;
-		border-radius: var(--radius-control);
-		background: transparent;
-		color: var(--ink);
-		font-size: var(--text-label);
-		font-weight: 600;
-		letter-spacing: 0.04em;
-		line-height: 1;
-		cursor: pointer;
-	}
-
-	.zoom-btn.label {
-		padding: 0 var(--space-2);
-		text-transform: uppercase;
-	}
-
-	.zoom-btn:hover:not(:disabled) {
-		background: var(--surface-subtle);
-	}
-
-	.zoom-btn:active:not(:disabled) {
-		background: var(--surface-subtle);
-		color: var(--brand);
-	}
-
-	.zoom-btn:disabled {
-		color: var(--disabled);
-		cursor: not-allowed;
 	}
 
 	.retry {
