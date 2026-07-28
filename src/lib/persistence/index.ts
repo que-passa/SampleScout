@@ -74,7 +74,9 @@ import {
 	getAppSettings,
 	putAppSettings,
 	putCapturePreferences,
-	putSessionNamePresets
+	putRecentTags,
+	putSessionNamePresets,
+	rememberRecentTagsFromUse
 } from './settings';
 import {
 	deleteSuggestedRegions,
@@ -153,7 +155,9 @@ export {
 	getAppSettings,
 	putAppSettings,
 	putCapturePreferences,
+	putRecentTags,
 	putSessionNamePresets,
+	rememberRecentTagsFromUse,
 	deleteSuggestedRegions,
 	getSuggestedRegions,
 	isSuggestedRegionsCacheFresh,

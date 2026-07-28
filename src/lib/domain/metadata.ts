@@ -1,5 +1,8 @@
 import { createId, formatSequence, nowIso } from './ids';
 import { formatFieldSessionName } from './catalog';
+import { AUDIO_TAG_ALGORITHM_VERSION } from '$lib/config/audio-tags';
+import { isHiddenSystemTag, tagsEqual } from './tags';
+export { formatTagList, parseTagList } from './tags';
 import type {
 	CaptureSession,
 	EditRecipe,
@@ -36,26 +39,48 @@ export function formatMetadataOrigin(origin: MetadataOrigin | undefined): string
 	return ORIGIN_LABELS[origin] ?? origin;
 }
 
-/** Parse a comma/whitespace tag string into unique non-empty tags. */
-export function parseTagList(raw: string): string[] {
-	const seen = new Set<string>();
-	const tags: string[] = [];
-	for (const part of raw.split(/[,;\n]+/)) {
-		const tag = part.trim();
-		if (!tag || seen.has(tag)) continue;
-		seen.add(tag);
-		tags.push(tag);
+/** True when YAMNet (or similar) may replace generic default tags. */
+export function canApplyGeneratedTags(
+	metadata: TakeMetadata,
+	options?: { force?: boolean; algorithmVersion?: number }
+): boolean {
+	const origin = metadata.provenance.tags;
+	if (origin === 'manual' || origin === 'session-default' || origin === 'user-preference') {
+		return false;
 	}
-	return tags;
+	if (origin === 'application-default') return true;
+	if (origin === 'generated') {
+		if (options?.force) return true;
+		const current = options?.algorithmVersion ?? AUDIO_TAG_ALGORITHM_VERSION;
+		const stored = metadata.provenance.tagsAlgorithmVersion;
+		return stored == null || stored < current;
+	}
+	return false;
 }
 
-export function formatTagList(tags: string[]): string {
-	return tags.join(', ');
-}
+/**
+ * Apply auto-generated upload tags. Returns null when tags must not be overwritten
+ * (manual, session-default, user-preference).
+ */
+export function applyGeneratedTags(
+	metadata: TakeMetadata,
+	suggestedTags: readonly string[],
+	algorithmVersion: number
+): TakeMetadata | null {
+	if (!canApplyGeneratedTags(metadata)) return null;
 
-function tagsEqual(a: string[], b: string[]): boolean {
-	if (a.length !== b.length) return false;
-	return a.every((tag, index) => tag === b[index]);
+	const tags = suggestedTags.filter((tag) => tag.trim() && !isHiddenSystemTag(tag)).slice(0, 12);
+	if (tags.length === 0) return null;
+
+	return {
+		...metadata,
+		tags: [...tags],
+		provenance: {
+			...metadata.provenance,
+			tags: 'generated',
+			tagsAlgorithmVersion: algorithmVersion
+		}
+	};
 }
 
 /**
@@ -291,7 +316,7 @@ export function generateTakeMetadata(input: {
 				? [...input.recentTags]
 				: input.presetTags && input.presetTags.length > 0
 					? [...input.presetTags]
-					: ['recording'];
+					: [];
 
 	const tagOrigin =
 		input.sessionDefaults.tags.length > 0

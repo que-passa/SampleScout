@@ -2,13 +2,21 @@ import { describe, expect, it } from 'vitest';
 import {
 	applyFadeIn,
 	applyFadeOut,
+	cycleHighPassHz,
 	cutSelection,
 	enablePeakNormalization,
+	setRecipeGainDb,
+	toggleGate,
 	trimToSelection
 } from '$lib/domain/edit-recipe';
 import { createInitialEditRecipe } from '$lib/domain/metadata';
 import type { DecodedPlanarAudio } from '$lib/audio/decode';
-import { measureRecipePeak, recipeNormalizeGainLinear, renderRecipePlanar } from './index';
+import {
+	measureRecipePeak,
+	recipeNormalizeGainDb,
+	recipeNormalizeGainLinear,
+	renderRecipePlanar
+} from './index';
 
 function makeTone(opts: {
 	seconds: number;
@@ -82,5 +90,52 @@ describe('renderRecipePlanar', () => {
 		}
 		expect(peak).toBeCloseTo(target, 5);
 		expect(peak).toBeLessThanOrEqual(target + 1e-6);
+	});
+
+	it('applies manual gain and high-pass processing', () => {
+		const source = makeTone({ seconds: 0.2, amplitude: 0.4 });
+		let recipe = setRecipeGainDb(createInitialEditRecipe(0.2), 6);
+		recipe = cycleHighPassHz(recipe);
+		recipe = cycleHighPassHz(recipe);
+		expect(recipe.processing?.highPassHz).toBe(80);
+		const out = renderRecipePlanar(source, recipe);
+		const rawPeak = 0.4 * Math.pow(10, 6 / 20);
+		expect(measureRecipePeak(source, recipe)).toBeGreaterThan(0);
+		expect(out.channels[0]?.[100] ?? 0).not.toBeCloseTo(rawPeak, 1);
+	});
+
+	it('measureRecipePeak ignores committed peak normalization', () => {
+		const source = makeTone({ seconds: 0.5, amplitude: 0.25 });
+		const recipe = enablePeakNormalization(createInitialEditRecipe(0.5), -1);
+		expect(measureRecipePeak(source, recipe)).toBeCloseTo(0.25, 5);
+		expect(recipeNormalizeGainDb(source, recipe)).toBeCloseTo(
+			20 * Math.log10(Math.pow(10, -1 / 20) / 0.25),
+			4
+		);
+	});
+
+	it('applies gate and soft limit when enabled', () => {
+		const sampleRate = 1000;
+		const frameCount = 200;
+		const channel = new Float32Array(frameCount);
+		for (let i = 0; i < frameCount; i += 1) {
+			channel[i] = i < 100 ? 0.01 : 0.5;
+		}
+		const source: DecodedPlanarAudio = {
+			channels: [channel],
+			frameCount,
+			durationSeconds: frameCount / sampleRate,
+			channelCount: 1,
+			sampleRate
+		};
+		let recipe = toggleGate(createInitialEditRecipe(source.durationSeconds));
+		recipe = {
+			...recipe,
+			processing: { ...recipe.processing!, softLimitEnabled: true }
+		};
+		recipe = enablePeakNormalization(recipe, -1);
+		const out = renderRecipePlanar(source, recipe);
+		const quiet = Math.max(...Array.from(out.channels[0]!.slice(0, 100)).map(Math.abs));
+		expect(quiet).toBeLessThan(0.05);
 	});
 });

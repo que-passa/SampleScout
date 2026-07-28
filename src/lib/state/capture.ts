@@ -26,6 +26,7 @@ import {
 } from '$lib/persistence/takes';
 import { processDueCleanups } from '$lib/persistence/cleanup';
 import { runMigrations } from '$lib/persistence/db';
+import { scheduleGeneratedTagsForTake } from './generated-tags';
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
 import { actionToast } from './action-toast';
@@ -382,6 +383,8 @@ class CaptureController {
 
 		const committed = await commitSavedTake(pending, this.session);
 		const takes = await listTakesForSession(committed.session.id);
+
+		scheduleGeneratedTagsForTake(committed.take);
 
 		try {
 			if (navigator.storage?.persist) {

@@ -1,7 +1,12 @@
 import type { EditRecipe, RetainedSegment } from '$lib/domain/types';
-import { recipeDurationSeconds, segmentDurationSeconds } from '$lib/domain/edit-recipe';
+import {
+	DEFAULT_SOFT_LIMIT_DBFS,
+	recipeDurationSeconds,
+	segmentDurationSeconds
+} from '$lib/domain/edit-recipe';
 import type { DecodedPlanarAudio } from '$lib/audio/decode';
 import { createAppError } from '$lib/domain/ids';
+import { applyRecipeProcessingInPlace, applySoftLimitInPlace } from '$lib/audio/render/processing';
 
 function dbToLinear(db: number): number {
 	return Math.pow(10, db / 20);
@@ -53,6 +58,8 @@ export function renderRecipePlanar(
 		writeFrame = writeSegment(source, segment, channels, writeFrame);
 	}
 
+	applyRecipeProcessingInPlace(channels, sampleRate, recipe.processing);
+
 	if (recipe.peakNormalization?.enabled) {
 		const peak = measurePeak(channels);
 		if (peak > 0) {
@@ -64,6 +71,11 @@ export function renderRecipePlanar(
 				}
 			}
 		}
+	}
+
+	if (recipe.processing?.softLimitEnabled) {
+		const ceilingDbfs = recipe.peakNormalization?.targetDbfs ?? DEFAULT_SOFT_LIMIT_DBFS;
+		applySoftLimitInPlace(channels, ceilingDbfs);
 	}
 
 	return {
@@ -124,14 +136,46 @@ export function recipeNormalizeGainLinear(source: DecodedPlanarAudio, recipe: Ed
 	return dbToLinear(recipe.peakNormalization.targetDbfs) / peak;
 }
 
-/** Peak of rendered output before peak-normalization gain. */
+/** Peak of rendered output before peak-normalization gain (includes processing). */
 export function measureRecipePeak(source: DecodedPlanarAudio, recipe: EditRecipe): number {
 	const withoutNorm: EditRecipe = {
 		version: 1,
-		segments: recipe.segments.map((segment) => ({ ...segment }))
+		segments: recipe.segments.map((segment) => ({ ...segment })),
+		peakNormalization: undefined,
+		processing: recipe.processing ? { ...recipe.processing, softLimitEnabled: false } : undefined
 	};
 	const rendered = renderRecipePlanar(source, withoutNorm);
 	return measurePeak(rendered.channels);
+}
+
+/** Peak-normalize gain in dB (null when disabled or peak is zero). */
+export function recipeNormalizeGainDb(
+	source: DecodedPlanarAudio,
+	recipe: EditRecipe
+): number | null {
+	if (!recipe.peakNormalization?.enabled) return null;
+	const linear = recipeNormalizeGainLinear(source, recipe);
+	if (!(linear > 0) || !Number.isFinite(linear)) return null;
+	return 20 * Math.log10(linear);
+}
+
+/** Combined linear preview gain (segment gain + peak normalize) for waveform scaling. */
+export function recipePreviewGainLinear(source: DecodedPlanarAudio, recipe: EditRecipe): number {
+	let gain = 1;
+	for (const segment of recipe.segments) {
+		gain = Math.max(gain, dbToLinear(segment.gainDb));
+	}
+	if (recipe.peakNormalization?.enabled) {
+		gain *= recipeNormalizeGainLinear(source, recipe);
+	}
+	return gain;
+}
+
+/** Whether recipe processing changes peak shape (not just uniform gain). */
+export function recipeNeedsProcessingEnvelopePreview(recipe: EditRecipe): boolean {
+	const processing = recipe.processing;
+	if (!processing) return false;
+	return processing.gateEnabled || processing.highPassHz > 0 || processing.softLimitEnabled;
 }
 
 /** Attach calculated normalize gain after measuring retained peak. */

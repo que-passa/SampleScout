@@ -19,7 +19,8 @@
 		"test:ci": "vitest run",
 		"test": "npm run test:ci && npm run test:e2e",
 		"test:e2e": "playwright test",
-		"generate:brand-assets": "node scripts/generate-brand-assets.mjs"
+		"generate:brand-assets": "node scripts/generate-brand-assets.mjs",
+		"fetch:ml-assets": "node scripts/fetch-ml-assets.mjs"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
@@ -45,6 +46,7 @@
 	"dependencies": {
 		"@audiotool/nexus": "^0.0.17",
 		"@fontsource/geist-mono": "^5.3.0",
+		"@mediapipe/tasks-audio": "^1.0.0",
 		"@sentry/sveltekit": "^10.68.0",
 		"dexie": "^4.4.4",
 		"wasm-media-encoders": "^0.7.0"

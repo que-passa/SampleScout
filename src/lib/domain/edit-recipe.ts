@@ -1,6 +1,6 @@
 import { createId } from './ids';
 import { createInitialEditRecipe } from './metadata';
-import type { EditRecipe, RetainedSegment } from './types';
+import type { EditRecipe, EditRecipeProcessing, HighPassHz, RetainedSegment } from './types';
 
 /** Briefing default: short explicit fade, not silent. */
 export const DEFAULT_FADE_SECONDS = 0.005;
@@ -8,15 +8,70 @@ export const DEFAULT_FADE_SECONDS = 0.005;
 /** Peak normalize target for MVP (−1.0 dBFS). */
 export const DEFAULT_NORMALIZE_TARGET_DBFS = -1;
 
+/** Soft limit ceiling matches normalize target unless overridden. */
+export const DEFAULT_SOFT_LIMIT_DBFS = -1;
+
+/** Default gate threshold for field ambience cleanup. */
+export const DEFAULT_GATE_THRESHOLD_DBFS = -42;
+
+/** Gain presets cycled from the take editor (dB). */
+export const RECIPE_GAIN_PRESETS_DB = [-12, -6, 0, 6, 12] as const;
+
+/** High-pass rumble presets cycled from the take editor (Hz). */
+export const HIGH_PASS_CYCLE_HZ: HighPassHz[] = [0, 40, 80, 120, 240, 480];
+
 /** Minimum retained region length (seconds). */
 export const MIN_SEGMENT_SECONDS = 0.01;
+
+export function defaultEditRecipeProcessing(): EditRecipeProcessing {
+	return {
+		highPassHz: 0,
+		softLimitEnabled: false,
+		gateEnabled: false,
+		gateThresholdDbfs: DEFAULT_GATE_THRESHOLD_DBFS
+	};
+}
+
+export function normalizeEditRecipeProcessing(
+	processing: EditRecipeProcessing | undefined
+): EditRecipeProcessing {
+	const defaults = defaultEditRecipeProcessing();
+	if (!processing) return defaults;
+	return {
+		highPassHz: processing.highPassHz ?? defaults.highPassHz,
+		softLimitEnabled: processing.softLimitEnabled ?? defaults.softLimitEnabled,
+		gateEnabled: processing.gateEnabled ?? defaults.gateEnabled,
+		gateThresholdDbfs: processing.gateThresholdDbfs ?? defaults.gateThresholdDbfs
+	};
+}
+
+export function isDefaultEditRecipeProcessing(
+	processing: EditRecipeProcessing | undefined
+): boolean {
+	if (!processing) return true;
+	const defaults = defaultEditRecipeProcessing();
+	return (
+		processing.highPassHz === defaults.highPassHz &&
+		processing.softLimitEnabled === defaults.softLimitEnabled &&
+		processing.gateEnabled === defaults.gateEnabled &&
+		Math.abs(processing.gateThresholdDbfs - defaults.gateThresholdDbfs) <= 1e-6
+	);
+}
+
+function cloneProcessing(
+	processing: EditRecipeProcessing | undefined
+): EditRecipeProcessing | undefined {
+	if (!processing || isDefaultEditRecipeProcessing(processing)) return undefined;
+	return { ...processing };
+}
 
 /** Deep-copy an edit recipe. Extend when new take-level recipe fields are added (Collect uses this). */
 export function cloneEditRecipe(recipe: EditRecipe): EditRecipe {
 	return {
 		version: 1,
 		segments: recipe.segments.map((segment) => ({ ...segment })),
-		peakNormalization: recipe.peakNormalization ? { ...recipe.peakNormalization } : undefined
+		peakNormalization: recipe.peakNormalization ? { ...recipe.peakNormalization } : undefined,
+		processing: cloneProcessing(recipe.processing)
 	};
 }
 
@@ -51,7 +106,8 @@ export function retainedSourceRanges(recipe: EditRecipe): RetainedSourceRange[] 
 /** Build a transient recipe from retained ranges (waveform preview / gain measurement). */
 export function previewEditRecipeFromRanges(
 	ranges: RetainedSourceRange[],
-	peakNormalization?: EditRecipe['peakNormalization']
+	peakNormalization?: EditRecipe['peakNormalization'],
+	processing?: EditRecipe['processing']
 ): EditRecipe {
 	return {
 		version: 1,
@@ -63,12 +119,14 @@ export function previewEditRecipeFromRanges(
 			fadeOutSeconds: range.fadeOutSeconds,
 			gainDb: 0
 		})),
-		peakNormalization: peakNormalization ? { ...peakNormalization } : undefined
+		peakNormalization: peakNormalization ? { ...peakNormalization } : undefined,
+		processing: cloneProcessing(processing)
 	};
 }
 
 export function isIdentityRecipe(recipe: EditRecipe, sourceDurationSeconds: number): boolean {
 	if (recipe.peakNormalization?.enabled) return false;
+	if (!isDefaultEditRecipeProcessing(recipe.processing)) return false;
 	if (recipe.segments.length !== 1) return false;
 	const [segment] = recipe.segments;
 	if (!segment) return false;
@@ -231,7 +289,8 @@ export function adjustRetainedBoundary(
 		segments: recipe.segments.map((entry) => (entry.id === segment.id ? updated : { ...entry })),
 		peakNormalization: recipe.peakNormalization
 			? { ...recipe.peakNormalization, calculatedGainDb: undefined }
-			: undefined
+			: undefined,
+		processing: cloneProcessing(recipe.processing)
 	};
 }
 
@@ -271,7 +330,8 @@ export function cutSelection(
 		segments: kept,
 		peakNormalization: recipe.peakNormalization
 			? { ...recipe.peakNormalization, calculatedGainDb: undefined }
-			: undefined
+			: undefined,
+		processing: cloneProcessing(recipe.processing)
 	};
 }
 
@@ -293,7 +353,8 @@ export function applyFadeIn(
 				fadeInSeconds: clampFade(Math.max(0, fadeSeconds), length, segment.fadeOutSeconds)
 			};
 		}),
-		peakNormalization: recipe.peakNormalization ? { ...recipe.peakNormalization } : undefined
+		peakNormalization: recipe.peakNormalization ? { ...recipe.peakNormalization } : undefined,
+		processing: cloneProcessing(recipe.processing)
 	};
 }
 
@@ -315,7 +376,8 @@ export function applyFadeOut(
 				fadeOutSeconds: clampFade(Math.max(0, fadeSeconds), length, segment.fadeInSeconds)
 			};
 		}),
-		peakNormalization: recipe.peakNormalization ? { ...recipe.peakNormalization } : undefined
+		peakNormalization: recipe.peakNormalization ? { ...recipe.peakNormalization } : undefined,
+		processing: cloneProcessing(recipe.processing)
 	};
 }
 
@@ -331,17 +393,100 @@ export function enablePeakNormalization(
 			enabled: true,
 			targetDbfs,
 			calculatedGainDb: undefined
-		}
+		},
+		processing: cloneProcessing(recipe.processing)
 	};
 }
 
 /** Clear peak normalization from the recipe (manual toggle off). */
 export function disablePeakNormalization(recipe: EditRecipe): EditRecipe {
+	const processing = normalizeEditRecipeProcessing(recipe.processing);
+	const nextProcessing = processing.softLimitEnabled
+		? { ...processing, softLimitEnabled: false }
+		: processing;
 	return {
 		version: 1,
 		segments: recipe.segments.map((segment) => ({ ...segment })),
-		peakNormalization: undefined
+		peakNormalization: undefined,
+		processing: isDefaultEditRecipeProcessing(nextProcessing) ? undefined : nextProcessing
 	};
+}
+
+/**
+ * Commit peak normalize when the editor had identity preview on and the user
+ * applies their first committed cleanup edit (gain / rumble / gate / limit).
+ */
+export function commitNormalizeIfNeeded(
+	recipe: EditRecipe,
+	options: { wasIdentity: boolean; hadNormalizePreview: boolean }
+): EditRecipe {
+	if (!options.wasIdentity || !options.hadNormalizePreview) return recipe;
+	if (recipe.peakNormalization?.enabled) return recipe;
+	return enablePeakNormalization(recipe);
+}
+
+function withProcessing(
+	recipe: EditRecipe,
+	mutate: (processing: EditRecipeProcessing) => EditRecipeProcessing
+): EditRecipe {
+	const next = mutate(normalizeEditRecipeProcessing(recipe.processing));
+	return {
+		version: 1,
+		segments: recipe.segments.map((segment) => ({ ...segment })),
+		peakNormalization: recipe.peakNormalization
+			? { ...recipe.peakNormalization, calculatedGainDb: undefined }
+			: undefined,
+		processing: isDefaultEditRecipeProcessing(next) ? undefined : next
+	};
+}
+
+/** Apply the same gain (dB) to every retained segment. */
+export function setRecipeGainDb(recipe: EditRecipe, gainDb: number): EditRecipe {
+	return {
+		version: 1,
+		segments: recipe.segments.map((segment) => ({ ...segment, gainDb })),
+		peakNormalization: recipe.peakNormalization
+			? { ...recipe.peakNormalization, calculatedGainDb: undefined }
+			: undefined,
+		processing: cloneProcessing(recipe.processing)
+	};
+}
+
+/** Cycle manual gain through {@link RECIPE_GAIN_PRESETS_DB}. */
+export function cycleRecipeGainDb(recipe: EditRecipe): EditRecipe {
+	const current = recipe.segments[0]?.gainDb ?? 0;
+	const index = RECIPE_GAIN_PRESETS_DB.findIndex((value) => Math.abs(value - current) <= 1e-6);
+	const next = RECIPE_GAIN_PRESETS_DB[(index + 1) % RECIPE_GAIN_PRESETS_DB.length] ?? 0;
+	return setRecipeGainDb(recipe, next);
+}
+
+/** Cycle high-pass rumble cut: Off → 40 → 80 → 120 → 240 → 480 → Off. */
+export function cycleHighPassHz(recipe: EditRecipe): EditRecipe {
+	return withProcessing(recipe, (processing) => {
+		const index = HIGH_PASS_CYCLE_HZ.indexOf(processing.highPassHz);
+		const next = HIGH_PASS_CYCLE_HZ[(index + 1) % HIGH_PASS_CYCLE_HZ.length] ?? 0;
+		return { ...processing, highPassHz: next };
+	});
+}
+
+export function toggleSoftLimit(recipe: EditRecipe): EditRecipe {
+	const processing = normalizeEditRecipeProcessing(recipe.processing);
+	const enabling = !processing.softLimitEnabled;
+	let next = withProcessing(recipe, (entry) => ({
+		...entry,
+		softLimitEnabled: !entry.softLimitEnabled
+	}));
+	if (enabling && !next.peakNormalization?.enabled) {
+		next = enablePeakNormalization(next);
+	}
+	return next;
+}
+
+export function toggleGate(recipe: EditRecipe): EditRecipe {
+	return withProcessing(recipe, (processing) => ({
+		...processing,
+		gateEnabled: !processing.gateEnabled
+	}));
 }
 
 export function resetEditRecipe(sourceDurationSeconds: number): EditRecipe {

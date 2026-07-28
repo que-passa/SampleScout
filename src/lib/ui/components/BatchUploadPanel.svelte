@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { deriveSpecimenMark, parseTagList, type Take } from '$lib/domain';
+	import { deriveSpecimenMark, type Take } from '$lib/domain';
 	import {
 		DEFAULT_UPLOAD_OUTPUT,
 		outputToValue,
@@ -14,6 +14,7 @@
 	import PrimaryButton from './PrimaryButton.svelte';
 	import GhostButton from './GhostButton.svelte';
 	import SpecimenMark from './SpecimenMark.svelte';
+	import TagInput from './TagInput.svelte';
 
 	let {
 		takes,
@@ -28,8 +29,9 @@
 		embedded = false,
 		initialStem = '',
 		initialDescription = '',
-		initialTags = '',
+		initialTags = [],
 		initialOutput = DEFAULT_UPLOAD_OUTPUT,
+		recentTags = [],
 		oncancel,
 		onconfirm,
 		onremove
@@ -47,8 +49,9 @@
 		embedded?: boolean;
 		initialStem?: string;
 		initialDescription?: string;
-		initialTags?: string;
+		initialTags?: string[];
 		initialOutput?: UploadOutput;
+		recentTags?: string[];
 		oncancel: () => void;
 		onconfirm: (overlay: {
 			titleStem: string;
@@ -61,13 +64,13 @@
 
 	let titleStem = $state('');
 	let description = $state('');
-	let tagsText = $state('');
+	let tags = $state<string[]>([]);
 	let outputValue = $state<UploadOutputValue>('mp3-192');
 
 	onMount(() => {
 		titleStem = initialStem;
 		description = initialDescription;
-		tagsText = initialTags;
+		tags = [...initialTags];
 		outputValue = outputToValue(initialOutput);
 	});
 
@@ -87,7 +90,7 @@
 		await onconfirm({
 			titleStem: titleStem.trim(),
 			description: description.trim(),
-			tags: parseTagList(tagsText),
+			tags: [...tags],
 			output: valueToOutput(outputValue)
 		});
 	}
@@ -193,16 +196,10 @@
 					disabled={busy}></textarea>
 			</label>
 
-			<label class="field">
+			<div class="field">
 				<span class="field-label">Tags</span>
-				<input
-					type="text"
-					class="control"
-					bind:value={tagsText}
-					placeholder="comma-separated"
-					disabled={busy}
-				/>
-			</label>
+				<TagInput bind:tags {recentTags} disabled={busy} />
+			</div>
 
 			<label class="field">
 				<span class="field-label">Upload quality</span>

@@ -179,3 +179,25 @@ html[data-nav-direction='fade']::view-transition-new(root) {
 		animation: none !important;
 	}
 }
+
+/* Pinned bottom-bar button spacing — tight toolbars vs action clusters. */
+.bar-cluster-tight {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1);
+	min-width: 0;
+}
+
+.bar-cluster {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	min-width: 0;
+}
+
+.bar-actions {
+	display: flex;
+	align-items: center;
+	justify-content: flex-start;
+	gap: var(--space-2);
+}

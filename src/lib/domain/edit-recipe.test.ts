@@ -5,12 +5,18 @@ import {
 	applyFadeIn,
 	applyFadeOut,
 	cutSelection,
+	commitNormalizeIfNeeded,
+	cycleHighPassHz,
+	cycleRecipeGainDb,
 	disablePeakNormalization,
 	enablePeakNormalization,
 	isIdentityRecipe,
 	recipeDurationSeconds,
 	recipeFromWorkingRegion,
 	retainedSourceRanges,
+	setRecipeGainDb,
+	toggleGate,
+	toggleSoftLimit,
 	trimToSelection
 } from './edit-recipe';
 import { createInitialEditRecipe } from './metadata';
@@ -109,6 +115,46 @@ describe('fades and normalize', () => {
 		const on = enablePeakNormalization(createInitialEditRecipe(1));
 		const off = disablePeakNormalization(on);
 		expect(off.peakNormalization).toBeUndefined();
+	});
+
+	it('disables soft limit when peak normalization is turned off', () => {
+		let recipe = enablePeakNormalization(createInitialEditRecipe(1));
+		recipe = toggleSoftLimit(recipe);
+		expect(recipe.processing?.softLimitEnabled).toBe(true);
+		const off = disablePeakNormalization(recipe);
+		expect(off.peakNormalization).toBeUndefined();
+		expect(off.processing?.softLimitEnabled).toBeUndefined();
+	});
+
+	it('enables peak normalize when soft limit is turned on', () => {
+		const recipe = toggleSoftLimit(createInitialEditRecipe(1));
+		expect(recipe.peakNormalization?.enabled).toBe(true);
+		expect(recipe.processing?.softLimitEnabled).toBe(true);
+	});
+
+	it('commits normalize when leaving identity with preview active', () => {
+		const recipe = commitNormalizeIfNeeded(setRecipeGainDb(createInitialEditRecipe(4), 6), {
+			wasIdentity: true,
+			hadNormalizePreview: true
+		});
+		expect(recipe.peakNormalization?.enabled).toBe(true);
+		expect(recipe.peakNormalization?.targetDbfs).toBe(-1);
+	});
+
+	it('cycles gain presets and clears identity', () => {
+		const recipe = cycleRecipeGainDb(createInitialEditRecipe(4));
+		expect(recipe.segments[0]?.gainDb).toBe(6);
+		expect(isIdentityRecipe(recipe, 4)).toBe(false);
+	});
+
+	it('cycles high-pass presets and toggles gate/limit', () => {
+		let recipe = cycleHighPassHz(createInitialEditRecipe(4));
+		expect(recipe.processing?.highPassHz).toBe(40);
+		recipe = toggleGate(recipe);
+		expect(recipe.processing?.gateEnabled).toBe(true);
+		recipe = toggleSoftLimit(recipe);
+		expect(recipe.processing?.softLimitEnabled).toBe(true);
+		expect(isIdentityRecipe(recipe, 4)).toBe(false);
 	});
 });
 

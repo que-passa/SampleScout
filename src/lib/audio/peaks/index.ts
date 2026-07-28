@@ -1,6 +1,6 @@
 import { createAppError, nowIso } from '$lib/domain/ids';
 import type { PeakAsset, Take } from '$lib/domain/types';
-import { decodeAudioPlanar, decodeAudioSummary } from '$lib/audio/decode';
+import { decodeAudioPlanar, decodeAudioSummary, type DecodedPlanarAudio } from '$lib/audio/decode';
 import { peaksPath, updateTake } from '$lib/persistence';
 import { readBinary, writeBinary } from '$lib/persistence/opfs';
 import { framesPerPeakForLength, TARGET_OVERVIEW_PEAKS, type PeakComputeResult } from './compute';
@@ -24,6 +24,8 @@ export interface LoadedPeaks extends PeakComputeResult {
 	asset: PeakAsset;
 	sampleRate: number;
 	durationSeconds: number;
+	/** Set when peaks were computed from a fresh decode — reuse for YAMNet tagging. */
+	decoded?: DecodedPlanarAudio;
 }
 
 /**
@@ -83,7 +85,8 @@ export async function generateAndPersistPeaks(take: Take): Promise<LoadedPeaks> 
 		...computed,
 		asset: updated.peaks ?? asset,
 		sampleRate: decoded.sampleRate,
-		durationSeconds: decoded.durationSeconds
+		durationSeconds: decoded.durationSeconds,
+		decoded
 	};
 }
 

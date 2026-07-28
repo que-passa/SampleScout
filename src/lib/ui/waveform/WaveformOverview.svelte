@@ -10,7 +10,8 @@
 	import type { DecodedPlanarAudio } from '$lib/audio/decode';
 	import { MIN_SEGMENT_SECONDS, previewEditRecipeFromRanges } from '$lib/domain/edit-recipe';
 	import type { EditRecipe } from '$lib/domain/types';
-	import { recipeNormalizeGainLinear } from '$lib/audio/render';
+	import { recipeNeedsProcessingEnvelopePreview, recipePreviewGainLinear } from '$lib/audio/render';
+	import { buildProcessingPreviewEnvelope } from '$lib/audio/render/preview-envelope';
 	import {
 		MIN_VIEW_SPAN,
 		ZOOM_STEP_IN,
@@ -47,6 +48,8 @@
 		selectionEnd = $bindable(null),
 		retainedRanges = undefined,
 		peakNormalization = undefined,
+		/** Full recipe for waveform + playback preview (gain, normalize, processing). */
+		previewRecipe = undefined,
 		/** When false, hide retained trim grips/markers (selection is the working region). */
 		showTrimGrips = true,
 		/** Stable id for the take/source so detail PCM cache resets on navigation. */
@@ -88,6 +91,7 @@
 			fadeOutSeconds?: number;
 		}>;
 		peakNormalization?: EditRecipe['peakNormalization'];
+		previewRecipe?: EditRecipe | null;
 		showTrimGrips?: boolean;
 		detailSourceKey?: string | null;
 		ensureDetailPcm?: () => Promise<DecodedPlanarAudio | null>;
@@ -151,8 +155,10 @@
 	let detailPcm = $state.raw<DecodedPlanarAudio | null>(null);
 	/** Non-reactive: which `detailSourceKey` `detailPcm` belongs to. */
 	let detailForKey: string | null = null;
-	/** Linear gain for peak-normalize waveform preview (1 = off). */
+	/** Linear gain for uniform waveform preview (segment gain + normalize). */
 	let normalizePreviewGain = $state(1);
+	/** Per-bucket multipliers when processing changes peak shape (gate/HPF/limit). */
+	let processingEnvelope = $state.raw<Float32Array | null>(null);
 
 	const DRAG_THRESHOLD_PX = 4;
 	/** ~half of grip hit (`--touch-min` + `--space-2` ≈ 52) for canvas edge grabs. */
@@ -853,7 +859,7 @@
 		const viewDurAbs = Math.max(1e-6, (vEnd - vStart) * durationSeconds);
 		const fadeRanges = sortedRetainedRanges();
 		const applyFadeViz = fadeRanges.some((r) => r.fadeInSeconds > 1e-6 || r.fadeOutSeconds > 1e-6);
-		const applyNormalizeViz = normalizePreviewGain !== 1;
+		const applyPreviewViz = normalizePreviewGain !== 1 || processingEnvelope != null;
 
 		for (let lane = 0; lane < laneCount; lane += 1) {
 			const y0 = waveTop + lane * (laneH + laneGap);
@@ -899,11 +905,17 @@
 					min *= gain;
 					max *= gain;
 				}
-				/* Same preview gain across the view so edge-finding stays continuous;
-				   discarded material is marked by --disabled color, not a different scale. */
-				if (applyNormalizeViz) {
-					min *= normalizePreviewGain;
-					max *= normalizePreviewGain;
+				if (applyPreviewViz) {
+					let gain = normalizePreviewGain;
+					if (processingEnvelope && durationSeconds > 0 && peakCount > 0) {
+						const bucket = Math.min(
+							peakCount - 1,
+							Math.max(0, Math.floor((tMid / durationSeconds) * peakCount))
+						);
+						gain = processingEnvelope[bucket] ?? 1;
+					}
+					min *= gain;
+					max *= gain;
 				}
 				const y1 = midY - max * (laneH / 2);
 				const y2 = midY - min * (laneH / 2);
@@ -2473,35 +2485,63 @@
 	}
 
 	$effect(() => {
-		const norm = peakNormalization;
 		const loader = ensureDetailPcm;
 		const key = detailSourceKey ?? null;
+		const recipe = previewRecipe;
+		const norm = peakNormalization;
 		const ranges = sortedRetainedRanges();
+		const buckets = peakCount;
 
-		if (!norm?.enabled || !loader || !key || !(durationSeconds > 0)) {
+		if (!loader || !key || !(durationSeconds > 0)) {
 			normalizePreviewGain = 1;
+			processingEnvelope = null;
 			return;
 		}
 
-		const rangesForNorm =
+		const rangesForPreview =
 			ranges.length > 0
 				? ranges
 				: [{ start: 0, end: durationSeconds, fadeInSeconds: 0, fadeOutSeconds: 0 }];
 
-		let cancelled = false;
-		const recipe = previewEditRecipeFromRanges(rangesForNorm, norm);
+		const previewTarget =
+			recipe ?? (norm?.enabled ? previewEditRecipeFromRanges(rangesForPreview, norm) : null);
 
-		void loader()
-			.then((pcm) => {
-				if (cancelled || !pcm) return;
-				normalizePreviewGain = recipeNormalizeGainLinear(pcm, recipe);
-			})
-			.catch(() => {
-				if (!cancelled) normalizePreviewGain = 1;
-			});
+		if (!previewTarget) {
+			normalizePreviewGain = 1;
+			processingEnvelope = null;
+			return;
+		}
+
+		let cancelled = false;
+		const debounceMs = 120;
+		const timer = setTimeout(() => {
+			void loader()
+				.then((pcm) => {
+					if (cancelled || !pcm) return;
+					if (recipeNeedsProcessingEnvelopePreview(previewTarget)) {
+						processingEnvelope = buildProcessingPreviewEnvelope(
+							pcm,
+							previewTarget,
+							durationSeconds,
+							buckets
+						);
+						normalizePreviewGain = 1;
+						return;
+					}
+					processingEnvelope = null;
+					normalizePreviewGain = recipePreviewGainLinear(pcm, previewTarget);
+				})
+				.catch(() => {
+					if (!cancelled) {
+						normalizePreviewGain = 1;
+						processingEnvelope = null;
+					}
+				});
+		}, debounceMs);
 
 		return () => {
 			cancelled = true;
+			clearTimeout(timer);
 		};
 	});
 
@@ -2596,7 +2636,9 @@
 		void retainedRanges;
 		void previewRetainedRanges;
 		void peakNormalization;
+		void previewRecipe;
 		void normalizePreviewGain;
+		void processingEnvelope;
 		void showTrimGrips;
 		void trimDrag;
 		void detailPcm;
@@ -2636,7 +2678,9 @@
 		void retainedRanges;
 		void previewRetainedRanges;
 		void peakNormalization;
+		void previewRecipe;
 		void normalizePreviewGain;
+		void processingEnvelope;
 		void showTrimGrips;
 		void trimDrag;
 		void scoutedRegions;
@@ -2705,7 +2749,7 @@
 	>
 		{#if chromeActions}
 			<div class="stage-chrome-toolbar">
-				<div class="chrome-actions">
+				<div class="chrome-actions bar-cluster-tight">
 					{@render chromeActions()}
 				</div>
 			</div>
@@ -2911,19 +2955,23 @@
 
 	.stage-chrome-toolbar {
 		display: flex;
-		flex-wrap: wrap;
 		align-items: center;
-		justify-content: center;
+		justify-content: safe center;
 		gap: var(--space-2);
 		min-width: 0;
+		overflow-x: auto;
+		overscroll-behavior-x: contain;
+		-webkit-overflow-scrolling: touch;
+		scrollbar-width: none;
+	}
+
+	.stage-chrome-toolbar::-webkit-scrollbar {
+		display: none;
 	}
 
 	.chrome-actions {
-		display: flex;
-		flex-wrap: wrap;
-		justify-content: center;
-		gap: var(--space-1);
-		min-width: 0;
+		flex-wrap: nowrap;
+		flex-shrink: 0;
 	}
 
 	.retry {

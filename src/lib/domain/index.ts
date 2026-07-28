@@ -41,10 +41,28 @@ export {
 	formatShortDate,
 	formatShortDateTime,
 	applyTakeMetadataPatch,
-	formatMetadataOrigin,
-	formatTagList,
-	parseTagList
+	applyGeneratedTags,
+	canApplyGeneratedTags,
+	formatMetadataOrigin
 } from './metadata';
+export { formatTagList, parseTagList } from './tags';
+export {
+	TAG_PRESETS,
+	TAG_RECENT_LIMIT,
+	HIDDEN_SYSTEM_TAGS,
+	AUDIOTOOL_RECORDING_TAG,
+	addTag,
+	addTags,
+	hasTag,
+	isBuiltInTagPreset,
+	isHiddenSystemTag,
+	normalizeTag,
+	rememberRecentTags,
+	removeTag,
+	tagsEqual,
+	visibleTags
+} from './tags';
+export type { TagPreset } from './tags';
 export type { TakeMetadataPatch } from './metadata';
 export {
 	buildExtractTake,
@@ -54,6 +72,8 @@ export {
 	formatExtractDisplayName
 } from './extract';
 export {
+	AUDIOTOOL_SOURCE_TAG,
+	audiotoolUploadTags,
 	formatUploadStateLabel,
 	isActiveTakeUploadState,
 	isActiveUploadJobState,
@@ -68,20 +88,33 @@ export type { UploadPhase } from './upload';
 export {
 	DEFAULT_FADE_SECONDS,
 	DEFAULT_NORMALIZE_TARGET_DBFS,
+	DEFAULT_SOFT_LIMIT_DBFS,
+	DEFAULT_GATE_THRESHOLD_DBFS,
+	RECIPE_GAIN_PRESETS_DB,
+	HIGH_PASS_CYCLE_HZ,
 	MIN_SEGMENT_SECONDS,
 	EditRecipeHistory,
 	applyFadeIn,
 	applyFadeOut,
 	cloneEditRecipe,
+	commitNormalizeIfNeeded,
 	cutSelection,
+	cycleHighPassHz,
+	cycleRecipeGainDb,
+	defaultEditRecipeProcessing,
 	disablePeakNormalization,
 	enablePeakNormalization,
+	isDefaultEditRecipeProcessing,
 	isIdentityRecipe,
+	normalizeEditRecipeProcessing,
 	recipeDurationSeconds,
 	recipeFromWorkingRegion,
 	resetEditRecipe,
 	retainedSourceRanges,
 	segmentDurationSeconds,
+	setRecipeGainDb,
+	toggleGate,
+	toggleSoftLimit,
 	trimToSelection,
 	adjustRetainedBoundary,
 	previewEditRecipeFromRanges

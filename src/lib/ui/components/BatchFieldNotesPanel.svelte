@@ -1,21 +1,19 @@
 <script lang="ts">
-	import {
-		parseTagList,
-		type SampleKind,
-		type TakeMetadataPatch,
-		type Visibility
-	} from '$lib/domain';
+	import { type SampleKind, type TakeMetadataPatch, type Visibility } from '$lib/domain';
 	import GhostButton from '$lib/ui/components/GhostButton.svelte';
 	import PrimaryButton from '$lib/ui/components/PrimaryButton.svelte';
+	import TagInput from '$lib/ui/components/TagInput.svelte';
 
 	let {
 		selectedCount,
+		recentTags = [],
 		busy = false,
 		embedded = false,
 		onapply,
 		onclear
 	}: {
 		selectedCount: number;
+		recentTags?: string[];
 		busy?: boolean;
 		/** When true, omit outer panel border (sheet body). */
 		embedded?: boolean;
@@ -26,7 +24,7 @@
 	let applyDescription = $state(false);
 	let description = $state('');
 	let applyTags = $state(false);
-	let tagsText = $state('');
+	let tags = $state<string[]>([]);
 	let applyKind = $state(false);
 	let kind = $state<SampleKind>('one-shot');
 	let applyVisibility = $state(false);
@@ -45,7 +43,7 @@
 			patch.description = description;
 		}
 		if (applyTags) {
-			patch.tags = parseTagList(tagsText);
+			patch.tags = [...tags];
 		}
 		if (applyKind) {
 			patch.kind = kind;
@@ -96,13 +94,7 @@
 		<span class="toggle-label">Tags</span>
 	</label>
 	{#if applyTags}
-		<input
-			class="control"
-			type="text"
-			bind:value={tagsText}
-			placeholder="comma-separated"
-			disabled={busy}
-		/>
+		<TagInput bind:tags {recentTags} disabled={busy} />
 	{/if}
 
 	<label class="toggle-row">

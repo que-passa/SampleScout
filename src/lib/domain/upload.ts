@@ -1,4 +1,5 @@
 import { createAppError } from './ids';
+import { AUDIOTOOL_RECORDING_TAG, isHiddenSystemTag, tagKey } from './tags';
 import type {
 	AppError,
 	Take,
@@ -9,6 +10,21 @@ import type {
 } from './types';
 
 export type UploadPhase = NonNullable<UploadJob['progress']>['phase'];
+
+/** Hidden Audiotool tag — applied at upload time only; not persisted or shown in Field Notes UI. */
+export const AUDIOTOOL_SOURCE_TAG = 'sample-scout';
+
+/** Tags sent to Audiotool for a sample upload (includes hidden provenance tags). */
+export function audiotoolUploadTags(userTags: readonly string[]): string[] {
+	const tags = userTags.filter((tag) => !isHiddenSystemTag(tag));
+	if (!tags.some((tag) => tagKey(tag) === AUDIOTOOL_RECORDING_TAG)) {
+		tags.push(AUDIOTOOL_RECORDING_TAG);
+	}
+	if (!tags.some((tag) => tagKey(tag) === AUDIOTOOL_SOURCE_TAG)) {
+		tags.push(AUDIOTOOL_SOURCE_TAG);
+	}
+	return tags;
+}
 
 const ACTIVE_JOB_STATES: readonly UploadJobState[] = [
 	'queued',

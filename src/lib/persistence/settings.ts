@@ -4,6 +4,7 @@ import {
 } from '$lib/config/recording-settings';
 import { DEFAULT_UPLOAD_OUTPUT } from '$lib/config/upload-output';
 import { nowIso } from '$lib/domain/ids';
+import { rememberRecentTags } from '$lib/domain/tags';
 import type { AppSettings, OutputSettings, RecordingSettings } from '$lib/domain/types';
 import { cloneForIdb } from './clone-for-idb';
 import { getDatabase } from './db';
@@ -72,4 +73,30 @@ export async function putSessionNamePresets(presets: string[]): Promise<AppSetti
 	};
 	await putAppSettings(next);
 	return next;
+}
+
+/** Replace remembered recent Field Notes tags (newest first). */
+export async function putRecentTags(recentTags: string[]): Promise<AppSettings> {
+	const current = await getAppSettings();
+	const next: AppSettings = {
+		...current,
+		recentTags: [...recentTags],
+		updatedAt: nowIso()
+	};
+	await putAppSettings(next);
+	return next;
+}
+
+/** Merge tags from a save/apply into the remembered recent list. */
+export async function rememberRecentTagsFromUse(usedTags: readonly string[]): Promise<AppSettings> {
+	const current = await getAppSettings();
+	if (usedTags.length === 0) return current;
+	const recentTags = rememberRecentTags(current.recentTags, usedTags);
+	if (
+		recentTags.length === current.recentTags.length &&
+		recentTags.every((tag, index) => tag === current.recentTags[index])
+	) {
+		return current;
+	}
+	return putRecentTags(recentTags);
 }

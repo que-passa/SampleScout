@@ -1,5 +1,6 @@
 import { audiotool, type AuthenticatedClient, type BrowserAuthResult } from '@audiotool/nexus';
 import { getPublicAppConfig } from '$lib/config/app';
+import { audiotoolUploadTags } from '$lib/domain/upload';
 import { createAppError } from '$lib/domain/ids';
 import type { AppError, TakeMetadata } from '$lib/domain/types';
 
@@ -238,7 +239,7 @@ export async function uploadSample(request: AudiotoolUploadRequest): Promise<{
 				file: request.file,
 				displayName: request.metadata.displayName.trim(),
 				description: request.metadata.description,
-				tags: request.metadata.tags.length > 0 ? request.metadata.tags : ['recording'],
+				tags: audiotoolUploadTags(request.metadata.tags),
 				kind: request.metadata.kind,
 				visibility: request.metadata.visibility ?? 'unlisted',
 				bpm: request.metadata.bpm,

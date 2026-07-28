@@ -23,6 +23,7 @@ Read [`DESIGN.md`](../../../DESIGN.md) before adding or restyling UI.
 | `EmptyState`                     | Empty lists / unloaded editor                                                                                                                            |
 | `TakeRow`                        | Take list records (uses `UploadStatusChip` for upload state)                                                                                             |
 | `SessionNameSheet`               | Capture session rename sheet (input + user/built-in chips + Done)                                                                                        |
+| `TagInput`                       | Tokenized tag field (inline pills + recent/built-in suggestion chips) for Field Notes and upload overlay                                                 |
 | `CaptureSettingsSheet`           | Capture settings sheet (recording requests + upload quality)                                                                                             |
 | `ActionToast`                    | Compact ephemeral action feedback                                                                                                                        |
 | `AuthSplash`                     | Unsigned-in gate (logo + Connect)                                                                                                                        |
@@ -34,6 +35,7 @@ Put audio/persistence logic in `$lib/audio`, `$lib/persistence`, `$lib/state` �
 ## Local rules
 
 - Tokens only (`var(--…)` from `tokens.css`)
+- Pinned bottom bars: reuse global `.bar-cluster-tight` (4px, icon/compact toolbars), `.bar-cluster` (8px, distinct actions on one side), `.bar-actions` (8px, bar-level flex row) from `app.css`
 - Panels → `--radius-panel`; buttons/inputs → `--radius-control`; status → `--radius-round`; record face → `--radius-record`
 - Brand primary CTAs use `PrimaryButton` (recessed well + `--brand` face; Collect, Collection Upload)
 - Ghost actions use `GhostButton` (single chrome source; BackButton look = Ghost style). Sit Ghost on `--paper` so `--surface` hover/press faces read (sheet headers use `--paper` for this). `BackButton` wraps `GhostButton` as an icon link — do not duplicate well/face CSS. Only Primary, Record, and Playback get 3D well/face

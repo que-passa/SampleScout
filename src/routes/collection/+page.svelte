@@ -14,7 +14,9 @@
 		enqueueBatchTakeUploads,
 		cancelTakeUpload,
 		uploadQueue,
-		audiotoolAuth
+		audiotoolAuth,
+		onGeneratedTagsApplied,
+		scheduleGeneratedTagsForTakes
 	} from '$lib/state';
 	import {
 		assignNumberedDisplayNames,
@@ -31,7 +33,7 @@
 	} from '$lib/domain';
 	import type { CaptureSession, OutputSettings, Take, TakeId } from '$lib/domain/types';
 	import { DEFAULT_UPLOAD_OUTPUT, normalizeUploadOutput } from '$lib/config/upload-output';
-	import { getAppSettings } from '$lib/persistence';
+	import { getAppSettings, rememberRecentTagsFromUse } from '$lib/persistence';
 	import BatchFieldNotesPanel from '$lib/ui/components/BatchFieldNotesPanel.svelte';
 	import BatchUploadPanel from '$lib/ui/components/BatchUploadPanel.svelte';
 	import ConfirmDialog from '$lib/ui/components/ConfirmDialog.svelte';
@@ -54,6 +56,7 @@
 	const DEFAULT_UPLOAD_OUTPUT_FALLBACK = DEFAULT_UPLOAD_OUTPUT;
 
 	let preferredUploadOutput = $state(normalizeUploadOutput(DEFAULT_UPLOAD_OUTPUT_FALLBACK));
+	let recentTags = $state<string[]>([]);
 
 	function outputSettingsEqual(a: OutputSettings, b: OutputSettings): boolean {
 		if (a.format !== b.format) return false;
@@ -155,7 +158,7 @@
 		uploadTakes.length > 0 ? uploadTakes[0].metadata.description || '' : ''
 	);
 	const uploadInitialTags = $derived(
-		uploadTakes.length > 0 ? uploadTakes[0].metadata.tags.join(', ') : ''
+		uploadTakes.length > 0 ? [...uploadTakes[0].metadata.tags] : []
 	);
 	const uploadInitialOutput = $derived.by(
 		() => sharedUploadOutput(uploadTakes) ?? preferredUploadOutput
@@ -224,6 +227,8 @@
 			selectMode = false;
 			editDataOpen = false;
 		}
+
+		scheduleGeneratedTagsForTakes(sessionsWithTakes.flatMap((entry) => entry.takes));
 	}
 
 	async function retryLoad() {
@@ -247,12 +252,19 @@
 				console.error('Failed to refresh Collection:', error);
 			});
 		});
+		onGeneratedTagsApplied(() => {
+			void load().catch((error) => {
+				console.error('Failed to refresh Collection after tag generation:', error);
+			});
+		});
 		void (async () => {
 			try {
 				const settings = await getAppSettings();
 				preferredUploadOutput = normalizeUploadOutput(settings.preferredOutput);
+				recentTags = settings.recentTags;
 			} catch {
 				preferredUploadOutput = normalizeUploadOutput(DEFAULT_UPLOAD_OUTPUT_FALLBACK);
+				recentTags = [];
 			}
 			try {
 				await load();
@@ -580,6 +592,14 @@
 
 					await batchSaveTakeMetadata([take.id], patch);
 				}
+
+				if (overlay.tags.length > 0) {
+					void rememberRecentTagsFromUse(overlay.tags)
+						.then((settings) => {
+							recentTags = settings.recentTags;
+						})
+						.catch(() => {});
+				}
 			}
 
 			const takeIdsToUpload: TakeId[] = [];
@@ -646,6 +666,13 @@
 			const result = await batchSaveTakeMetadata(ids, patch);
 			const ok = result.updated.length;
 			const fail = result.errors.length;
+			if (patch.tags) {
+				void rememberRecentTagsFromUse(patch.tags)
+					.then((settings) => {
+						recentTags = settings.recentTags;
+					})
+					.catch(() => {});
+			}
 			if (ok > 0 && fail === 0) {
 				actionToast.show(ok === 1 ? 'Field Notes updated' : `Field Notes updated on ${ok} takes`);
 				editDataOpen = false;
@@ -767,7 +794,7 @@
 			<div class="bottom-chrome">
 				{#if selectMode}
 					<div class="select-bar" aria-label="Selection">
-						<div class="select-actions">
+						<div class="select-actions bar-cluster-tight">
 							<GhostButton compact onclick={selectAllVisible}>Select all</GhostButton>
 							<GhostButton compact disabled={selectedCount === 0} onclick={clearSelection}>
 								Clear
@@ -777,12 +804,12 @@
 					</div>
 				{/if}
 
-				<footer class="actions-bar" aria-label="Collection actions">
-					<GhostButton onclick={toggleSelectMode} disabled={uploading || discarding}>
-						{selectMode ? 'Done' : 'Select'}
-					</GhostButton>
+				<footer class="actions-bar bar-actions" aria-label="Collection actions">
 					{#if selectMode}
-						<div class="action-group">
+						<GhostButton onclick={toggleSelectMode} disabled={uploading || discarding}>
+							Done
+						</GhostButton>
+						<div class="action-group bar-cluster-tight">
 							<GhostButton
 								icon
 								disabled={!selectionActionsEnabled}
@@ -808,22 +835,27 @@
 							</PrimaryButton>
 						</div>
 					{:else}
-						<GhostButton
-							icon
-							onclick={openImportPicker}
-							disabled={importing || uploading || discarding}
-							aria-label="Import"
-						>
-							<Icon name="import" />
-						</GhostButton>
-						<GhostButton
-							icon
-							onclick={requestCleanup}
-							disabled={importing || uploading || discarding || batchBusy}
-							aria-label="Cleanup"
-						>
-							<Icon name="cleanup" />
-						</GhostButton>
+						<div class="leading-actions bar-cluster-tight">
+							<GhostButton onclick={toggleSelectMode} disabled={uploading || discarding}>
+								Select
+							</GhostButton>
+							<GhostButton
+								icon
+								onclick={openImportPicker}
+								disabled={importing || uploading || discarding}
+								aria-label="Import"
+							>
+								<Icon name="import" />
+							</GhostButton>
+							<GhostButton
+								icon
+								onclick={requestCleanup}
+								disabled={importing || uploading || discarding || batchBusy}
+								aria-label="Cleanup"
+							>
+								<Icon name="cleanup" />
+							</GhostButton>
+						</div>
 						<PrimaryButton
 							onclick={uploadAllPending}
 							disabled={uploading || importing || discarding || pendingUploadTakes.length === 0}
@@ -849,6 +881,7 @@
 		<SheetOverlay title="Field Notes" dismissible={!batchBusy} onclose={closeEditData}>
 			<BatchFieldNotesPanel
 				{selectedCount}
+				{recentTags}
 				busy={batchBusy || discarding}
 				embedded
 				onapply={onBatchApply}
@@ -893,6 +926,7 @@
 				initialDescription={uploadInitialDescription}
 				initialTags={uploadInitialTags}
 				initialOutput={uploadInitialOutput}
+				{recentTags}
 				oncancel={onUploadCancel}
 				onconfirm={onUploadConfirm}
 				onremove={onUploadRemove}
@@ -946,19 +980,12 @@
 	}
 
 	.actions-bar {
-		display: flex;
-		align-items: center;
-		justify-content: flex-start;
-		gap: var(--space-3);
 		padding: var(--space-2) var(--page-gutter);
 		padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom, 0px));
 	}
 
 	.action-group {
 		margin-left: auto;
-		display: flex;
-		align-items: center;
-		gap: var(--space-1);
 	}
 
 	.actions-bar > :global(.ss-primary-button) {
@@ -979,10 +1006,7 @@
 	}
 
 	.select-actions {
-		display: flex;
-		align-items: center;
-		gap: var(--space-1);
-		min-width: 0;
+		flex-shrink: 0;
 	}
 
 	.select-count {

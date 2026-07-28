@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { getTake } from '$lib/persistence';
+	import { getTake, getAppSettings, rememberRecentTagsFromUse } from '$lib/persistence';
 	import {
 		EditRecipeHistory,
 		MIN_SEGMENT_SECONDS,
@@ -11,19 +11,25 @@
 		applyFadeIn,
 		applyFadeOut,
 		collectableRetainedBounds,
+		commitNormalizeIfNeeded,
+		cycleHighPassHz,
+		cycleRecipeGainDb,
 		deriveCatalogReference,
 		deriveSpecimenMark,
 		disablePeakNormalization,
 		enablePeakNormalization,
-		formatRecordingDate,
+		formatShortDateTime,
 		formatUploadStateLabel,
 		isActiveTakeUploadState,
 		isActiveUploadJobState,
 		isIdentityRecipe,
 		isTakeSavedLocally,
+		normalizeEditRecipeProcessing,
 		recipeDurationSeconds,
 		recipeFromWorkingRegion,
 		retainedSourceRanges,
+		toggleGate,
+		toggleSoftLimit,
 		uploadStateTone,
 		type EditRecipe,
 		type Take,
@@ -37,7 +43,11 @@
 	import type { SuggestedRegion } from '$lib/audio/suggest/types';
 	import { readBinary } from '$lib/persistence/opfs';
 	import { decodeAudioPlanar, type DecodedPlanarAudio } from '$lib/audio/decode';
-	import { planarToAudioBuffer, renderRecipePlanar } from '$lib/audio/render';
+	import {
+		planarToAudioBuffer,
+		recipeNormalizeGainDb,
+		renderRecipePlanar
+	} from '$lib/audio/render';
 	import {
 		createPlaybackFromAudioBuffer,
 		createPlaybackFromFileRef,
@@ -47,11 +57,13 @@
 		actionToast,
 		discardLocalFile,
 		collectSelectionAsLocalFile,
+		onGeneratedTagsApplied,
 		onTakeInventoryChanged,
 		onUploadQueueChanged,
 		renameTakeDisplayName,
 		saveTakeEditRecipe,
 		saveTakeMetadata,
+		scheduleGeneratedTagsForTake,
 		uploadQueue
 	} from '$lib/state';
 	import BackButton from '$lib/ui/components/BackButton.svelte';
@@ -64,6 +76,8 @@
 	import PrimaryButton from '$lib/ui/components/PrimaryButton.svelte';
 	import SpecimenMark from '$lib/ui/components/SpecimenMark.svelte';
 	import StatusLabel from '$lib/ui/components/StatusLabel.svelte';
+	import StaticFact from '$lib/ui/components/StaticFact.svelte';
+	import StaticFactsGrid from '$lib/ui/components/StaticFactsGrid.svelte';
 	import AppShell from '$lib/ui/layouts/AppShell.svelte';
 	import WaveformOverview from '$lib/ui/waveform/WaveformOverview.svelte';
 	import { Icon } from '$lib/ui/icons';
@@ -101,7 +115,9 @@
 	let selectionFadeIn = $state(0);
 	let selectionFadeOut = $state(0);
 	let savingFieldNotes = $state(false);
+	let fieldNotesCanSave = $state(false);
 	let fieldNotesSheetOpen = $state(false);
+	let recentTags = $state<string[]>([]);
 	let loopPreview = $state(false);
 	let discardConfirmOpen = $state(false);
 	let discarding = $state(false);
@@ -115,6 +131,7 @@
 	let showManualAnalyze = $state(false);
 	/** Identity take with no selection: peak-normalize preview on until the user turns it off. */
 	let normalizePreviewSuppressed = $state(false);
+	let normalizeGainDb = $state<number | null>(null);
 
 	const uploadJob = $derived(take ? uploadQueue.byTakeId[take.id] : undefined);
 
@@ -192,11 +209,56 @@
 	});
 
 	/** Playback / preview follows the working selection when present. */
-	const activePlaybackRecipe = $derived(workingRecipe ?? normalizePreviewRecipe ?? currentRecipe);
+	const activePlaybackRecipe = $derived.by((): EditRecipe | null => {
+		const base = workingRecipe ?? normalizePreviewRecipe ?? currentRecipe;
+		if (!base) return null;
+		const committedGainDb = currentRecipe?.segments[0]?.gainDb ?? 0;
+		const processing = currentRecipe?.processing;
+		if (!processing && Math.abs(committedGainDb) <= 1e-9) return base;
+		return {
+			...base,
+			processing,
+			segments: base.segments.map((segment) => ({ ...segment, gainDb: committedGainDb }))
+		};
+	});
 
 	const useRawFilePlayback = $derived(
 		identity && !hasUsableSelection && normalizePreviewRecipe == null
 	);
+
+	const wavePreviewRecipe = $derived(useRawFilePlayback ? null : activePlaybackRecipe);
+
+	const recipeGainDb = $derived(currentRecipe?.segments[0]?.gainDb ?? 0);
+	const recipeProcessing = $derived(normalizeEditRecipeProcessing(currentRecipe?.processing));
+	const gainActive = $derived(Math.abs(recipeGainDb) > 1e-9);
+	const rumbleActive = $derived(recipeProcessing.highPassHz > 0);
+	const limitActive = $derived(recipeProcessing.softLimitEnabled);
+	const gateActive = $derived(recipeProcessing.gateEnabled);
+
+	function formatGainLabel(db: number): string {
+		if (Math.abs(db) <= 1e-9) return 'Gain';
+		const rounded = Math.round(db);
+		return rounded > 0 ? `+${rounded} dB` : `${rounded} dB`;
+	}
+
+	function formatRumbleLabel(hz: number): string {
+		return hz > 0 ? `${hz} Hz` : 'Rumble';
+	}
+
+	function formatNormalizeLabel(db: number | null): string {
+		if (db == null) return 'Normalize';
+		const rounded = Math.round(db * 10) / 10;
+		const sign = rounded > 0 ? '+' : '';
+		return `Norm ${sign}${rounded} dB`;
+	}
+
+	function formatNormalizeTitle(db: number | null): string {
+		if (!normalizeOn) return 'Peak normalize to −1 dBFS';
+		if (db == null) return 'Peak normalize on';
+		const rounded = Math.round(db * 10) / 10;
+		const sign = rounded > 0 ? '+' : '';
+		return `Peak normalize ${sign}${rounded} dB to −1 dBFS`;
+	}
 
 	const showTrimGrips = $derived(!hasUsableSelection && !identity);
 
@@ -438,11 +500,25 @@
 
 	async function applyRecipeMutation(
 		mutate: (recipe: EditRecipe) => EditRecipe,
-		feedback?: string
+		feedback?: string,
+		options?: { carryNormalizePreview?: boolean }
 	): Promise<boolean> {
 		if (!take || !editHistory || uploadLocked) return false;
 		try {
-			const next = mutate(editHistory.current);
+			const current = editHistory.current;
+			const carryNormalize =
+				options?.carryNormalizePreview === true &&
+				sourceDuration > 0 &&
+				isIdentityRecipe(current, sourceDuration) &&
+				!normalizePreviewSuppressed &&
+				current.peakNormalization?.enabled !== true;
+			let next = mutate(current);
+			if (carryNormalize) {
+				next = commitNormalizeIfNeeded(next, {
+					wasIdentity: true,
+					hadNormalizePreview: true
+				});
+			}
 			const committed = editHistory.commit(next);
 			bumpHistory();
 			await persistRecipe(committed);
@@ -542,6 +618,34 @@
 		disposePlayback();
 	}
 
+	async function onGain() {
+		if (uploadLocked || hasUsableSelection) return;
+		await applyRecipeMutation((recipe) => cycleRecipeGainDb(recipe), 'Gain updated', {
+			carryNormalizePreview: true
+		});
+	}
+
+	async function onRumble() {
+		if (uploadLocked || hasUsableSelection) return;
+		await applyRecipeMutation((recipe) => cycleHighPassHz(recipe), 'Rumble filter updated', {
+			carryNormalizePreview: true
+		});
+	}
+
+	async function onLimit() {
+		if (uploadLocked || hasUsableSelection || !normalizeOn) return;
+		await applyRecipeMutation((recipe) => toggleSoftLimit(recipe), 'Limit updated', {
+			carryNormalizePreview: true
+		});
+	}
+
+	async function onGate() {
+		if (uploadLocked || hasUsableSelection) return;
+		await applyRecipeMutation((recipe) => toggleGate(recipe), 'Gate updated', {
+			carryNormalizePreview: true
+		});
+	}
+
 	async function onResetEdits() {
 		if (!take || !editHistory || sourceDuration <= 0 || uploadLocked) return;
 		try {
@@ -594,6 +698,7 @@
 				take = { ...current, peaks: loaded.asset };
 			}
 			void runSuggestedRegions();
+			scheduleGeneratedTagsForTake(current, { pcm: loaded.decoded });
 		} catch (cause) {
 			peaks = null;
 			const detail =
@@ -699,8 +804,19 @@
 
 		const unsubInventory = onTakeInventoryChanged(refreshTake);
 		const unsubUpload = onUploadQueueChanged(refreshTake);
+		const unsubTags = onGeneratedTagsApplied((updatedId) => {
+			if (updatedId === id) {
+				void loadTake(id);
+			}
+		});
 
 		void (async () => {
+			try {
+				const settings = await getAppSettings();
+				recentTags = settings.recentTags;
+			} catch {
+				recentTags = [];
+			}
 			try {
 				await loadTake(id);
 				if (take) await loadPeaks(take);
@@ -714,6 +830,7 @@
 		return () => {
 			unsubInventory();
 			unsubUpload();
+			unsubTags();
 		};
 	});
 
@@ -760,6 +877,23 @@
 
 		return detailPcmInflight;
 	}
+
+	$effect(() => {
+		const recipe = activePlaybackRecipe;
+		const on = normalizeOn;
+		if (!on || !recipe?.peakNormalization?.enabled) {
+			normalizeGainDb = null;
+			return;
+		}
+		let cancelled = false;
+		void ensureDetailPcm().then((pcm) => {
+			if (cancelled || !pcm) return;
+			normalizeGainDb = recipeNormalizeGainDb(pcm, recipe);
+		});
+		return () => {
+			cancelled = true;
+		};
+	});
 
 	function formatClock(seconds: number): string {
 		const clamped = Math.max(0, seconds);
@@ -954,6 +1088,13 @@
 		try {
 			take = await saveTakeMetadata(take.id, patch);
 			draftName = take.metadata.displayName;
+			if (patch.tags) {
+				void rememberRecentTagsFromUse(patch.tags)
+					.then((settings) => {
+						recentTags = settings.recentTags;
+					})
+					.catch(() => {});
+			}
 			actionToast.show('Field Notes saved');
 		} catch (cause) {
 			const message =
@@ -1056,6 +1197,7 @@
 						retainedRanges={waveRetainedRanges}
 						scoutedRegions={scoutedRegionsForWave}
 						peakNormalization={wavePeakNormalization}
+						previewRecipe={wavePreviewRecipe}
 						{showTrimGrips}
 						{onSeek}
 						{onSelectionChange}
@@ -1069,20 +1211,64 @@
 						}}
 					>
 						{#snippet chromeActions()}
-							<GhostButton
-								compact
-								disabled={uploadLocked}
-								active={normalizeOn}
-								aria-pressed={normalizeOn}
-								title={hasUsableSelection
-									? 'Peak normalize is on for the selection'
-									: normalizeOn
-										? 'Normalize on — tap to turn off'
-										: 'Normalize'}
-								onclick={() => void onNormalize()}
-							>
-								Normalize
-							</GhostButton>
+							<div class="wave-tool-actions bar-cluster-tight" role="group" aria-label="Edit tools">
+								<GhostButton
+									compact
+									disabled={uploadLocked || hasUsableSelection}
+									active={gainActive}
+									aria-pressed={gainActive}
+									title={hasUsableSelection ? 'Gain locked while selecting' : 'Cycle gain'}
+									onclick={() => void onGain()}
+								>
+									{formatGainLabel(recipeGainDb)}
+								</GhostButton>
+								<GhostButton
+									compact
+									disabled={uploadLocked || hasUsableSelection}
+									active={rumbleActive}
+									aria-pressed={rumbleActive}
+									title={hasUsableSelection
+										? 'Rumble filter locked while selecting'
+										: 'Cycle rumble cut (high-pass)'}
+									onclick={() => void onRumble()}
+								>
+									{formatRumbleLabel(recipeProcessing.highPassHz)}
+								</GhostButton>
+								<GhostButton
+									compact
+									disabled={uploadLocked || hasUsableSelection || !normalizeOn}
+									active={limitActive}
+									aria-pressed={limitActive}
+									title={hasUsableSelection
+										? 'Limit locked while selecting'
+										: !normalizeOn
+											? 'Turn on normalize before soft limit'
+											: 'Soft limit at −1 dBFS'}
+									onclick={() => void onLimit()}
+								>
+									Limit
+								</GhostButton>
+								<GhostButton
+									compact
+									disabled={uploadLocked || hasUsableSelection}
+									active={gateActive}
+									aria-pressed={gateActive}
+									title={hasUsableSelection ? 'Gate locked while selecting' : 'Noise gate'}
+									onclick={() => void onGate()}
+								>
+									Gate
+								</GhostButton>
+								<GhostButton
+									compact
+									disabled={uploadLocked}
+									active={normalizeOn}
+									aria-pressed={normalizeOn}
+									title={formatNormalizeTitle(normalizeGainDb)}
+									onclick={() => void onNormalize()}
+								>
+									{normalizeOn ? formatNormalizeLabel(normalizeGainDb) : 'Normalize'}
+								</GhostButton>
+							</div>
 						{/snippet}
 					</WaveformOverview>
 				</div>
@@ -1116,10 +1302,10 @@
 								</GhostButton>
 							</div>
 						</div>
-						<div class="action-row">
+						<div class="action-row bar-actions">
 							<div class="action-side">
 								{#if showSuggestionChrome}
-									<div class="suggest-nav" role="group" aria-label="Scouted regions">
+									<div class="suggest-nav bar-cluster" role="group" aria-label="Scouted regions">
 										<GhostButton
 											compact
 											active={suggestionIndex != null}
@@ -1171,7 +1357,7 @@
 									</GhostButton>
 								{/if}
 							</div>
-							<div class="action-side action-side-end">
+							<div class="action-side action-side-end bar-cluster">
 								<GhostButton
 									icon
 									active={fieldNotesSheetOpen}
@@ -1197,117 +1383,97 @@
 
 		{#if fieldNotesSheetOpen}
 			<SheetOverlay title="Field Notes" onclose={() => (fieldNotesSheetOpen = false)}>
+				{#snippet footer()}
+					<GhostButton danger disabled={uploadLocked} onclick={requestDiscard}>Discard</GhostButton>
+					<PrimaryButton
+						type="submit"
+						form="take-field-notes-form"
+						disabled={!fieldNotesCanSave || savingFieldNotes || uploadLocked}
+					>
+						{savingFieldNotes ? 'Saving…' : 'Save'}
+					</PrimaryButton>
+				{/snippet}
 				<div class="editor-tools">
 					<section class="field-notes-section" aria-label="Field Notes">
 						<div class="catalog-summary">
 							<SpecimenMark mark={deriveSpecimenMark(take)} />
 							<div>
-								<span class="metadata-label">Local catalog reference</span>
+								<span class="catalog-label">Local catalog reference</span>
 								<strong class="catalog-reference">{deriveCatalogReference(take)}</strong>
 							</div>
 						</div>
 
 						<FieldNotesEditor
+							formId="take-field-notes-form"
+							bind:canSave={fieldNotesCanSave}
 							metadata={take.metadata}
+							{recentTags}
 							disabled={uploadLocked}
 							saving={savingFieldNotes}
 							onsave={onSaveFieldNotes}
 						/>
 
-						<div class="metadata-grid">
-							<div class="metadata-item">
-								<span class="metadata-label">Duration</span>
-								<span class="metadata-value">{formatClock(sourceDuration)}</span>
-							</div>
+						<StaticFactsGrid>
+							<StaticFact label="Duration">
+								{formatClock(sourceDuration)}
+							</StaticFact>
 
 							{#if !identity}
-								<div class="metadata-item">
-									<span class="metadata-label">Edited duration</span>
-									<span class="metadata-value">{formatClock(editedDuration)}</span>
-								</div>
+								<StaticFact label="Edited" title="Edited duration">
+									{formatClock(editedDuration)}
+								</StaticFact>
 							{/if}
 
-							<div class="metadata-item">
-								<span class="metadata-label">Channel</span>
-								<span class="metadata-value">{channelLabel}</span>
-							</div>
+							<StaticFact label="Channel">
+								{channelLabel}
+							</StaticFact>
 
 							{#if selectionStart != null && selectionEnd != null}
-								<div class="metadata-item">
-									<span class="metadata-label">Selection</span>
-									<span class="metadata-value">
-										{formatClock(Math.min(selectionStart, selectionEnd))}–{formatClock(
-											Math.max(selectionStart, selectionEnd)
-										)}
-									</span>
-								</div>
+								<StaticFact label="Selection">
+									{formatClock(Math.min(selectionStart, selectionEnd))}–{formatClock(
+										Math.max(selectionStart, selectionEnd)
+									)}
+								</StaticFact>
 							{/if}
 
 							{#if take.source.sourceType === 'import' && take.source.originalFileName}
-								<div class="metadata-item">
-									<span class="metadata-label">Original file</span>
-									<span class="metadata-value">{take.source.originalFileName}</span>
-								</div>
+								<StaticFact label="Source file" title="Original file">
+									{take.source.originalFileName}
+								</StaticFact>
 							{/if}
 
-							{#if take.derivedFromTakeId}
-								<div class="metadata-item">
-									<span class="metadata-label">Collected from</span>
-									<span class="metadata-value">
-										<a class="derived-link" href={resolve(`/take/${take.derivedFromTakeId}`)}>
-											Parent take
-										</a>
-									</span>
-								</div>
-							{/if}
+							<StaticFact label="Format">
+								{take.source.mimeType.replace(/^audio\//, '')}
+							</StaticFact>
 
-							<div class="metadata-item">
-								<span class="metadata-label">Format</span>
-								<span class="metadata-value">{take.source.mimeType}</span>
-							</div>
+							<StaticFact label="Size">
+								{Math.round(take.source.byteLength / 1024)} KB
+							</StaticFact>
 
-							<div class="metadata-item">
-								<span class="metadata-label">Size</span>
-								<span class="metadata-value">{Math.round(take.source.byteLength / 1024)} KB</span>
-							</div>
+							<StaticFact label="Seq" title="Sequence">
+								#{String(take.sequence).padStart(3, '0')}
+							</StaticFact>
 
-							<div class="metadata-item">
-								<span class="metadata-label">Sequence</span>
-								<span class="metadata-value">#{String(take.sequence).padStart(3, '0')}</span>
-							</div>
+							<StaticFact label="Created">
+								{formatShortDateTime(take.createdAt)}
+							</StaticFact>
 
-							<div class="metadata-item">
-								<span class="metadata-label">Created</span>
-								<span class="metadata-value">{formatRecordingDate(take.createdAt)}</span>
-							</div>
-
-							<div class="metadata-item">
-								<span class="metadata-label">Status</span>
+							<StaticFact label="Status" span={2}>
 								{#if take.uploadState !== 'not-queued'}
-									<StatusLabel tone={uploadStateTone(take.uploadState)}>
+									<StatusLabel tone={uploadStateTone(take.uploadState)} density="compact">
 										{formatUploadStateLabel(take.uploadState)}
 									</StatusLabel>
 								{:else}
-									<StatusLabel tone={isTakeSavedLocally(take) ? 'signal' : 'muted'}>
-										{isTakeSavedLocally(take) ? 'LOCAL FILE · THIS DEVICE' : 'Not saved'}
+									<StatusLabel
+										tone={isTakeSavedLocally(take) ? 'signal' : 'muted'}
+										density="compact"
+									>
+										{isTakeSavedLocally(take) ? 'Local file' : 'Not saved'}
 									</StatusLabel>
 								{/if}
-							</div>
-						</div>
+							</StaticFact>
+						</StaticFactsGrid>
 					</section>
-
-					<div class="danger-row">
-						<GhostButton
-							icon
-							danger
-							disabled={uploadLocked}
-							onclick={requestDiscard}
-							aria-label="Discard take"
-							title="Discard"
-						>
-							<Icon name="trash" />
-						</GhostButton>
-					</div>
 				</div>
 			</SheetOverlay>
 		{/if}
@@ -1482,6 +1648,15 @@
 		display: none;
 	}
 
+	.wave-tool-actions {
+		flex-wrap: nowrap;
+		flex-shrink: 0;
+	}
+
+	.wave-tool-actions > :global(*) {
+		flex-shrink: 0;
+	}
+
 	.editor-tools {
 		display: grid;
 		gap: var(--space-3);
@@ -1492,81 +1667,35 @@
 		gap: var(--space-3);
 	}
 
-	.danger-row {
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--space-2);
-		padding-top: var(--space-2);
-		border-top: 1px solid var(--line);
-	}
-
 	.catalog-summary {
 		display: flex;
 		align-items: center;
-		gap: var(--space-3);
-		padding-bottom: var(--space-3);
+		gap: var(--space-2);
+		padding-bottom: var(--space-2);
 		border-bottom: 1px solid var(--line);
-		margin-bottom: var(--space-3);
+		margin-bottom: var(--space-2);
 	}
 
 	.catalog-summary > div {
 		display: grid;
-		gap: var(--space-1);
+		gap: 1px;
 		min-width: 0;
+	}
+
+	.catalog-label {
+		font-size: var(--text-micro);
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--ink-muted);
+		line-height: 1.2;
 	}
 
 	.catalog-reference {
 		overflow: hidden;
-		font-size: var(--text-body);
+		font-size: var(--text-meta);
 		text-overflow: ellipsis;
 		white-space: nowrap;
-	}
-
-	.metadata-grid {
-		display: grid;
-		gap: var(--space-3);
-		margin-top: var(--space-4);
-		padding-top: var(--space-3);
-		border-top: 1px solid var(--line);
-	}
-
-	.metadata-item {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		gap: var(--space-3);
-		padding: var(--space-2) 0;
-		border-bottom: 1px solid var(--line);
-	}
-
-	.metadata-item:last-child {
-		border-bottom: none;
-	}
-
-	.metadata-label {
-		font-size: var(--text-meta);
-		font-weight: 600;
-		color: var(--ink-muted);
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-	}
-
-	.metadata-value {
-		font-size: var(--text-body);
-		font-weight: 600;
-		font-family: var(--font-mono);
-		text-align: right;
-	}
-
-	.derived-link {
-		color: var(--ink);
-		text-decoration: underline;
-		text-underline-offset: 2px;
-	}
-
-	.derived-link:focus-visible {
-		outline: 2px solid var(--ink);
-		outline-offset: 2px;
 	}
 
 	.transport-bar {
@@ -1605,9 +1734,6 @@
 	}
 
 	.suggest-nav {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
 		min-height: var(--touch-min);
 	}
 
@@ -1620,10 +1746,7 @@
 	}
 
 	.action-row {
-		display: flex;
-		align-items: center;
 		justify-content: space-between;
-		gap: var(--space-2);
 		width: 100%;
 	}
 
@@ -1635,6 +1758,5 @@
 
 	.action-side-end {
 		justify-content: flex-end;
-		gap: var(--space-2);
 	}
 </style>

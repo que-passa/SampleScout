@@ -339,6 +339,21 @@ Do not call peak normalization “loudness normalization.”
 
 LUFS normalization is later scope.
 
+## 13b. Light cleanup (Gain / Rumble / Limit / Gate)
+
+Optional take-level processing on the edit recipe, applied at PCM render (Collect + encode inherit):
+
+| Control    | Behavior                                                                                                       |
+| ---------- | -------------------------------------------------------------------------------------------------------------- |
+| **Gain**   | Cycles −12, −6, 0, +6, +12 dB on retained segments. Uniform peak scale on the waveform.                        |
+| **Rumble** | Cycles high-pass off → 40 → 80 → 120 → 240 → 480 Hz. Audible low-end cut; preview uses rendered peak envelope. |
+| **Limit**  | Soft ceiling at −1 dBFS (normalize target). Audible on hot peaks.                                              |
+| **Gate**   | Downward expander below −42 dBFS (15 ms attack / 80 ms release). Quiet regions flatten in preview.             |
+
+Order: trim/concat + segment gain/fades → high-pass → gate → peak normalize → soft limit.
+
+While a usable **selection** is active, Gain/Rumble/Limit/Gate are locked; Normalize stays on for preview. **Reset** clears processing with the rest of the recipe.
+
 ## 14. Rendering
 
 Use `OfflineAudioContext` or a deterministic PCM rendering pipeline.

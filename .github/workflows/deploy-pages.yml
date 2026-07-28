@@ -39,6 +39,9 @@ jobs:
       - name: Unit tests
         run: npm run test:ci
 
+      - name: Fetch ML assets
+        run: npm run fetch:ml-assets
+
       - name: Build
         env:
           # Set to /<repo> for project Pages sites; leave empty for user sites.

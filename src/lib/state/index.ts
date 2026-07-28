@@ -65,3 +65,8 @@ export {
 	retryTakeUpload,
 	uploadQueue
 };
+export {
+	onGeneratedTagsApplied,
+	scheduleGeneratedTagsForTake,
+	scheduleGeneratedTagsForTakes
+} from './generated-tags';

@@ -4,19 +4,22 @@
 	let {
 		type = 'button',
 		disabled = false,
+		form,
 		onclick,
 		class: className,
 		children
 	}: {
 		type?: 'button' | 'submit';
 		disabled?: boolean;
+		/** Associates submit with a form elsewhere in the document (sheet footer). */
+		form?: string;
 		onclick?: (event: MouseEvent) => void;
 		class?: string;
 		children: Snippet;
 	} = $props();
 </script>
 
-<button {type} {disabled} {onclick} class={['ss-primary-button', className]}>
+<button {type} {disabled} {form} {onclick} class={['ss-primary-button', className]}>
 	<span class="well">
 		<span class="face">
 			{@render children()}

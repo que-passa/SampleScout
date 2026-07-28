@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+	applyGeneratedTags,
 	applyTakeMetadataPatch,
+	canApplyGeneratedTags,
 	assignNumberedDisplayNames,
 	createSession,
 	formatNumberedDisplayName,
@@ -79,7 +81,7 @@ describe('generateTakeMetadata', () => {
 		expect(metadata.description).toContain('Take 003');
 		expect(metadata.kind).toBe('one-shot');
 		expect(metadata.visibility).toBe('unlisted');
-		expect(metadata.tags).toEqual(['recording']);
+		expect(metadata.tags).toEqual([]);
 		expect(metadata.provenance.displayName).toBe('generated');
 		expect(metadata.provenance.kind).toBe('application-default');
 		expect(metadata.provenance.visibility).toBe('application-default');
@@ -97,7 +99,7 @@ describe('generateTakeMetadata', () => {
 		expect(metadata.displayName).toBe('Door hits 02');
 	});
 
-	it('prefers session tags over the recording fallback', () => {
+	it('prefers session tags over an empty default', () => {
 		const session = createSession('Loops');
 		session.defaults.tags = ['field', 'metal'];
 		session.defaults.kind = 'loop';
@@ -123,6 +125,64 @@ describe('parseTagList / formatTagList', () => {
 	it('splits and dedupes tags', () => {
 		expect(parseTagList('field, metal; field\nwood')).toEqual(['field', 'metal', 'wood']);
 		expect(formatTagList(['field', 'metal'])).toBe('field, metal');
+	});
+});
+
+describe('generated tags', () => {
+	it('canApplyGeneratedTags allows generic defaults and prior generated tags', () => {
+		const session = createSession('Rain');
+		const metadata = generateTakeMetadata({
+			sessionName: session.name,
+			sequence: 1,
+			recordedAt: '2026-07-25T10:00:00.000Z',
+			sessionDefaults: session.defaults
+		});
+		expect(canApplyGeneratedTags(metadata)).toBe(true);
+
+		const manual = applyTakeMetadataPatch(metadata, { tags: ['custom'] });
+		expect(canApplyGeneratedTags(manual)).toBe(false);
+	});
+
+	it('applyGeneratedTags replaces tags and marks provenance generated', () => {
+		const session = createSession('Rain');
+		const metadata = generateTakeMetadata({
+			sessionName: session.name,
+			sequence: 1,
+			recordedAt: '2026-07-25T10:00:00.000Z',
+			sessionDefaults: session.defaults
+		});
+
+		const next = applyGeneratedTags(metadata, ['rain', 'thunder'], 1);
+		expect(next?.tags).toEqual(['rain', 'thunder']);
+		expect(next?.provenance.tags).toBe('generated');
+		expect(next?.provenance.tagsAlgorithmVersion).toBe(1);
+	});
+
+	it('canApplyGeneratedTags skips current generated tags unless forced or stale', () => {
+		const session = createSession('Rain');
+		const metadata = generateTakeMetadata({
+			sessionName: session.name,
+			sequence: 1,
+			recordedAt: '2026-07-25T10:00:00.000Z',
+			sessionDefaults: session.defaults
+		});
+		const generated = applyGeneratedTags(metadata, ['rain'], 2);
+		expect(canApplyGeneratedTags(generated!)).toBe(false);
+		expect(canApplyGeneratedTags(generated!, { force: true })).toBe(true);
+		expect(canApplyGeneratedTags(generated!, { algorithmVersion: 3 })).toBe(true);
+	});
+
+	it('applyGeneratedTags skips session-default tags', () => {
+		const session = createSession('Field');
+		session.defaults.tags = ['field'];
+		const metadata = generateTakeMetadata({
+			sessionName: session.name,
+			sequence: 1,
+			recordedAt: '2026-07-25T10:00:00.000Z',
+			sessionDefaults: session.defaults
+		});
+
+		expect(applyGeneratedTags(metadata, ['rain'], 1)).toBeNull();
 	});
 });
 

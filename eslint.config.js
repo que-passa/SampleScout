@@ -31,11 +31,18 @@ export default defineConfig(
 				extraFileExtensions: ['.svelte'],
 				parser: ts.parser
 			}
+		},
+		rules: {
+			// $bindable() props are written for parent binding, not read in-script.
+			'no-useless-assignment': 'off'
 		}
 	},
 	{
 		// Override or add rule settings here, such as:
 		// 'svelte/button-has-type': 'error'
 		rules: {}
+	},
+	{
+		ignores: ['static/mediapipe/**', 'static/models/**']
 	}
 );

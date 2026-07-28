@@ -209,6 +209,14 @@ Prefill presentation:
 - Do not use placeholder text as the actual default.
 - A reset-to-suggestion action should be available after manual changes.
 
+**Tags editor** (Field Notes, batch Field Notes, Collection upload confirm):
+
+- Token field: committed tags render as inline removable pills; a text input captures the next tag.
+- Commit with comma, Enter, or blur; comma is not shown. Backspace on an empty input removes the last tag. Click a committed pill to remove it.
+- Below the field: up to **12 remembered recent tags** on this device (newest first, FIFO), then **built-in preset chips** (sample-identity slugs such as `foley`, `hihat`, `metal`, `soft`, …). Recent chips use brand-soft fill; built-ins use surface — same language as Capture session-name chips but **smaller** (`--text-meta` for in-field tokens and suggestion chips).
+- Tap a suggestion chip to **append** that tag (does not replace the whole list). Already-selected tags hide from suggestions.
+- Persist recent tags when Field Notes are saved, batch-applied, or upload overlay is confirmed.
+
 ## 9. Mobile editor
 
 Use a dedicated full-screen route or overlay — not a bottom sheet. Editing needs vertical space for waveform, zoom, and selection handles.
@@ -219,7 +227,7 @@ Structure:
 - Waveform stage: precise waveform sits on page `--paper` (not a boxed pane/card) and uses the available vertical space between header and bottom bar; no redundant “Waveform” label or status header (positional time lives on the waveform ruler; duration / channel / selection facts live in Field Notes — no separate playhead clock in transport)
 - Overview navigator strip and compact zoom controls (±) pin in the bottom bar above transport
 - Pinned bottom bar: wave chrome (zoom + overview) → transport row (`PlaybackControl` center, Loop right) → action row (**Scouted** left when available — icon + `N scouted`, then `01/N` + **Next** after engage; **Field Notes** icon immediately left of **Collect** brand primary on the right). No Upload on take — shipping is Collection-only.
-- Field Notes sheet holds metadata/details and **Discard**. No Cut, Undo, Redo, or Trim in the UI. **Reset** lives in the editor header (not the sheet). **Normalize** lives as a quick action on the zoom row: auto-on while a selection is active (control reads as latched on, not disabled/grey); without a selection it toggles the committed recipe. Selection is waveform-only (no numeric sel inputs in the sheet). **Fade in/out** are waveform grips on the working selection (or on the committed recipe when editing a non-identity child). There is no Retake action; capture a new take instead. Successful edit actions, Collect, and discards show a compact action toast.
+- Field Notes sheet holds metadata/details and **Discard**. No Cut, Undo, Redo, or Trim in the UI. **Reset** lives in the editor header (not the sheet). **Gain**, **Rumble** (high-pass), **Limit**, **Gate**, and **Normalize** live as compact actions on the waveform chrome row: Gain/Rumble/Limit/Gate lock while a selection is active; Normalize auto-on while selecting (latched on, not greyed). Without a selection, Normalize toggles the committed recipe. Selection is waveform-only (no numeric sel inputs in the sheet). **Fade in/out** are waveform grips on the working selection (or on the committed recipe when editing a non-identity child). There is no Retake action; capture a new take instead. Successful edit actions, Collect, and discards show a compact action toast.
 - **Collect** is the primary commit when a usable selection exists: create a new Local File from selection bounds + fades + normalize, restore parent recipe to identity, stay on the parent for another Collect
 - Do **not** duplicate Capture/Collection links in the footer; stack back chrome covers navigation
 

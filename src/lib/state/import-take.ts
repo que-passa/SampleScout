@@ -13,6 +13,7 @@ import {
 	writeBinary
 } from '$lib/persistence';
 import { notifyTakeInventoryChanged } from './take-actions';
+import { scheduleGeneratedTagsForTake } from './generated-tags';
 
 export interface ImportAudioFilesResult {
 	imported: Take[];
@@ -134,6 +135,8 @@ export async function importAudioFile(
 	};
 
 	const committed = await commitSavedTake(pending, session);
+
+	scheduleGeneratedTagsForTake(committed.take);
 
 	try {
 		if (navigator.storage?.persist) {

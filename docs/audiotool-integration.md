@@ -56,7 +56,7 @@ Record actual API errors and any scope gaps in this doc.
 
 1. Validate Field Notes (display name; BPM if loop)
 2. Render / encode locally when no fresh `renderedAsset`
-3. Create sample upload with metadata (default visibility `unlisted`)
+3. Create sample upload with metadata (default visibility `unlisted`; always includes hidden `recording` and `sample-scout` tags on Audiotool, not shown in Field Notes UI)
 4. Upload bytes (`preventTabClose: true` when supported)
 5. Wait for `uploaded`
 6. Wait for `ready` — only then mark take `uploaded`

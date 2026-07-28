@@ -11,6 +11,7 @@ import {
 	updateTakeOutput
 } from '$lib/persistence';
 import { actionToast } from './action-toast';
+import { scheduleGeneratedTagsForTake } from './generated-tags';
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
 
@@ -40,6 +41,7 @@ export async function collectSelectionAsLocalFile(input: {
 	recipe?: EditRecipe;
 }): Promise<Take> {
 	const take = await extractTakeFromSelection(input);
+	scheduleGeneratedTagsForTake(take);
 	await notifyTakeInventoryChanged();
 
 	const label = take.metadata.displayName || deriveCatalogReference(take);
@@ -156,6 +158,7 @@ export async function batchSaveTakeMetadata(
 /** Persist edit recipe; source binary stays unchanged. */
 export async function saveTakeEditRecipe(takeId: TakeId, editRecipe: EditRecipe): Promise<Take> {
 	const take = await updateTakeEditRecipe(takeId, editRecipe);
+	scheduleGeneratedTagsForTake(take, { priority: 'background', force: true });
 	await notifyTakeInventoryChanged();
 	return take;
 }

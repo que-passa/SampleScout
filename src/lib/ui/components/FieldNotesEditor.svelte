@@ -2,24 +2,31 @@
 	import { untrack } from 'svelte';
 	import {
 		formatMetadataOrigin,
-		formatTagList,
-		parseTagList,
+		tagsEqual,
 		type SampleKind,
 		type TakeMetadata,
 		type TakeMetadataPatch,
 		type Visibility
 	} from '$lib/domain';
-	import PrimaryButton from '$lib/ui/components/PrimaryButton.svelte';
+	import TagInput from '$lib/ui/components/TagInput.svelte';
 
 	let {
 		metadata,
+		recentTags = [],
 		disabled = false,
 		saving = false,
+		formId = 'field-notes-form',
+		canSave = $bindable(),
 		onsave
 	}: {
 		metadata: TakeMetadata;
+		recentTags?: string[];
 		disabled?: boolean;
 		saving?: boolean;
+		/** Form id for an external submit control (sheet footer). */
+		formId?: string;
+		/** Whether the draft differs from persisted metadata and may be saved. */
+		canSave?: boolean;
 		onsave: (patch: TakeMetadataPatch) => void | Promise<void>;
 	} = $props();
 
@@ -37,14 +44,14 @@
 
 	class FieldNotesDraft {
 		description = $state('');
-		tagsText = $state('');
+		tags = $state<string[]>([]);
 		kind = $state<SampleKind>('one-shot');
 		visibility = $state<Visibility>('unlisted');
 		bpmValue = $state<number | ''>('');
 
 		constructor(m: TakeMetadata) {
 			this.description = m.description;
-			this.tagsText = formatTagList(m.tags);
+			this.tags = [...m.tags];
 			this.kind = m.kind;
 			this.visibility = m.visibility;
 			this.bpmValue = m.bpm != null ? m.bpm : '';
@@ -56,11 +63,6 @@
 		return untrack(() => new FieldNotesDraft(metadata));
 	});
 
-	function tagsEqual(a: string[], b: string[]): boolean {
-		if (a.length !== b.length) return false;
-		return a.every((tag, index) => tag === b[index]);
-	}
-
 	function draftBpm(): number | undefined {
 		const value = draft.bpmValue;
 		return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
@@ -68,7 +70,7 @@
 
 	const isDirty = $derived.by(() => {
 		if (draft.description !== metadata.description) return true;
-		if (!tagsEqual(parseTagList(draft.tagsText), metadata.tags)) return true;
+		if (!tagsEqual(draft.tags, metadata.tags)) return true;
 		if (draft.kind !== metadata.kind) return true;
 		if (draft.visibility !== metadata.visibility) return true;
 		if (draft.kind === 'loop') {
@@ -77,7 +79,11 @@
 		return metadata.bpm != null;
 	});
 
-	const canSave = $derived(isDirty && !disabled && !saving);
+	const saveEnabled = $derived(isDirty && !disabled && !saving);
+
+	$effect(() => {
+		canSave = saveEnabled;
+	});
 
 	function buildPatch(): TakeMetadataPatch {
 		const patch: TakeMetadataPatch = {};
@@ -86,7 +92,7 @@
 			patch.description = draft.description;
 		}
 
-		const tags = parseTagList(draft.tagsText);
+		const tags = [...draft.tags];
 		if (!tagsEqual(tags, metadata.tags)) {
 			patch.tags = tags;
 		}
@@ -115,14 +121,14 @@
 
 	async function onSubmit(event: Event) {
 		event.preventDefault();
-		if (!canSave) return;
+		if (!saveEnabled) return;
 		const patch = buildPatch();
 		if (Object.keys(patch).length === 0) return;
 		await onsave(patch);
 	}
 </script>
 
-<form class="field-notes" onsubmit={onSubmit}>
+<form id={formId} class="field-notes" onsubmit={onSubmit}>
 	<div class="field">
 		<div class="label-row">
 			<label class="label" for="field-notes-description">Description</label>
@@ -141,15 +147,7 @@
 			<label class="label" for="field-notes-tags">Tags</label>
 			<span class="origin">{formatMetadataOrigin(metadata.provenance.tags)}</span>
 		</div>
-		<input
-			id="field-notes-tags"
-			class="control"
-			type="text"
-			bind:value={draft.tagsText}
-			placeholder="comma-separated"
-			autocomplete="off"
-			{disabled}
-		/>
+		<TagInput inputId="field-notes-tags" bind:tags={draft.tags} {recentTags} {disabled} />
 	</div>
 
 	<div class="field">
@@ -232,15 +230,6 @@
 			/>
 		</div>
 	{/if}
-
-	<div class="actions">
-		{#if saving}
-			<span class="status" aria-live="polite">Saving…</span>
-		{/if}
-		<PrimaryButton type="submit" disabled={!canSave}>
-			{saving ? 'Saving…' : 'Save'}
-		</PrimaryButton>
-	</div>
 </form>
 
 <style>
@@ -402,18 +391,5 @@
 		background: var(--surface);
 		color: var(--disabled);
 		box-shadow: none;
-	}
-
-	.actions {
-		display: flex;
-		align-items: center;
-		justify-content: flex-end;
-		gap: var(--space-3);
-		margin-top: var(--space-1);
-	}
-
-	.status {
-		font-size: var(--text-meta);
-		color: var(--ink-muted);
 	}
 </style>

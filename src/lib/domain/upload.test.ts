@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { Take, TakeMetadata } from './types';
+import { AUDIOTOOL_RECORDING_TAG } from './tags';
 import {
+	AUDIOTOOL_SOURCE_TAG,
+	audiotoolUploadTags,
 	formatUploadStateLabel,
 	isActiveUploadJobState,
 	isInFlightUploadJobState,
@@ -15,7 +18,7 @@ function metadata(partial: Partial<TakeMetadata> = {}): TakeMetadata {
 	return {
 		displayName: 'Field Session · test — 001',
 		description: '',
-		tags: ['recording'],
+		tags: [],
 		kind: 'one-shot',
 		visibility: 'unlisted',
 		provenance: {
@@ -28,6 +31,29 @@ function metadata(partial: Partial<TakeMetadata> = {}): TakeMetadata {
 		...partial
 	};
 }
+
+describe('audiotoolUploadTags', () => {
+	it('adds hidden provenance tags to user tags', () => {
+		expect(audiotoolUploadTags(['field', 'metal'])).toEqual([
+			'field',
+			'metal',
+			AUDIOTOOL_RECORDING_TAG,
+			AUDIOTOOL_SOURCE_TAG
+		]);
+	});
+
+	it('adds hidden tags when no user tags', () => {
+		expect(audiotoolUploadTags([])).toEqual([AUDIOTOOL_RECORDING_TAG, AUDIOTOOL_SOURCE_TAG]);
+	});
+
+	it('does not duplicate hidden tags', () => {
+		expect(audiotoolUploadTags(['recording', 'sample-scout', 'foley'])).toEqual([
+			'foley',
+			AUDIOTOOL_RECORDING_TAG,
+			AUDIOTOOL_SOURCE_TAG
+		]);
+	});
+});
 
 describe('validateTakeMetadataForUpload', () => {
 	it('requires a non-empty display name', () => {

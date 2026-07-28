@@ -108,6 +108,8 @@ export interface TakeMetadata {
 		displayName: MetadataOrigin;
 		description: MetadataOrigin;
 		tags: MetadataOrigin;
+		/** Set when tags were last auto-generated; used to refresh stale classifications. */
+		tagsAlgorithmVersion?: number;
 		kind: MetadataOrigin;
 		visibility: MetadataOrigin;
 		bpm?: MetadataOrigin;
@@ -123,6 +125,17 @@ export interface RetainedSegment {
 	gainDb: number;
 }
 
+/** High-pass rumble-cut presets (Hz). `0` = off. */
+export type HighPassHz = 0 | 40 | 80 | 120 | 240 | 480;
+
+export interface EditRecipeProcessing {
+	highPassHz: HighPassHz;
+	softLimitEnabled: boolean;
+	gateEnabled: boolean;
+	/** Gate opens above this level (dBFS). */
+	gateThresholdDbfs: number;
+}
+
 export interface EditRecipe {
 	version: 1;
 	segments: RetainedSegment[];
@@ -131,6 +144,8 @@ export interface EditRecipe {
 		targetDbfs: number;
 		calculatedGainDb?: number;
 	};
+	/** Take-level cleanup after trim/concat (non-destructive on source). */
+	processing?: EditRecipeProcessing;
 }
 
 export interface PeakAsset {
