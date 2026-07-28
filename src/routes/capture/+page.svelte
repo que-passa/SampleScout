@@ -295,6 +295,7 @@
 						{#if canCancel}
 							<GhostButton
 								icon
+								chrome
 								danger
 								disabled={!canCancel}
 								onclick={() => captureController.cancelRecording()}
@@ -306,6 +307,8 @@
 						{:else}
 							<GhostButton
 								icon
+								chrome
+								muted
 								disabled={settingsDisabled}
 								onclick={openSettingsSheet}
 								aria-label="Capture settings"
@@ -591,7 +594,8 @@
 	.record-side {
 		display: flex;
 		align-items: center;
-		justify-content: flex-start;
+		/* Hug the record control — gap is padding only, not leftover 1fr space. */
+		justify-content: flex-end;
 		/* Match RecordControl `.well` height — align side controls to the record face, not the label. */
 		height: calc(var(--space-7) * 2 + var(--space-3) * 2);
 		padding-left: var(--space-2);
@@ -599,7 +603,7 @@
 	}
 
 	.record-side-end {
-		justify-content: flex-end;
+		justify-content: flex-start;
 		padding-right: var(--space-2);
 		padding-left: var(--space-6);
 	}

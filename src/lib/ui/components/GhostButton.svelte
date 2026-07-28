@@ -13,6 +13,8 @@
 		active?: boolean;
 		/** Icon-only: square face (touch-min − space-2). */
 		icon?: boolean;
+		/** Taller capture chrome — matches CollectionShortcut well/face height. */
+		chrome?: boolean;
 		/** Compact waveform / toolbar hit size (~30px). */
 		compact?: boolean;
 		/** Destructive ghost — signal label/icon only. */
@@ -32,6 +34,7 @@
 		class: className,
 		active = false,
 		icon = false,
+		chrome = false,
 		compact = false,
 		danger = false,
 		muted = false,
@@ -45,6 +48,7 @@
 	const rootClass = $derived([
 		'ss-ghost-button',
 		icon && 'icon',
+		chrome && 'chrome',
 		compact && 'compact',
 		danger && 'danger',
 		muted && 'muted',
@@ -176,6 +180,22 @@
 		min-height: 0;
 		padding: 0;
 		overflow: hidden;
+	}
+
+	/* Capture record-row chrome — mirror CollectionShortcut well/face geometry. */
+	.chrome .well {
+		min-height: calc(var(--touch-min) + var(--space-2));
+		border-radius: calc(var(--radius-control) + var(--space-1));
+	}
+
+	.chrome.icon .face {
+		width: auto;
+		height: auto;
+		min-width: calc(var(--touch-min) + var(--space-2) - var(--space-1) * 2);
+		min-height: calc(var(--touch-min) + var(--space-2) - var(--space-1) * 2);
+		padding: 0 var(--space-2);
+		border-radius: var(--radius-control);
+		overflow: visible;
 	}
 
 	.live {
