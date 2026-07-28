@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
-		applyGeneratedTags,
-		applyTakeMetadataPatch,
-		canApplyGeneratedTags,
-		generatedTagsForMetadata,
+	applyGeneratedTags,
+	applyTakeMetadataPatch,
+	canApplyGeneratedTags,
+	generatedTagsForMetadata,
 	assignNumberedDisplayNames,
 	createSession,
 	formatNumberedDisplayName,

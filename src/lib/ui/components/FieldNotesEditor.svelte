@@ -9,10 +9,7 @@
 		type TakeMetadataPatch,
 		type Visibility
 	} from '$lib/domain';
-	import {
-		isGeneratingTagsForTake,
-		onGeneratedTagsStateChange
-	} from '$lib/state/generated-tags';
+	import { isGeneratingTagsForTake, onGeneratedTagsStateChange } from '$lib/state/generated-tags';
 	import GhostButton from '$lib/ui/components/GhostButton.svelte';
 	import MetadataOriginPill from '$lib/ui/components/MetadataOriginPill.svelte';
 	import TagInput from '$lib/ui/components/TagInput.svelte';
