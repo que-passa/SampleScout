@@ -17,6 +17,7 @@ export interface ScheduleGeneratedTagsOptions {
 }
 
 export type GeneratedTagsListener = (takeId: TakeId, applied: boolean) => void;
+export type GeneratedTagsStateListener = () => void;
 
 interface TagJob {
 	takeId: TakeId;
@@ -27,6 +28,7 @@ interface TagJob {
 }
 
 const listeners = new Set<GeneratedTagsListener>();
+const stateListeners = new Set<GeneratedTagsStateListener>();
 const queue: TagJob[] = [];
 const queued = new Set<TakeId>();
 const running = new Set<TakeId>();
@@ -36,6 +38,21 @@ let pumpScheduled = false;
 export function onGeneratedTagsApplied(listener: GeneratedTagsListener): () => void {
 	listeners.add(listener);
 	return () => listeners.delete(listener);
+}
+
+export function onGeneratedTagsStateChange(listener: GeneratedTagsStateListener): () => void {
+	stateListeners.add(listener);
+	return () => stateListeners.delete(listener);
+}
+
+export function isGeneratingTagsForTake(takeId: TakeId): boolean {
+	return queued.has(takeId) || running.has(takeId);
+}
+
+function notifyGeneratedTagsStateChange(): void {
+	for (const listener of stateListeners) {
+		listener();
+	}
 }
 
 function notifyGeneratedTagsApplied(takeId: TakeId, applied: boolean): void {
@@ -64,6 +81,7 @@ function enqueueJob(job: TagJob): void {
 	if (queued.has(job.takeId) || running.has(job.takeId)) return;
 
 	queued.add(job.takeId);
+	notifyGeneratedTagsStateChange();
 	if (job.priority === 'foreground') {
 		const backgroundIndex = queue.findIndex((entry) => entry.priority === 'background');
 		if (backgroundIndex === -1) queue.push(job);
@@ -91,11 +109,13 @@ async function pumpQueue(): Promise<void> {
 
 		queued.delete(job.takeId);
 		running.add(job.takeId);
+		notifyGeneratedTagsStateChange();
 		activeCount += 1;
 
 		void runJob(job).finally(() => {
 			running.delete(job.takeId);
 			activeCount -= 1;
+			notifyGeneratedTagsStateChange();
 			schedulePump();
 		});
 	}
@@ -172,6 +192,7 @@ export function resetGeneratedTagsQueueForTests(): void {
 	activeCount = 0;
 	pumpScheduled = false;
 	listeners.clear();
+	stateListeners.clear();
 }
 
 /** Test hook — inspect queue depth. */

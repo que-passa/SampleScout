@@ -43,7 +43,9 @@ export {
 	applyTakeMetadataPatch,
 	applyGeneratedTags,
 	canApplyGeneratedTags,
-	formatMetadataOrigin
+	formatMetadataOrigin,
+	formatMetadataOriginPill,
+	generatedTagsForMetadata
 } from './metadata';
 export { formatTagList, parseTagList } from './tags';
 export {

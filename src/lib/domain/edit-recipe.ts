@@ -203,27 +203,33 @@ function createSegment(
 /**
  * Working region from a source selection (Collect loop / preview).
  * Always enables peak normalize so the user sees and hears the effect before Collect.
+ * Optional gain/processing from the committed take recipe travel with Collect.
  */
 export function recipeFromWorkingRegion(input: {
 	startSeconds: number;
 	endSeconds: number;
 	fadeInSeconds?: number;
 	fadeOutSeconds?: number;
+	gainDb?: number;
+	processing?: EditRecipe['processing'];
 }): EditRecipe {
 	const { start, end } = normalizeSelection(input.startSeconds, input.endSeconds);
+	const processing = cloneProcessing(normalizeEditRecipeProcessing(input.processing));
 	return {
 		version: 1,
 		segments: [
 			createSegment(start, end, {
 				fadeInSeconds: input.fadeInSeconds ?? 0,
-				fadeOutSeconds: input.fadeOutSeconds ?? 0
+				fadeOutSeconds: input.fadeOutSeconds ?? 0,
+				gainDb: input.gainDb ?? 0
 			})
 		],
 		peakNormalization: {
 			enabled: true,
 			targetDbfs: DEFAULT_NORMALIZE_TARGET_DBFS,
 			calculatedGainDb: undefined
-		}
+		},
+		processing
 	};
 }
 

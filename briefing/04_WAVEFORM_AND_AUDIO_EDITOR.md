@@ -261,7 +261,7 @@ Do not rewrite the source file after every edit.
 
 ### Working region (selection)
 
-The Collect loop uses **selection** as the working region: adjust bounds, apply fades, hear/see auto peak-normalize, then Collect. Domain retained-boundary helpers remain for editing a non-identity child Local File. **MVP UI does not expose a Trim button.**
+The Collect loop uses **selection** as the working region. Usual order: Scout (optional) → apply optional Gain / Rumble / Limit / Gate and fades → adjust bounds → Collect. Preview must match what Collect will save. Domain retained-boundary helpers remain for editing a non-identity child Local File. **MVP UI does not expose a Trim button.**
 
 ### Cut
 
@@ -284,12 +284,12 @@ Create a **new Local File** from the current working selection:
 
 - Requires a usable selection narrower than the full source (same minimum length as before)
 - Peak normalize is enabled on the working selection for waveform + playback preview before Collect
-- Fades on the selection are included in the collected recipe
-- Parent source stays intact; parent recipe resets to full-source identity after Collect
-- Child take shares the parent `fileRef` and clones the selection-shaped edit recipe (bounds, fades, normalize, and future recipe ops)
+- **All** active edits travel with Collect: selection bounds, fades, segment gain, peak normalize, and take-level processing (high-pass rumble, gate, soft limit)
+- Parent source stays intact; parent recipe resets to full-source identity after Collect (processing clears with that reset)
+- Child take shares the parent `fileRef` and clones that full shaped edit recipe
 - Child appears in Collection for its own Field Notes; upload starts from Collection only
 - Brand primary control in the take transport; stay on parent after success so the next region can be selected and collected
-- Primary multi-sample workflow: one field recording → select → fade → Collect repeatedly → upload from Collection
+- Primary multi-sample workflow: one field recording → Scout → effects / fades → adjust selection → Collect repeatedly → upload from Collection
 - Parents with collected children are excluded from the default upload-pending set; lone takes without children remain pending
 
 Collect is the intended path when one recording contains multiple useful samples (and for single-region “carve then ship” via one Collect).
@@ -333,15 +333,15 @@ Process:
 4. Apply as a non-destructive gain operation.
 5. Prevent gain that would exceed the target.
 
-Opening an identity take (full source, no committed edits) **defaults** peak-normalize preview on for waveform + playback — same −1 dBFS target as Collect. The user can turn it off with **Normalize** (preview-only until they commit other edits). A usable **selection** also auto-enables peak normalize for waveform + playback preview (and for Collect). The Normalize control reads as **on** (`active` / `aria-pressed`) when peak normalize is enabled — including the default preview and auto-on for a selection (locked on while selecting; not greyed as disabled). Without a selection, **Normalize** toggles preview off or commits normalize on/off for non-identity recipes. Manual Normalize remains available when editing a committed recipe without a selection.
+Opening an identity take (full source, no committed edits) **defaults** peak-normalize preview on for waveform + playback — same −1 dBFS target as Collect. The user can turn it off with **Normalize** (preview-only until they commit other edits). A usable **selection** also auto-enables peak normalize for waveform + playback preview (and for Collect). The Normalize control reads as **on** (`active` / `aria-pressed`) when peak normalize is enabled — including the default preview and auto-on for a selection (latched on for Collect preview while selecting). Without a selection, **Normalize** toggles preview off or commits normalize on/off for non-identity recipes. Manual Normalize remains available when editing a committed recipe.
 
 Do not call peak normalization “loudness normalization.”
 
 LUFS normalization is later scope.
 
-## 13b. Light cleanup (Gain / Rumble / Limit / Gate)
+## 13b. Gain / Rumble / Limit / Gate
 
-Optional take-level processing on the edit recipe, applied at PCM render (Collect + encode inherit):
+Optional take-level processing on the edit recipe, applied at PCM render. **Collect and encode must inherit the full recipe** — bounds, fades, gain, normalize, and processing. Do not drop effects when committing a Collect.
 
 | Control    | Behavior                                                                                                       |
 | ---------- | -------------------------------------------------------------------------------------------------------------- |
@@ -352,7 +352,7 @@ Optional take-level processing on the edit recipe, applied at PCM render (Collec
 
 Order: trim/concat + segment gain/fades → high-pass → gate → peak normalize → soft limit.
 
-While a usable **selection** is active, Gain/Rumble/Limit/Gate are locked; Normalize stays on for preview. **Reset** clears processing with the rest of the recipe.
+Gain / Rumble / Limit / Gate stay available while a usable **selection** is active (same as fades). Preview and Collect use the same shaped recipe. Normalize stays latched on for Collect preview while selecting. **Reset** clears processing with the rest of the recipe.
 
 ## 14. Rendering
 

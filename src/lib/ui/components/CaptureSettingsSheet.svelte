@@ -88,14 +88,16 @@
 </script>
 
 {#if open}
-	<SheetOverlay title="Capture settings" {onclose}>
+	<SheetOverlay title="Settings" {onclose}>
+		{#snippet footer()}
+			<span aria-hidden="true"></span>
+			<PrimaryButton type="button" disabled={busy} onclick={onDone}>Done</PrimaryButton>
+		{/snippet}
 		<div class="sheet" {@attach prepareSheet}>
 			<section class="section" aria-labelledby="recording-section-title">
 				<div class="section-heading">
 					<h3 id="recording-section-title" class="section-title">Recording</h3>
-					<p class="section-note">
-						Requested at capture. Your browser or microphone may ignore these.
-					</p>
+					<p class="section-note">Your browser or microphone may ignore these.</p>
 				</div>
 
 				<div class="fields">
@@ -106,7 +108,6 @@
 								<option value={option.value}>{option.label}</option>
 							{/each}
 						</select>
-						<p class="field-hint field-hint-soft">May differ on your device.</p>
 					</label>
 
 					<label class="field">
@@ -116,7 +117,6 @@
 								<option value={option.value}>{option.label}</option>
 							{/each}
 						</select>
-						<p class="field-hint field-hint-soft">May differ on your device.</p>
 					</label>
 
 					<label class="field">
@@ -126,7 +126,6 @@
 								<option value={option.value}>{option.label}</option>
 							{/each}
 						</select>
-						<p class="field-hint field-hint-soft">May differ on your device.</p>
 					</label>
 				</div>
 			</section>
@@ -147,10 +146,6 @@
 					<p class="field-hint">{selectedOutputHint}</p>
 				</label>
 			</section>
-
-			<div class="footer">
-				<PrimaryButton type="button" disabled={busy} onclick={onDone}>Done</PrimaryButton>
-			</div>
 		</div>
 	</SheetOverlay>
 {/if}
@@ -214,10 +209,6 @@
 		line-height: 1.35;
 	}
 
-	.field-hint-soft {
-		font-style: italic;
-	}
-
 	.control {
 		box-sizing: border-box;
 		width: 100%;
@@ -272,20 +263,5 @@
 		background-position: right var(--space-2) center;
 		background-repeat: no-repeat;
 		background-size: 1rem 1rem;
-	}
-
-	.footer {
-		display: flex;
-		justify-content: flex-end;
-		padding-top: var(--space-2);
-	}
-
-	.footer :global(.ss-primary-button) {
-		min-width: 8rem;
-	}
-
-	.footer :global(.ss-primary-button .well),
-	.footer :global(.ss-primary-button .face) {
-		width: 100%;
 	}
 </style>

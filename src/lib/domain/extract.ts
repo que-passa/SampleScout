@@ -27,8 +27,8 @@ export function collectableRetainedBounds(
 
 /**
  * Clone the parent retained recipe for a collected child.
- * Copies segment fades / gain and take-level ops (e.g. peak normalize) so Collect
- * commits the shaped result, not bounds alone. New segment ids; shared source.
+ * Copies segment fades / gain and take-level ops (peak normalize, rumble / gate / limit)
+ * so Collect commits the full shaped result. New segment ids; shared source.
  * Returns null when the recipe is not collectable.
  */
 export function cloneEditRecipeForCollect(
@@ -47,7 +47,7 @@ export function cloneEditRecipeForCollect(
 /**
  * Build a new Local File from a parent retained trim (Collect). Shares the
  * parent source binary; child recipe clones the collectable parent recipe
- * (bounds, fades, normalize, and future recipe fields via {@link cloneEditRecipe}).
+ * (bounds, fades, gain, normalize, processing via {@link cloneEditRecipe}).
  * Does not write storage.
  */
 export function buildExtractTake(input: {

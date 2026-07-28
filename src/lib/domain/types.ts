@@ -108,6 +108,8 @@ export interface TakeMetadata {
 		displayName: MetadataOrigin;
 		description: MetadataOrigin;
 		tags: MetadataOrigin;
+		/** Tags from the last auto-generation run — used for per-tag styling after manual edits. */
+		generatedTagSnapshot?: string[];
 		/** Set when tags were last auto-generated; used to refresh stale classifications. */
 		tagsAlgorithmVersion?: number;
 		kind: MetadataOrigin;

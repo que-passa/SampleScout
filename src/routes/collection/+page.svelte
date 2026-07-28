@@ -95,6 +95,8 @@
 	let uploadMarkedIds = $state<string[]>([]);
 	let uploadPhase = $state<'confirm' | 'progress'>('confirm');
 	let uploadSettleHandled = $state(false);
+	let batchFieldNotesCanApply = $state(false);
+	let uploadCanConfirm = $state(false);
 
 	const selectedCount = $derived(Object.keys(selectedIds).length);
 	const allTakes = $derived(sessions.flatMap((entry) => entry.takes));
@@ -192,6 +194,10 @@
 			fraction: currentFraction
 		};
 	});
+
+	const uploadProgressDismissLabel = $derived(
+		uploadFailureMessages.length > 0 && !uploadProgress.current ? 'Close' : 'Cancel'
+	);
 
 	async function load() {
 		const allSessions = await listSessions();
@@ -879,7 +885,19 @@
 
 	{#if editDataOpen}
 		<SheetOverlay title="Field Notes" dismissible={!batchBusy} onclose={closeEditData}>
+			{#snippet footer()}
+				<GhostButton disabled={batchBusy || discarding} onclick={clearSelection}>Clear</GhostButton>
+				<PrimaryButton
+					type="submit"
+					form="collection-batch-field-notes-form"
+					disabled={!batchFieldNotesCanApply || batchBusy || discarding}
+				>
+					{batchBusy ? 'Applying…' : 'Apply'}
+				</PrimaryButton>
+			{/snippet}
 			<BatchFieldNotesPanel
+				formId="collection-batch-field-notes-form"
+				bind:canApply={batchFieldNotesCanApply}
 				{selectedCount}
 				{recentTags}
 				busy={batchBusy || discarding}
@@ -905,7 +923,24 @@
 				}
 			}}
 		>
+			{#snippet footer()}
+				{#if progressActive}
+					<span aria-hidden="true"></span>
+					<GhostButton onclick={onUploadCancel}>{uploadProgressDismissLabel}</GhostButton>
+				{:else}
+					<GhostButton onclick={onUploadCancel} disabled={uploading}>Cancel</GhostButton>
+					<PrimaryButton
+						type="submit"
+						form="collection-upload-form"
+						disabled={!uploadCanConfirm || uploading}
+					>
+						{uploading ? 'Uploading…' : 'Upload'}
+					</PrimaryButton>
+				{/if}
+			{/snippet}
 			<BatchUploadPanel
+				formId="collection-upload-form"
+				bind:canConfirm={uploadCanConfirm}
 				embedded
 				takes={uploadTakes}
 				busy={uploading}

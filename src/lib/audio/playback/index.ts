@@ -1,6 +1,11 @@
+import type { DecodedPlanarAudio } from '$lib/audio/decode';
+import { encodeWav, type WavBitDepth } from '$lib/audio/encode/wav';
 import { createAppError } from '$lib/domain/ids';
 import type { FileRef } from '$lib/domain/types';
 import { readBinary } from '$lib/persistence/opfs';
+
+/** localStorage: hide iOS silent-switch playback hint on take view. */
+export const PLAYBACK_IOS_HINT_DISMISSED_KEY = 'samplescout.playback.iosHintDismissed';
 
 export interface PlaybackHandle {
 	play(): Promise<void>;
@@ -96,6 +101,19 @@ export async function createPlaybackFromFileRef(
 		mimeType && file.type !== mimeType
 			? new Blob([await file.arrayBuffer()], { type: mimeType })
 			: file;
+	return createPlaybackFromBlob(blob);
+}
+
+/**
+ * HTML media playback from rendered planar PCM (recipe output).
+ * Uses WAV in a blob URL so iOS respects silent-switch media routing.
+ */
+export async function createPlaybackFromRenderedPlanar(
+	planar: DecodedPlanarAudio,
+	bitDepth: WavBitDepth = 16
+): Promise<PlaybackHandle> {
+	const wav = encodeWav(planar, bitDepth);
+	const blob = new Blob([wav], { type: 'audio/wav' });
 	return createPlaybackFromBlob(blob);
 }
 

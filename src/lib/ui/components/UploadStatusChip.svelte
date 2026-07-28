@@ -62,13 +62,18 @@
 		if (!chip || !content || phase == null) return;
 
 		const cs = getComputedStyle(chip);
-		const chrome =
-			(parseFloat(cs.paddingLeft) || 0) +
-			(parseFloat(cs.paddingRight) || 0) +
-			(parseFloat(cs.borderLeftWidth) || 0) +
-			(parseFloat(cs.borderRightWidth) || 0);
-		const next = Math.ceil(content.getBoundingClientRect().width + chrome);
-		if (next > 0) widthPx = next;
+		if (phase === 'busy') {
+			const busySize = parseFloat(cs.getPropertyValue('--chip-busy-size'));
+			if (busySize > 0) widthPx = Math.ceil(busySize);
+		} else {
+			const chrome =
+				(parseFloat(cs.paddingLeft) || 0) +
+				(parseFloat(cs.paddingRight) || 0) +
+				(parseFloat(cs.borderLeftWidth) || 0) +
+				(parseFloat(cs.borderRightWidth) || 0);
+			const next = Math.ceil(content.getBoundingClientRect().width + chrome);
+			if (next > 0) widthPx = next;
+		}
 
 		if (!widthReady) {
 			const frame = requestAnimationFrame(() => {
@@ -111,6 +116,7 @@
 
 <style>
 	.chip {
+		--chip-busy-size: calc(var(--space-3) + var(--space-2));
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
@@ -134,6 +140,7 @@
 	.chip.ready {
 		transition:
 			width 280ms ease,
+			height 280ms ease,
 			padding 280ms ease,
 			background-color 220ms ease,
 			border-color 220ms ease,
@@ -163,8 +170,8 @@
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		width: var(--space-3);
-		height: var(--space-3);
+		width: 100%;
+		height: 100%;
 	}
 
 	.spinner-ring {
@@ -189,10 +196,17 @@
 	}
 
 	.chip[data-phase='busy'] {
-		padding: 0 var(--space-2);
+		width: var(--chip-busy-size);
+		height: var(--chip-busy-size);
+		padding: var(--space-1);
 		border-color: var(--line-strong);
 		background: var(--surface);
 		color: var(--ink);
+	}
+
+	.chip[data-phase='busy'] .content {
+		width: 100%;
+		height: 100%;
 	}
 
 	.chip[data-phase='uploaded'] {

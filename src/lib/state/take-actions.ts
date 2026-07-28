@@ -32,7 +32,7 @@ export async function notifyTakeInventoryChanged(): Promise<void> {
 
 /**
  * Collect a retained trim into a new Local File (shared source).
- * Child recipe clones the collectable parent recipe (bounds, fades, normalize, …).
+ * Child recipe clones the collectable parent recipe (bounds, fades, gain, normalize, processing).
  * Parent source stays intact; the take page resets parent recipe to identity after Collect.
  */
 export async function collectSelectionAsLocalFile(input: {

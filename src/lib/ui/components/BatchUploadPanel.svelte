@@ -27,6 +27,8 @@
 		progressTotal,
 		failureMessages = [],
 		embedded = false,
+		formId = 'batch-upload-form',
+		canConfirm = $bindable(false),
 		initialStem = '',
 		initialDescription = '',
 		initialTags = [],
@@ -47,6 +49,10 @@
 		/** Failed upload messages to show during/after progress (full text for screenshots). */
 		failureMessages?: { takeId?: string; name: string; message: string }[];
 		embedded?: boolean;
+		/** Form id for an external submit control (sheet footer). */
+		formId?: string;
+		/** Whether confirm-phase fields are valid and upload may start. */
+		canConfirm?: boolean;
 		initialStem?: string;
 		initialDescription?: string;
 		initialTags?: string[];
@@ -74,10 +80,14 @@
 		outputValue = outputToValue(initialOutput);
 	});
 
-	const canConfirm = $derived(
+	const confirmEnabled = $derived(
 		!busy && !progressActive && titleStem.trim().length > 0 && takes.length > 0
 	);
 	const hasRemove = $derived(onremove != null);
+
+	$effect(() => {
+		canConfirm = confirmEnabled;
+	});
 	const hasFailures = $derived(failureMessages.length > 0);
 	const selectedOutputHint = $derived(
 		UPLOAD_OUTPUT_OPTIONS.find((option) => option.value === outputValue)?.hint ?? ''
@@ -85,7 +95,7 @@
 
 	async function handleConfirm(event: Event) {
 		event.preventDefault();
-		if (!canConfirm) return;
+		if (!confirmEnabled) return;
 
 		await onconfirm({
 			titleStem: titleStem.trim(),
@@ -100,7 +110,7 @@
 	}
 </script>
 
-<form class={['batch-upload', embedded && 'embedded']} onsubmit={handleConfirm}>
+<form id={formId} class={['batch-upload', embedded && 'embedded']} onsubmit={handleConfirm}>
 	{#if progressActive}
 		<!-- Progress phase -->
 		<div class="progress-section" role="status" aria-live="polite">
@@ -140,9 +150,11 @@
 				{/if}
 			{/if}
 
-			<GhostButton onclick={oncancel}
-				>{hasFailures && !progressCurrent ? 'Close' : 'Cancel'}</GhostButton
-			>
+			{#if !embedded}
+				<GhostButton onclick={oncancel}
+					>{hasFailures && !progressCurrent ? 'Close' : 'Cancel'}</GhostButton
+				>
+			{/if}
 		</div>
 	{:else}
 		<!-- Confirm phase -->
@@ -212,12 +224,14 @@
 			</label>
 		</div>
 
-		<div class="actions">
-			<GhostButton onclick={oncancel} disabled={busy}>Cancel</GhostButton>
-			<PrimaryButton type="submit" disabled={!canConfirm}>
-				{busy ? 'Uploading…' : 'Upload'}
-			</PrimaryButton>
-		</div>
+		{#if !embedded}
+			<div class="actions">
+				<GhostButton onclick={oncancel} disabled={busy}>Cancel</GhostButton>
+				<PrimaryButton type="submit" disabled={!confirmEnabled}>
+					{busy ? 'Uploading…' : 'Upload'}
+				</PrimaryButton>
+			</div>
+		{/if}
 	{/if}
 </form>
 

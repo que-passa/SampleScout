@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
-	applyGeneratedTags,
-	applyTakeMetadataPatch,
-	canApplyGeneratedTags,
+		applyGeneratedTags,
+		applyTakeMetadataPatch,
+		canApplyGeneratedTags,
+		generatedTagsForMetadata,
 	assignNumberedDisplayNames,
 	createSession,
 	formatNumberedDisplayName,
@@ -155,7 +156,23 @@ describe('generated tags', () => {
 		const next = applyGeneratedTags(metadata, ['rain', 'thunder'], 1);
 		expect(next?.tags).toEqual(['rain', 'thunder']);
 		expect(next?.provenance.tags).toBe('generated');
+		expect(next?.provenance.generatedTagSnapshot).toEqual(['rain', 'thunder']);
 		expect(next?.provenance.tagsAlgorithmVersion).toBe(1);
+	});
+
+	it('generatedTagsForMetadata keeps snapshot after manual tag edits', () => {
+		const session = createSession('Rain');
+		const metadata = generateTakeMetadata({
+			sessionName: session.name,
+			sequence: 1,
+			recordedAt: '2026-07-25T10:00:00.000Z',
+			sessionDefaults: session.defaults
+		});
+		const generated = applyGeneratedTags(metadata, ['rain', 'thunder'], 1)!;
+		const edited = applyTakeMetadataPatch(generated, { tags: ['rain', 'thunder', 'custom'] });
+
+		expect(edited.provenance.tags).toBe('manual');
+		expect(generatedTagsForMetadata(edited)).toEqual(['rain', 'thunder']);
 	});
 
 	it('canApplyGeneratedTags skips current generated tags unless forced or stale', () => {

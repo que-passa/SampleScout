@@ -159,27 +159,29 @@ Use an in-app confirmation dialog (`ConfirmDialog`) for Collection single discar
 
 ## 7. Collect flow (multi-sample from one recording)
 
-Typical field path: one longer take contains several useful sounds. **Collect** turns the current **working selection** (with fades + auto peak-normalize) into its own Local File without destroying the parent source. There is no separate Trim step. Single-region and multi-region cases use the same primary control (once vs repeatedly).
+Typical field path: one longer take contains several useful sounds. **Collect** turns the current **working selection** — including fades, peak normalize, and any applied Gain / Rumble / Limit / Gate — into its own Local File without destroying the parent source. There is no separate Trim step. Single-region and multi-region cases use the same primary control (once vs repeatedly).
 
-**Suggested Regions** (see [`11_SUGGESTED_REGIONS.md`](11_SUGGESTED_REGIONS.md)) may auto-propose rough source ranges on takes longer than 3 s (energy-island analysis). Action-row **left** shows `collection` icon + **`N scouted`**; tapping engages (selects first, label → `01/N`, reveals **Next**, shows muted scouted markers on the wave). Applying a suggestion sets **selection only**. Empty/fail hides that chrome. After Collect, the suggestion list for the open take is kept (no re-analyze). Manual Trim → Collect remains the authority.
+Usual order: **Record → Scout (optional) → apply optional effects and fades → adjust selection / trim → Collect.** Effects stay available while a selection is active; there is no design reason to lock them. All edits heard in preview must remain part of the collected result.
+
+**Suggested Regions** (see [`11_SUGGESTED_REGIONS.md`](11_SUGGESTED_REGIONS.md)) may auto-propose rough source ranges on takes longer than 3 s (energy-island analysis). Action-row **left** shows `collection` icon + **`N scouted`**; tapping engages (selects first, label → `01/N`, reveals **Next**, shows muted scouted markers on the wave). Applying a suggestion sets **selection only**. Empty/fail hides that chrome. After Collect, the suggestion list for the open take is kept (no re-analyze). Manual selection → Collect remains the authority.
 
 1. User opens a saved take (recording or import).
-2. Adjusts the selection; applies fades on the selection; peak normalize is on for the selection so preview matches Collect.
+2. Optionally engages Scouted regions; applies Gain / Rumble / Limit / Gate and fades as needed; adjusts the selection. Peak normalize stays on for the selection so preview matches Collect.
 3. Taps **Collect** (brand primary in the take bottom bar; enabled when a usable selection is narrower than the full source).
 4. App creates a new Local File in the same Field Session:
    - Same source binary (`fileRef`) — do not copy OPFS audio for MVP
-   - Own edit recipe cloned from the working selection (bounds, fades, normalize, and future recipe ops)
+   - Own edit recipe cloned from the working selection **plus** all active take-level edits (bounds, fades, segment gain, peak normalize, rumble / gate / soft limit)
    - Optional `derivedFromTakeId` pointing at the parent
    - Generated short name: stem + two-digit number (e.g. `Rain 01`); never em/en dashes
    - Session defaults / Field Notes prefill like any new take
-5. Parent source stays intact; parent recipe returns to full-source identity so the next region can be selected and collected. Temporary selection and selection fades clear.
+5. Parent source stays intact; parent recipe returns to full-source identity so the next region can be selected and collected. Temporary selection and selection fades clear; take-level processing resets with the identity recipe.
 6. Collection updates so the new file is visible (count / row). Stay on the parent editor so the user can Collect again quickly; offer a quiet toast with an optional open-child action.
 7. User repeats for further regions, then ships from **Collection** (confirm upload sheet). Parents with collected children are excluded from the default upload pending set; lone takes without children remain pending.
 
 Rules:
 
-- Collect requires a usable working selection (narrower than the full source; same minimum length as before). Fades on that selection are included.
-- There is no Trim step: Collect commits the selection-shaped recipe into a new Local File, then restores the parent recipe to identity.
+- Collect requires a usable working selection (narrower than the full source; same minimum length as before). Fades, gain, processing, and normalize on that selection are included in the child recipe.
+- There is no Trim step: Collect commits the full shaped recipe into a new Local File, then restores the parent recipe to identity.
 - Collect is not Cut: Cut removes material from the current recipe output; Collect leaves the parent source timeline available for further Collects.
 - Discarding a collected file removes only that take record (and its rendered assets). Shared source cleanup must not delete the OPFS binary while any take still references it.
 - Discarding the parent must not orphan children unsafely: keep the shared source for remaining children (MVP).
@@ -227,8 +229,8 @@ Structure:
 - Waveform stage: precise waveform sits on page `--paper` (not a boxed pane/card) and uses the available vertical space between header and bottom bar; no redundant “Waveform” label or status header (positional time lives on the waveform ruler; duration / channel / selection facts live in Field Notes — no separate playhead clock in transport)
 - Overview navigator strip and compact zoom controls (±) pin in the bottom bar above transport
 - Pinned bottom bar: wave chrome (zoom + overview) → transport row (`PlaybackControl` center, Loop right) → action row (**Scouted** left when available — icon + `N scouted`, then `01/N` + **Next** after engage; **Field Notes** icon immediately left of **Collect** brand primary on the right). No Upload on take — shipping is Collection-only.
-- Field Notes sheet holds metadata/details and **Discard**. No Cut, Undo, Redo, or Trim in the UI. **Reset** lives in the editor header (not the sheet). **Gain**, **Rumble** (high-pass), **Limit**, **Gate**, and **Normalize** live as compact actions on the waveform chrome row: Gain/Rumble/Limit/Gate lock while a selection is active; Normalize auto-on while selecting (latched on, not greyed). Without a selection, Normalize toggles the committed recipe. Selection is waveform-only (no numeric sel inputs in the sheet). **Fade in/out** are waveform grips on the working selection (or on the committed recipe when editing a non-identity child). There is no Retake action; capture a new take instead. Successful edit actions, Collect, and discards show a compact action toast.
-- **Collect** is the primary commit when a usable selection exists: create a new Local File from selection bounds + fades + normalize, restore parent recipe to identity, stay on the parent for another Collect
+- Field Notes sheet holds metadata/details and **Discard**. No Cut, Undo, Redo, or Trim in the UI. **Reset** lives in the editor header (not the sheet). **Gain**, **Rumble** (high-pass), **Limit**, **Gate**, and **Normalize** live as compact actions on the waveform chrome row and stay available while a selection is active (do not lock them for selection). Normalize auto-on while selecting (latched on for Collect preview). Without a selection, Normalize toggles the committed recipe / identity preview. Selection is waveform-only (no numeric sel inputs in the sheet). **Fade in/out** are waveform grips on the working selection (or on the committed recipe when editing a non-identity child). There is no Retake action; capture a new take instead. Successful edit actions, Collect, and discards show a compact action toast.
+- **Collect** is the primary commit when a usable selection exists: create a new Local File from selection bounds + fades + normalize + gain + processing, restore parent recipe to identity, stay on the parent for another Collect
 - Do **not** duplicate Capture/Collection links in the footer; stack back chrome covers navigation
 
 MVP `/take/[takeId]` follows this: editor header with top-left back → `/collection` labeled Collection, centered filename, and top-right Reset; waveform-first stage filling available height; pinned bottom bar (zoom/nav + transport); **Field Notes** opens from the transport icon button. No primary bottom tabs; hide the SampleScout brand/top bar while on the take route (no Account in the editor header).

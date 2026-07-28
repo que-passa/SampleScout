@@ -66,7 +66,9 @@ export {
 	uploadQueue
 };
 export {
+	isGeneratingTagsForTake,
 	onGeneratedTagsApplied,
+	onGeneratedTagsStateChange,
 	scheduleGeneratedTagsForTake,
 	scheduleGeneratedTagsForTakes
 } from './generated-tags';

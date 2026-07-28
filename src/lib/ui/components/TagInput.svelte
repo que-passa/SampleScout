@@ -17,13 +17,16 @@
 		recentTags = [],
 		disabled = false,
 		inputId,
-		placeholder = 'Add tag…'
+		placeholder = 'Add tag…',
+		/** Tags that render with auto-generated styling (matched case-insensitively). */
+		generatedTags = []
 	}: {
 		tags?: string[];
 		recentTags?: string[];
 		disabled?: boolean;
 		inputId?: string;
 		placeholder?: string;
+		generatedTags?: readonly string[];
 	} = $props();
 
 	let draft = $state('');
@@ -42,6 +45,10 @@
 	);
 
 	const visiblePresetTags = $derived(TAG_PRESETS.filter((preset) => !hasTag(tags, preset)));
+
+	function isGeneratedTag(tag: string): boolean {
+		return hasTag(generatedTags, tag);
+	}
 
 	function focusDraft() {
 		draftInput?.focus();
@@ -123,6 +130,7 @@
 					<button
 						type="button"
 						class="token"
+						class:generated={isGeneratedTag(tag)}
 						{disabled}
 						aria-label="Remove {tag}"
 						onclick={(event) => {
@@ -289,6 +297,15 @@
 	.token:disabled {
 		opacity: 0.55;
 		cursor: not-allowed;
+	}
+
+	.token.generated {
+		background: var(--surface-subtle);
+		color: var(--ink-muted);
+		font-weight: 500;
+		box-shadow:
+			inset 0 1px 0 color-mix(in srgb, var(--surface) 80%, transparent),
+			inset 0 -1px 0 color-mix(in srgb, var(--ink) 8%, transparent);
 	}
 
 	.token-draft {

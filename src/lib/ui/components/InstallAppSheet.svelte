@@ -21,6 +21,10 @@
 
 {#if open}
 	<SheetOverlay title="Add to Home Screen" elevated onclose={closeInstallSheet}>
+		{#snippet footer()}
+			<GhostButton onclick={onNotNow}>Not now</GhostButton>
+			<PrimaryButton onclick={onGotIt}>Got it</PrimaryButton>
+		{/snippet}
 		<div class="sheet">
 			<p class="lead">
 				Safari does not offer a one-tap install. Add SampleScout from Share so Capture is one tap
@@ -50,11 +54,6 @@
 					</span>
 				</li>
 			</ol>
-
-			<div class="actions">
-				<GhostButton onclick={onNotNow}>Not now</GhostButton>
-				<PrimaryButton onclick={onGotIt}>Got it</PrimaryButton>
-			</div>
 		</div>
 	</SheetOverlay>
 {/if}
@@ -119,12 +118,5 @@
 	.hint {
 		color: var(--ink-muted);
 		font-size: var(--text-meta);
-	}
-
-	.actions {
-		display: flex;
-		flex-wrap: wrap;
-		justify-content: flex-end;
-		gap: var(--space-3);
 	}
 </style>

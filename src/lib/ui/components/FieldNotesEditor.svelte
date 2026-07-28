@@ -1,17 +1,25 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import {
-		formatMetadataOrigin,
+		generatedTagsForMetadata,
 		tagsEqual,
 		type SampleKind,
+		type TakeId,
 		type TakeMetadata,
 		type TakeMetadataPatch,
 		type Visibility
 	} from '$lib/domain';
+	import {
+		isGeneratingTagsForTake,
+		onGeneratedTagsStateChange
+	} from '$lib/state/generated-tags';
+	import GhostButton from '$lib/ui/components/GhostButton.svelte';
+	import MetadataOriginPill from '$lib/ui/components/MetadataOriginPill.svelte';
 	import TagInput from '$lib/ui/components/TagInput.svelte';
 
 	let {
 		metadata,
+		takeId,
 		recentTags = [],
 		disabled = false,
 		saving = false,
@@ -20,6 +28,8 @@
 		onsave
 	}: {
 		metadata: TakeMetadata;
+		/** When set, tag-generation queue state drives the tags origin pill spinner. */
+		takeId?: TakeId;
 		recentTags?: string[];
 		disabled?: boolean;
 		saving?: boolean;
@@ -29,6 +39,22 @@
 		canSave?: boolean;
 		onsave: (patch: TakeMetadataPatch) => void | Promise<void>;
 	} = $props();
+
+	let tagsGenerating = $state(false);
+
+	$effect(() => {
+		const id = takeId;
+		if (!id) {
+			tagsGenerating = false;
+			return;
+		}
+
+		const sync = () => {
+			tagsGenerating = isGeneratingTagsForTake(id);
+		};
+		sync();
+		return onGeneratedTagsStateChange(sync);
+	});
 
 	/** Recreate form draft only when persisted Field Notes identity changes. */
 	const sourceKey = $derived(
@@ -80,10 +106,23 @@
 	});
 
 	const saveEnabled = $derived(isDirty && !disabled && !saving);
+	const canClearDescription = $derived(draft.description.length > 0 && !disabled);
+	const canClearTags = $derived(draft.tags.length > 0 && !disabled);
+	const generatedTags = $derived(generatedTagsForMetadata(metadata));
 
 	$effect(() => {
 		canSave = saveEnabled;
 	});
+
+	function clearDescription() {
+		if (!canClearDescription) return;
+		draft.description = '';
+	}
+
+	function clearTags() {
+		if (!canClearTags) return;
+		draft.tags = [];
+	}
 
 	function buildPatch(): TakeMetadataPatch {
 		const patch: TakeMetadataPatch = {};
@@ -131,8 +170,13 @@
 <form id={formId} class="field-notes" onsubmit={onSubmit}>
 	<div class="field">
 		<div class="label-row">
-			<label class="label" for="field-notes-description">Description</label>
-			<span class="origin">{formatMetadataOrigin(metadata.provenance.description)}</span>
+			<div class="label-group">
+				<label class="label" for="field-notes-description">Description</label>
+				<MetadataOriginPill origin={metadata.provenance.description} />
+			</div>
+			<GhostButton compact muted disabled={!canClearDescription} onclick={clearDescription}>
+				Clear
+			</GhostButton>
 		</div>
 		<textarea
 			id="field-notes-description"
@@ -144,17 +188,23 @@
 
 	<div class="field">
 		<div class="label-row">
-			<label class="label" for="field-notes-tags">Tags</label>
-			<span class="origin">{formatMetadataOrigin(metadata.provenance.tags)}</span>
+			<div class="label-group">
+				<label class="label" for="field-notes-tags">Tags</label>
+				<MetadataOriginPill origin={metadata.provenance.tags} loading={tagsGenerating} />
+			</div>
+			<GhostButton compact muted disabled={!canClearTags} onclick={clearTags}>Clear</GhostButton>
 		</div>
-		<TagInput inputId="field-notes-tags" bind:tags={draft.tags} {recentTags} {disabled} />
+		<TagInput
+			inputId="field-notes-tags"
+			bind:tags={draft.tags}
+			{recentTags}
+			{disabled}
+			{generatedTags}
+		/>
 	</div>
 
 	<div class="field">
-		<div class="label-row">
-			<span class="label" id="field-notes-kind-label">Kind</span>
-			<span class="origin">{formatMetadataOrigin(metadata.provenance.kind)}</span>
-		</div>
+		<span class="label" id="field-notes-kind-label">Kind</span>
 		<div class="segment" role="tablist" aria-labelledby="field-notes-kind-label">
 			<button
 				type="button"
@@ -182,10 +232,7 @@
 	</div>
 
 	<div class="field">
-		<div class="label-row">
-			<span class="label" id="field-notes-visibility-label">Visibility</span>
-			<span class="origin">{formatMetadataOrigin(metadata.provenance.visibility)}</span>
-		</div>
+		<span class="label" id="field-notes-visibility-label">Visibility</span>
 		<div class="segment" role="tablist" aria-labelledby="field-notes-visibility-label">
 			<button
 				type="button"
@@ -214,9 +261,9 @@
 
 	{#if draft.kind === 'loop'}
 		<div class="field">
-			<div class="label-row">
+			<div class="label-group">
 				<label class="label" for="field-notes-bpm">BPM</label>
-				<span class="origin">{formatMetadataOrigin(metadata.provenance.bpm)}</span>
+				<MetadataOriginPill origin={metadata.provenance.bpm} />
 			</div>
 			<input
 				id="field-notes-bpm"
@@ -248,9 +295,18 @@
 
 	.label-row {
 		display: flex;
-		align-items: baseline;
+		align-items: center;
 		justify-content: space-between;
 		gap: var(--space-2);
+		min-height: calc(var(--touch-min) - var(--space-4));
+	}
+
+	.label-group {
+		display: inline-flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+		min-width: 0;
 	}
 
 	.label {
@@ -259,11 +315,6 @@
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
 		color: var(--ink);
-	}
-
-	.origin {
-		font-size: var(--text-meta);
-		color: var(--ink-muted);
 	}
 
 	.control {

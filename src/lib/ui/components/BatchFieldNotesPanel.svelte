@@ -2,6 +2,7 @@
 	import { type SampleKind, type TakeMetadataPatch, type Visibility } from '$lib/domain';
 	import GhostButton from '$lib/ui/components/GhostButton.svelte';
 	import PrimaryButton from '$lib/ui/components/PrimaryButton.svelte';
+	import SelectCheckbox from '$lib/ui/components/SelectCheckbox.svelte';
 	import TagInput from '$lib/ui/components/TagInput.svelte';
 
 	let {
@@ -9,6 +10,8 @@
 		recentTags = [],
 		busy = false,
 		embedded = false,
+		formId = 'batch-field-notes-form',
+		canApply = $bindable(false),
 		onapply,
 		onclear
 	}: {
@@ -17,6 +20,10 @@
 		busy?: boolean;
 		/** When true, omit outer panel border (sheet body). */
 		embedded?: boolean;
+		/** Form id for an external submit control (sheet footer). */
+		formId?: string;
+		/** Whether checked fields are valid and batch apply may run. */
+		canApply?: boolean;
 		onapply: (patch: TakeMetadataPatch) => void | Promise<void>;
 		onclear: () => void;
 	} = $props();
@@ -34,7 +41,11 @@
 
 	const hasAnyApply = $derived(applyDescription || applyTags || applyKind || applyVisibility);
 
-	const canApply = $derived(selectedCount > 0 && hasAnyApply && !busy);
+	const applyEnabled = $derived(selectedCount > 0 && hasAnyApply && !busy);
+
+	$effect(() => {
+		canApply = applyEnabled;
+	});
 
 	function buildPatch(): TakeMetadataPatch | null {
 		const patch: TakeMetadataPatch = {};
@@ -64,25 +75,29 @@
 
 	async function onSubmit(event: Event) {
 		event.preventDefault();
-		if (!canApply) return;
+		if (!applyEnabled) return;
 		const patch = buildPatch();
 		if (!patch) return;
 		await onapply(patch);
 	}
 </script>
 
-<form class={['batch', embedded && 'embedded']} onsubmit={onSubmit}>
-	<header class="batch-header">
-		<p class="batch-title">
-			Field Notes · {selectedCount} selected
-		</p>
-		<GhostButton compact onclick={onclear} disabled={busy}>Clear</GhostButton>
-	</header>
+<form id={formId} class={['batch', embedded && 'embedded']} onsubmit={onSubmit}>
+	{#if embedded}
+		<p class="batch-count">{selectedCount} selected</p>
+	{:else}
+		<header class="batch-header">
+			<p class="batch-title">
+				Field Notes · {selectedCount} selected
+			</p>
+			<GhostButton compact onclick={onclear} disabled={busy}>Clear</GhostButton>
+		</header>
+	{/if}
 
 	<p class="hint">Checked fields overwrite selected takes.</p>
 
 	<label class="toggle-row">
-		<input type="checkbox" bind:checked={applyDescription} disabled={busy} />
+		<SelectCheckbox bind:checked={applyDescription} disabled={busy} />
 		<span class="toggle-label">Description</span>
 	</label>
 	{#if applyDescription}
@@ -90,7 +105,7 @@
 	{/if}
 
 	<label class="toggle-row">
-		<input type="checkbox" bind:checked={applyTags} disabled={busy} />
+		<SelectCheckbox bind:checked={applyTags} disabled={busy} />
 		<span class="toggle-label">Tags</span>
 	</label>
 	{#if applyTags}
@@ -98,7 +113,7 @@
 	{/if}
 
 	<label class="toggle-row">
-		<input type="checkbox" bind:checked={applyKind} disabled={busy} />
+		<SelectCheckbox bind:checked={applyKind} disabled={busy} />
 		<span class="toggle-label">Kind</span>
 	</label>
 	{#if applyKind}
@@ -128,7 +143,7 @@
 		</div>
 		{#if kind === 'loop'}
 			<label class="toggle-row nested">
-				<input type="checkbox" bind:checked={applyBpm} disabled={busy} />
+				<SelectCheckbox bind:checked={applyBpm} disabled={busy} />
 				<span class="toggle-label">BPM</span>
 			</label>
 			{#if applyBpm}
@@ -146,7 +161,7 @@
 	{/if}
 
 	<label class="toggle-row">
-		<input type="checkbox" bind:checked={applyVisibility} disabled={busy} />
+		<SelectCheckbox bind:checked={applyVisibility} disabled={busy} />
 		<span class="toggle-label">Visibility</span>
 	</label>
 	{#if applyVisibility}
@@ -176,9 +191,11 @@
 		</div>
 	{/if}
 
-	<PrimaryButton type="submit" disabled={!canApply}>
-		{busy ? 'Applying…' : 'Apply'}
-	</PrimaryButton>
+	{#if !embedded}
+		<PrimaryButton type="submit" disabled={!applyEnabled}>
+			{busy ? 'Applying…' : 'Apply'}
+		</PrimaryButton>
+	{/if}
 </form>
 
 <style>
@@ -206,6 +223,12 @@
 	}
 
 	.batch-title {
+		margin: 0;
+		font-size: var(--text-body);
+		font-weight: 600;
+	}
+
+	.batch-count {
 		margin: 0;
 		font-size: var(--text-body);
 		font-weight: 600;

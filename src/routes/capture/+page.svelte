@@ -311,8 +311,8 @@
 								muted
 								disabled={settingsDisabled}
 								onclick={openSettingsSheet}
-								aria-label="Capture settings"
-								title="Capture settings"
+								aria-label="Settings"
+								title="Settings"
 							>
 								<Icon name="settings" />
 							</GhostButton>

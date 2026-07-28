@@ -22,7 +22,7 @@ describe('collectableRetainedBounds', () => {
 });
 
 describe('cloneEditRecipeForCollect', () => {
-	it('copies fades, gain, and peak normalize onto a new segment id', () => {
+	it('copies fades, gain, peak normalize, and processing onto a new segment id', () => {
 		let recipe = trimToSelection(createInitialEditRecipe(30), 4, 9);
 		recipe = applyFadeIn(recipe, 0.12);
 		recipe = applyFadeOut(recipe, 0.08);
@@ -31,6 +31,12 @@ describe('cloneEditRecipeForCollect', () => {
 			enabled: true,
 			targetDbfs: -1,
 			calculatedGainDb: 3.2
+		};
+		recipe.processing = {
+			highPassHz: 120,
+			softLimitEnabled: true,
+			gateEnabled: true,
+			gateThresholdDbfs: -42
 		};
 
 		const cloned = cloneEditRecipeForCollect(recipe, 30);
@@ -46,6 +52,12 @@ describe('cloneEditRecipeForCollect', () => {
 			enabled: true,
 			targetDbfs: -1,
 			calculatedGainDb: 3.2
+		});
+		expect(cloned!.processing).toEqual({
+			highPassHz: 120,
+			softLimitEnabled: true,
+			gateEnabled: true,
+			gateThresholdDbfs: -42
 		});
 	});
 
@@ -91,11 +103,18 @@ describe('buildExtractTake', () => {
 		expect(extract.metadata.displayName).not.toMatch(/[—–]/);
 	});
 
-	it('preserves fades and normalize from the collectable recipe', () => {
+	it('preserves fades, normalize, gain, and processing from the collectable recipe', () => {
 		const session = createSession('Field');
 		let recipe = trimToSelection(createInitialEditRecipe(30), 2, 8);
 		recipe = applyFadeIn(recipe, 0.05);
 		recipe = applyFadeOut(recipe, 0.04);
+		recipe.segments[0]!.gainDb = 6;
+		recipe.processing = {
+			highPassHz: 80,
+			softLimitEnabled: false,
+			gateEnabled: true,
+			gateThresholdDbfs: -42
+		};
 		const parent = {
 			...createTake({
 				session,
@@ -121,8 +140,15 @@ describe('buildExtractTake', () => {
 
 		expect(extract.editRecipe.segments[0]?.fadeInSeconds).toBeCloseTo(0.05);
 		expect(extract.editRecipe.segments[0]?.fadeOutSeconds).toBeCloseTo(0.04);
+		expect(extract.editRecipe.segments[0]?.gainDb).toBe(6);
 		expect(extract.editRecipe.peakNormalization?.enabled).toBe(true);
 		expect(extract.editRecipe.peakNormalization?.targetDbfs).toBe(-1);
+		expect(extract.editRecipe.processing).toEqual({
+			highPassHz: 80,
+			softLimitEnabled: false,
+			gateEnabled: true,
+			gateThresholdDbfs: -42
+		});
 	});
 
 	it('rejects a full-source recipe', () => {

@@ -232,12 +232,14 @@ Non-destructive recipe:
 - Boundary fades
 - Gain
 - Peak normalization
+- Take-level processing (high-pass rumble, gate, soft limit)
 
 Tools:
 
-- Collect (working selection → new Local File; fades + auto peak-normalize on selection; child clones full recipe; parent source unchanged, parent recipe resets to identity; shared source; brand primary on take; no Trim step; no take Upload)
+- Collect (working selection → new Local File; fades + auto peak-normalize + gain + rumble/gate/limit on selection; child clones full shaped recipe; parent source unchanged, parent recipe resets to identity; shared source; brand primary on take; no Trim step; no take Upload)
 - Fade in / Fade out (waveform grips on selection or committed region; zero until dragged)
-- Normalize to -1 dBFS (auto on selection; manual on committed recipe)
+- Gain / Rumble / Limit / Gate (available with or without selection; Collect inherits)
+- Normalize to -1 dBFS (auto on selection; manual on committed recipe / identity preview)
 - Reset (header icon; restores identity recipe)
 - Preview
 

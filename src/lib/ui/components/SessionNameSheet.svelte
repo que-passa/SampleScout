@@ -69,6 +69,10 @@
 
 {#if open}
 	<SheetOverlay title="Session name" {onclose}>
+		{#snippet footer()}
+			<span aria-hidden="true"></span>
+			<PrimaryButton type="button" disabled={busy} onclick={onDone}>Done</PrimaryButton>
+		{/snippet}
 		<div class="sheet">
 			<div class="field">
 				<input
@@ -116,10 +120,6 @@
 						</button>
 					{/each}
 				</div>
-			</div>
-
-			<div class="footer">
-				<PrimaryButton type="button" disabled={busy} onclick={onDone}>Done</PrimaryButton>
 			</div>
 		</div>
 	</SheetOverlay>
@@ -306,20 +306,5 @@
 			inset 0 1px var(--space-1) color-mix(in srgb, var(--brand) 14%, transparent),
 			inset 0 -1px 0 color-mix(in srgb, var(--surface) 50%, transparent);
 		transform: none;
-	}
-
-	.footer {
-		display: flex;
-		justify-content: flex-end;
-		padding-top: var(--space-2);
-	}
-
-	.footer :global(.ss-primary-button) {
-		min-width: 8rem;
-	}
-
-	.footer :global(.ss-primary-button .well),
-	.footer :global(.ss-primary-button .face) {
-		width: 100%;
 	}
 </style>

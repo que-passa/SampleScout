@@ -40,7 +40,7 @@ It is not a mobile DAW and it is not a permanent cloud-storage service.
 - **Field Session** is the user-facing grouping label. Engineering keeps `Session` / `CaptureSession`.
 - **Field Notes** labels the existing take metadata/details surface. It does not add a persisted notes field.
 - **Local File** means saved on this device only, and only after the OPFS source write and IndexedDB metadata commit both succeed.
-- **Collect** creates a new Local File from the current **working selection** (scouted or manual), including fades and auto peak-normalize, cloning that shaped edit recipe. There is no separate Trim step. The parent recording stays available; each collected file is its own Collection item with its own Field Notes and upload state. Shipping (upload) happens from Collection, not the take editor.
+- **Collect** creates a new Local File from the current **working selection** (scouted or manual), cloning the full shaped edit recipe: bounds, fades, peak normalize, segment gain, and take-level processing (rumble / gate / soft limit). There is no separate Trim step. The parent recording stays available; each collected file is its own Collection item with its own Field Notes and upload state. Shipping (upload) happens from Collection, not the take editor.
 - **Display names** use a short stem plus a two-digit number (`Rain 01`); never em/en dashes in generated names.
 - Deterministic specimen marks may give catalog identity to records. They derive only from persisted take/source facts; they are not waveforms, audio fingerprints, quality scores, or random decoration. Active cells use a deterministic neon fill from the 21-swatch specimen palette.
 

@@ -39,6 +39,27 @@ export function formatMetadataOrigin(origin: MetadataOrigin | undefined): string
 	return ORIGIN_LABELS[origin] ?? origin;
 }
 
+const ORIGIN_PILL_LABELS: Partial<Record<MetadataOrigin, string>> = {
+	'application-default': 'app default',
+	generated: 'generated',
+	'session-default': 'session',
+	'user-preference': 'preference'
+};
+
+/** Compact lowercase pill copy; omit manual and unknown empty origins. */
+export function formatMetadataOriginPill(origin: MetadataOrigin | undefined): string | null {
+	if (!origin || origin === 'manual') return null;
+	return ORIGIN_PILL_LABELS[origin] ?? formatMetadataOrigin(origin).toLowerCase();
+}
+
+/** Tags that should render as auto-generated in Field Notes (persisted snapshot + legacy fallback). */
+export function generatedTagsForMetadata(metadata: TakeMetadata): readonly string[] {
+	const snapshot = metadata.provenance.generatedTagSnapshot;
+	if (snapshot && snapshot.length > 0) return snapshot;
+	if (metadata.provenance.tags === 'generated') return metadata.tags;
+	return [];
+}
+
 /** True when YAMNet (or similar) may replace generic default tags. */
 export function canApplyGeneratedTags(
 	metadata: TakeMetadata,
@@ -78,6 +99,7 @@ export function applyGeneratedTags(
 		provenance: {
 			...metadata.provenance,
 			tags: 'generated',
+			generatedTagSnapshot: [...tags],
 			tagsAlgorithmVersion: algorithmVersion
 		}
 	};

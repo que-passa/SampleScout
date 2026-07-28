@@ -171,8 +171,31 @@ describe('recipeFromWorkingRegion', () => {
 		expect(recipe.segments[0]?.sourceEndSeconds).toBe(4);
 		expect(recipe.segments[0]?.fadeInSeconds).toBeCloseTo(0.1);
 		expect(recipe.segments[0]?.fadeOutSeconds).toBeCloseTo(0.2);
+		expect(recipe.segments[0]?.gainDb).toBe(0);
 		expect(recipe.peakNormalization?.enabled).toBe(true);
 		expect(recipe.peakNormalization?.targetDbfs).toBe(-1);
+		expect(recipe.processing).toBeUndefined();
+	});
+
+	it('carries segment gain and take-level processing for Collect', () => {
+		const recipe = recipeFromWorkingRegion({
+			startSeconds: 2,
+			endSeconds: 5,
+			gainDb: 6,
+			processing: {
+				highPassHz: 80,
+				softLimitEnabled: true,
+				gateEnabled: true,
+				gateThresholdDbfs: -42
+			}
+		});
+		expect(recipe.segments[0]?.gainDb).toBe(6);
+		expect(recipe.processing).toEqual({
+			highPassHz: 80,
+			softLimitEnabled: true,
+			gateEnabled: true,
+			gateThresholdDbfs: -42
+		});
 	});
 });
 
