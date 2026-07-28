@@ -46,6 +46,7 @@ jobs:
           PUBLIC_AUDIOTOOL_CLIENT_ID: ${{ vars.PUBLIC_AUDIOTOOL_CLIENT_ID }}
           PUBLIC_AUDIOTOOL_REDIRECT_URL: ${{ vars.PUBLIC_AUDIOTOOL_REDIRECT_URL }}
           PUBLIC_AUDIOTOOL_SCOPES: ${{ vars.PUBLIC_AUDIOTOOL_SCOPES }}
+          PUBLIC_SENTRY_DSN: ${{ vars.PUBLIC_SENTRY_DSN }}
         run: npm run build
 
       - name: Upload Pages artifact

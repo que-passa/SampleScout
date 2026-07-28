@@ -2,7 +2,12 @@
 	import { onMount } from 'svelte';
 	import { detectCapabilities, formatBytes } from '$lib/capabilities';
 	import type { CapabilityReport } from '$lib/capabilities';
+	import { getPublicAppConfig } from '$lib/config/app';
+	import { captureSentryTestError } from '$lib/monitoring/sentry-client';
 	import AppShell from '$lib/ui/layouts/AppShell.svelte';
+	import GhostButton from '$lib/ui/components/GhostButton.svelte';
+
+	const sentryConfigured = getPublicAppConfig().sentry.configured;
 
 	let capabilities = $state<CapabilityReport | null>(null);
 
@@ -66,6 +71,21 @@
 					{/each}
 				</ul>
 			{/if}
+		{/if}
+	</section>
+
+	<section class="panel">
+		<h2>Sentry</h2>
+		{#if sentryConfigured}
+			<p class="body">
+				Error monitoring is enabled for this build. Use the button below to send a test error to
+				Sentry.
+			</p>
+			<GhostButton danger onclick={() => captureSentryTestError()}>Throw test error</GhostButton>
+		{:else}
+			<p class="body">
+				Set <code>PUBLIC_SENTRY_DSN</code> in <code>.env</code> to enable client-side error monitoring.
+			</p>
 		{/if}
 	</section>
 </AppShell>

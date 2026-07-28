@@ -10,6 +10,11 @@ export interface PublicAppConfig {
 		scopes: string[];
 		configured: boolean;
 	};
+	sentry: {
+		dsn: string;
+		release: string;
+		configured: boolean;
+	};
 }
 
 function parseScopes(raw: string | undefined): string[] {
@@ -24,6 +29,7 @@ export function getPublicAppConfig(): PublicAppConfig {
 	const clientId = env.PUBLIC_AUDIOTOOL_CLIENT_ID ?? '';
 	const redirectUrl = env.PUBLIC_AUDIOTOOL_REDIRECT_URL ?? '';
 	const scopes = parseScopes(env.PUBLIC_AUDIOTOOL_SCOPES);
+	const dsn = env.PUBLIC_SENTRY_DSN ?? '';
 
 	return {
 		appName: APP_NAME,
@@ -33,6 +39,11 @@ export function getPublicAppConfig(): PublicAppConfig {
 			redirectUrl,
 			scopes,
 			configured: Boolean(clientId && redirectUrl)
+		},
+		sentry: {
+			dsn,
+			release: APP_VERSION,
+			configured: Boolean(dsn)
 		}
 	};
 }

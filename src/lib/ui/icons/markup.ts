@@ -9,6 +9,7 @@ import collection from '$lib/assets/ui-icons/collection.svg?raw';
 import fieldNotes from '$lib/assets/ui-icons/field-notes.svg?raw';
 import importIcon from '$lib/assets/ui-icons/import.svg?raw';
 import loop from '$lib/assets/ui-icons/loop.svg?raw';
+import next from '$lib/assets/ui-icons/next.svg?raw';
 import pause from '$lib/assets/ui-icons/pause.svg?raw';
 import play from '$lib/assets/ui-icons/play.svg?raw';
 import record from '$lib/assets/ui-icons/record.svg?raw';
@@ -28,6 +29,7 @@ export const ICON_MARKUP: Record<IconName, string> = {
 	'field-notes': fieldNotes,
 	import: importIcon,
 	loop,
+	next,
 	pause,
 	play,
 	record,

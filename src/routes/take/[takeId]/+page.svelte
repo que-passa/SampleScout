@@ -470,18 +470,26 @@
 		if (uploadLocked) return;
 		if (!take || !editHistory || !workingRecipe || sourceDuration <= 0) return;
 		if (!canCollect) return;
+		const nextSuggestionIndex =
+			suggestionIndex != null && suggestions.length > 0
+				? (suggestionIndex + 1) % suggestions.length
+				: null;
 		try {
 			await collectSelectionAsLocalFile({
 				parentTakeId: take.id,
 				recipe: workingRecipe
 			});
-			selectionStart = null;
-			selectionEnd = null;
-			clearSelectionFades();
 			// Return parent to full-source identity so the next region can be selected and collected.
 			const next = editHistory.resetToIdentity(sourceDuration);
 			bumpHistory();
 			await persistRecipe(next);
+			if (nextSuggestionIndex != null) {
+				applySuggestionAt(nextSuggestionIndex);
+				return;
+			}
+			selectionStart = null;
+			selectionEnd = null;
+			clearSelectionFades();
 		} catch (cause) {
 			const message =
 				cause && typeof cause === 'object' && 'message' in cause
@@ -1099,22 +1107,24 @@
 										</GhostButton>
 										{#if showSuggestionNav}
 											<GhostButton
+												icon
 												compact
 												disabled={uploadLocked}
 												aria-label="Previous scouted region"
 												title="Previous"
 												onclick={onSuggestionPrev}
 											>
-												Previous
+												<Icon name="back" />
 											</GhostButton>
 											<GhostButton
+												icon
 												compact
 												disabled={uploadLocked}
 												aria-label="Next scouted region"
 												title="Next"
 												onclick={onSuggestionNext}
 											>
-												Next
+												<Icon name="next" />
 											</GhostButton>
 										{/if}
 									</div>

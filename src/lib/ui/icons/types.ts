@@ -7,6 +7,7 @@ export const ICON_NAMES = [
 	'field-notes',
 	'import',
 	'cleanup',
+	'next',
 	'loop',
 	'zoom-in',
 	'zoom-out',
