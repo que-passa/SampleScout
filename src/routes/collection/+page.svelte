@@ -10,6 +10,7 @@
 		onTakeInventoryChanged,
 		openAccountOverlay,
 		retryTakeUpload,
+		saveTakeOutput,
 		enqueueBatchTakeUploads,
 		cancelTakeUpload,
 		uploadQueue,
@@ -28,7 +29,9 @@
 		validateTakeForUpload,
 		type TakeMetadataPatch
 	} from '$lib/domain';
-	import type { CaptureSession, Take, TakeId } from '$lib/domain/types';
+	import type { CaptureSession, OutputSettings, Take, TakeId } from '$lib/domain/types';
+	import { DEFAULT_UPLOAD_OUTPUT, normalizeUploadOutput } from '$lib/config/upload-output';
+	import { getAppSettings } from '$lib/persistence';
 	import BatchFieldNotesPanel from '$lib/ui/components/BatchFieldNotesPanel.svelte';
 	import BatchUploadPanel from '$lib/ui/components/BatchUploadPanel.svelte';
 	import ConfirmDialog from '$lib/ui/components/ConfirmDialog.svelte';
@@ -46,6 +49,25 @@
 	interface SessionWithTakes {
 		session: CaptureSession;
 		takes: Take[];
+	}
+
+	const DEFAULT_UPLOAD_OUTPUT_FALLBACK = DEFAULT_UPLOAD_OUTPUT;
+
+	let preferredUploadOutput = $state(normalizeUploadOutput(DEFAULT_UPLOAD_OUTPUT_FALLBACK));
+
+	function outputSettingsEqual(a: OutputSettings, b: OutputSettings): boolean {
+		if (a.format !== b.format) return false;
+		if (a.format === 'wav' && b.format === 'wav') return a.bitDepth === b.bitDepth;
+		if (a.format === 'mp3' && b.format === 'mp3') return a.bitrateKbps === b.bitrateKbps;
+		return a.format === 'source' && b.format === 'source';
+	}
+
+	function sharedUploadOutput(
+		takes: Take[]
+	): Extract<OutputSettings, { format: 'wav' | 'mp3' }> | null {
+		const first = takes[0]?.output;
+		if (!first || first.format === 'source') return null;
+		return takes.every((take) => outputSettingsEqual(take.output, first)) ? first : null;
 	}
 
 	let sessions = $state<SessionWithTakes[]>([]);
@@ -135,6 +157,9 @@
 	const uploadInitialTags = $derived(
 		uploadTakes.length > 0 ? uploadTakes[0].metadata.tags.join(', ') : ''
 	);
+	const uploadInitialOutput = $derived.by(
+		() => sharedUploadOutput(uploadTakes) ?? preferredUploadOutput
+	);
 
 	// Progress tracking
 	const uploadProgress = $derived.by(() => {
@@ -223,6 +248,12 @@
 			});
 		});
 		void (async () => {
+			try {
+				const settings = await getAppSettings();
+				preferredUploadOutput = normalizeUploadOutput(settings.preferredOutput);
+			} catch {
+				preferredUploadOutput = normalizeUploadOutput(DEFAULT_UPLOAD_OUTPUT_FALLBACK);
+			}
 			try {
 				await load();
 			} catch (error) {
@@ -520,6 +551,7 @@
 		titleStem: string;
 		description: string;
 		tags: string[];
+		output: Extract<OutputSettings, { format: 'wav' | 'mp3' }>;
 	}) {
 		if (audiotoolAuth.status.state !== 'connected') {
 			openAccountOverlay();
@@ -537,6 +569,9 @@
 				for (let i = 0; i < takesToUpdate.length; i++) {
 					const take = takesToUpdate[i];
 					if (!take) continue;
+					if (!outputSettingsEqual(take.output, overlay.output)) {
+						await saveTakeOutput(take.id, overlay.output);
+					}
 					const patch: TakeMetadataPatch = {
 						displayName: numberedNames[i],
 						...(overlay.description ? { description: overlay.description } : {}),
@@ -857,6 +892,7 @@
 				initialStem={uploadInitialStem}
 				initialDescription={uploadInitialDescription}
 				initialTags={uploadInitialTags}
+				initialOutput={uploadInitialOutput}
 				oncancel={onUploadCancel}
 				onconfirm={onUploadConfirm}
 				onremove={onUploadRemove}

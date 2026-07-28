@@ -7,6 +7,11 @@ import {
 	remainingRecordingSeconds,
 	type RecordingWarningLevel
 } from '$lib/config/recording';
+import {
+	recorderBitrate,
+	recordingConstraints,
+	type RecordingSettings
+} from '$lib/config/recording-settings';
 import { pickSupportedRecorderMime } from './mime';
 
 export type CapturePhase = 'idle' | 'requesting' | 'recording' | 'finalizing' | 'error';
@@ -55,6 +60,7 @@ export interface CaptureSessionHandle {
 export interface CreateCaptureOptions {
 	timesliceMs?: number;
 	maxSeconds?: number;
+	recordingSettings?: RecordingSettings;
 	onTick?: (tick: CaptureTick) => void;
 	onAutoStop?: () => void;
 	onError?: (error: AppError) => void;
@@ -67,6 +73,7 @@ export async function createCaptureSession(
 ): Promise<CaptureSessionHandle> {
 	const timesliceMs = options.timesliceMs ?? 1000;
 	const maxSeconds = options.maxSeconds ?? RECORDING_MAX_SECONDS;
+	const recordingSettings = options.recordingSettings;
 	const mimeType = pickSupportedRecorderMime();
 
 	if (!mimeType) {
@@ -220,11 +227,13 @@ export async function createCaptureSession(
 
 			try {
 				mediaStream = await navigator.mediaDevices.getUserMedia({
-					audio: {
-						echoCancellation: false,
-						noiseSuppression: false,
-						autoGainControl: false
-					},
+					audio: recordingSettings
+						? recordingConstraints(recordingSettings)
+						: {
+								echoCancellation: false,
+								noiseSuppression: false,
+								autoGainControl: false
+							},
 					video: false
 				});
 			} catch (cause) {
@@ -260,7 +269,12 @@ export async function createCaptureSession(
 			}
 
 			try {
-				recorder = new MediaRecorder(mediaStream, { mimeType });
+				const recorderOptions: MediaRecorderOptions = { mimeType };
+				const bitsPerSecond = recordingSettings ? recorderBitrate(recordingSettings) : undefined;
+				if (bitsPerSecond !== undefined) {
+					recorderOptions.audioBitsPerSecond = bitsPerSecond;
+				}
+				recorder = new MediaRecorder(mediaStream, recorderOptions);
 			} catch (cause) {
 				teardownGraph();
 				phase = 'error';

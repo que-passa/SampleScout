@@ -16,6 +16,8 @@ import { writeBinary } from '$lib/persistence/opfs';
 import { sourcePath } from '$lib/persistence/paths';
 import { ensureActiveSession, putSession, applyActiveSessionName } from '$lib/persistence/sessions';
 import { checkStorageForRecording } from '$lib/persistence/storage-gate';
+import { getAppSettings } from '$lib/persistence/settings';
+import { normalizeUploadOutput } from '$lib/config/upload-output';
 import {
 	commitSavedTake,
 	listDisplayNamesForSession,
@@ -175,7 +177,9 @@ class CaptureController {
 
 		try {
 			this.#recorder?.dispose();
+			const appSettings = await getAppSettings();
 			this.#recorder = await createCaptureSession({
+				recordingSettings: appSettings.recordingSettings,
 				onTick: (tick: CaptureTick) => {
 					this.livePeaks.push(tick.levels.peak);
 					this.#set({
@@ -345,6 +349,7 @@ class CaptureController {
 
 		const sequence = await nextSequenceForSession(this.session.id);
 		const existingDisplayNames = await listDisplayNamesForSession(this.session.id);
+		const preferredOutput = normalizeUploadOutput((await getAppSettings()).preferredOutput);
 		const draft = createTake({
 			session: this.session,
 			sequence,
@@ -366,6 +371,7 @@ class CaptureController {
 
 		const pending: Take = {
 			...draft,
+			output: preferredOutput,
 			source: {
 				...draft.source,
 				fileRef: written.fileRef,

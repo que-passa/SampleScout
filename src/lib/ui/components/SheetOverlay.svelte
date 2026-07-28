@@ -3,6 +3,7 @@
 	import { MediaQuery } from 'svelte/reactivity';
 	import { fade, fly } from 'svelte/transition';
 	import GhostButton from '$lib/ui/components/GhostButton.svelte';
+	import { attachDialogPanel } from '$lib/ui/focus';
 	import { Icon } from '$lib/ui/icons';
 
 	let {
@@ -28,14 +29,6 @@
 
 	const duration = $derived(reduceMotion.current ? 0 : 180);
 	const panelFly = $derived(desktop.current ? { y: 12, duration } : { y: 48, duration });
-
-	function autofocus(node: HTMLElement) {
-		node.focus();
-	}
-
-	function noopAttach(node: HTMLElement) {
-		void node;
-	}
 
 	function onKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape' && dismissible) {
@@ -65,13 +58,13 @@
 		aria-modal="true"
 		aria-labelledby={titleId}
 		tabindex="-1"
-		{@attach dismissible ? noopAttach : autofocus}
+		{@attach attachDialogPanel}
 		transition:fly={panelFly}
 	>
 		<header class="header">
 			<h2 id={titleId} class="title">{title}</h2>
 			{#if dismissible}
-				<GhostButton icon focusOnMount onclick={onclose} aria-label="Close">
+				<GhostButton icon onclick={onclose} aria-label="Close">
 					<Icon name="close" />
 				</GhostButton>
 			{/if}
@@ -118,7 +111,8 @@
 		justify-content: space-between;
 		gap: var(--space-3);
 		flex-shrink: 0;
-		padding: var(--space-1) var(--space-2);
+		padding-block: var(--space-1);
+		padding-inline: var(--space-3) var(--space-2);
 		/* Slightly darker than body paper; still Ghost-friendly for --surface hover/press. */
 		background: color-mix(in srgb, var(--ink) 10%, var(--paper));
 	}

@@ -2,6 +2,7 @@
 	import { MediaQuery } from 'svelte/reactivity';
 	import { fade, fly } from 'svelte/transition';
 	import GhostButton from '$lib/ui/components/GhostButton.svelte';
+	import { attachDialogPanel } from '$lib/ui/focus';
 
 	let {
 		title,
@@ -55,6 +56,7 @@
 		aria-labelledby={titleId}
 		aria-describedby={messageId}
 		tabindex="-1"
+		{@attach attachDialogPanel}
 		transition:fly={panelFly}
 	>
 		<header class="header">
@@ -63,7 +65,7 @@
 		<div class="body">
 			<p id={messageId} class="message">{message}</p>
 			<div class="actions">
-				<GhostButton focusOnMount disabled={busy} onclick={oncancel}>
+				<GhostButton disabled={busy} onclick={oncancel}>
 					{cancelLabel}
 				</GhostButton>
 				<GhostButton danger disabled={busy} onclick={onconfirm}>

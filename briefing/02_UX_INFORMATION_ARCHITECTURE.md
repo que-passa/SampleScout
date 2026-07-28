@@ -108,6 +108,13 @@ Default session name: **`Session`**. Datetime is **not** part of the name; Colle
 - **If the active session is empty**, the name is updated in place (no empty sealed group).
 - Applying the same name is a no-op. Changing the session title never rewrites existing take display names.
 
+**Capture settings sheet** (gear icon left of Record when idle):
+
+- Opens a bottom sheet with **Recording** and **Upload** sections.
+- Recording: channels, sample rate, encoder bitrate — each is a **request** to the browser/device; copy must say actual capture may differ.
+- Upload: export quality for Audiotool (same presets as Collection upload confirm; default **192 kbps MP3**). This is a **hard** app setting applied at encode time.
+- Disabled while recording / finalizing / requesting mic. Discard replaces the gear on the left while recording.
+
 ## 4. Take stack (Collection)
 
 The take stack lives under **Collection**, not Capture. Show the newest take first within each Field Session. Newest / most recently updated Field Session groups appear first.

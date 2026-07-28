@@ -23,6 +23,7 @@ Read [`DESIGN.md`](../../../DESIGN.md) before adding or restyling UI.
 | `EmptyState`                     | Empty lists / unloaded editor                                                                                                                            |
 | `TakeRow`                        | Take list records (uses `UploadStatusChip` for upload state)                                                                                             |
 | `SessionNameSheet`               | Capture session rename sheet (input + user/built-in chips + Done)                                                                                        |
+| `CaptureSettingsSheet`           | Capture settings sheet (recording requests + upload quality)                                                                                             |
 | `ActionToast`                    | Compact ephemeral action feedback                                                                                                                        |
 | `AuthSplash`                     | Unsigned-in gate (logo + Connect)                                                                                                                        |
 | `BusyIndicator`                  | Compact loading dots (temporary states)                                                                                                                  |

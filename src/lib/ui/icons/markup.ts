@@ -9,11 +9,13 @@ import collection from '$lib/assets/ui-icons/collection.svg?raw';
 import fieldNotes from '$lib/assets/ui-icons/field-notes.svg?raw';
 import importIcon from '$lib/assets/ui-icons/import.svg?raw';
 import loop from '$lib/assets/ui-icons/loop.svg?raw';
+import minus from '$lib/assets/ui-icons/minus.svg?raw';
 import next from '$lib/assets/ui-icons/next.svg?raw';
 import pause from '$lib/assets/ui-icons/pause.svg?raw';
 import play from '$lib/assets/ui-icons/play.svg?raw';
 import record from '$lib/assets/ui-icons/record.svg?raw';
 import reset from '$lib/assets/ui-icons/reset.svg?raw';
+import settings from '$lib/assets/ui-icons/settings.svg?raw';
 import stop from '$lib/assets/ui-icons/stop.svg?raw';
 import trash from '$lib/assets/ui-icons/trash.svg?raw';
 import zoomIn from '$lib/assets/ui-icons/zoom-in.svg?raw';
@@ -29,11 +31,13 @@ export const ICON_MARKUP: Record<IconName, string> = {
 	'field-notes': fieldNotes,
 	import: importIcon,
 	loop,
+	minus,
 	next,
 	pause,
 	play,
 	record,
 	reset,
+	settings,
 	stop,
 	trash,
 	'zoom-in': zoomIn,

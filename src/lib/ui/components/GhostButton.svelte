@@ -21,7 +21,6 @@
 		muted?: boolean;
 		/** Brand status LED on the well (connected account, latched loop). */
 		live?: boolean;
-		focusOnMount?: boolean;
 		children: Snippet;
 	};
 
@@ -37,7 +36,6 @@
 		danger = false,
 		muted = false,
 		live = false,
-		focusOnMount = false,
 		children,
 		...rest
 	}: SharedProps &
@@ -54,10 +52,6 @@
 		live && 'live-on',
 		className
 	]);
-
-	function focusAttach(node: HTMLElement) {
-		if (focusOnMount) node.focus();
-	}
 </script>
 
 {#snippet face()}
@@ -73,11 +67,11 @@
 
 {#if href}
 	<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- href is pre-resolved by callers -->
-	<a class={rootClass} {href} {onclick} {@attach focusAttach} {...rest}>
+	<a class={rootClass} {href} {onclick} {...rest}>
 		{@render face()}
 	</a>
 {:else}
-	<button class={rootClass} {type} {disabled} {onclick} {@attach focusAttach} {...rest}>
+	<button class={rootClass} {type} {disabled} {onclick} {...rest}>
 		{@render face()}
 	</button>
 {/if}

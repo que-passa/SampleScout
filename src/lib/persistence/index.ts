@@ -70,7 +70,12 @@ import {
 	setUploadJobState,
 	updateUploadJob
 } from './upload-jobs';
-import { getAppSettings, putAppSettings, putSessionNamePresets } from './settings';
+import {
+	getAppSettings,
+	putAppSettings,
+	putCapturePreferences,
+	putSessionNamePresets
+} from './settings';
 import {
 	deleteSuggestedRegions,
 	getSuggestedRegions,
@@ -147,6 +152,7 @@ export {
 	updateUploadJob,
 	getAppSettings,
 	putAppSettings,
+	putCapturePreferences,
 	putSessionNamePresets,
 	deleteSuggestedRegions,
 	getSuggestedRegions,

@@ -59,6 +59,7 @@
 				collectionChrome && 'collection-main',
 				accountRoute && 'account-host'
 			]}
+			tabindex="-1"
 		>
 			{#if children}
 				{@render children()}
@@ -164,6 +165,7 @@
 		min-width: 0;
 		min-height: 0;
 		overflow: auto;
+		outline: none;
 	}
 
 	.main.instrument-main,

@@ -3,6 +3,7 @@ export const ICON_NAMES = [
 	'account',
 	'collection',
 	'trash',
+	'minus',
 	'reset',
 	'field-notes',
 	'import',
@@ -16,7 +17,8 @@ export const ICON_NAMES = [
 	'play',
 	'pause',
 	'stop',
-	'record'
+	'record',
+	'settings'
 ] as const;
 
 export type IconName = (typeof ICON_NAMES)[number];

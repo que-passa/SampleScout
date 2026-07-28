@@ -19,7 +19,7 @@ Dexie database name: `samplescout`.
 
 `suggestedRegions` rows store `{ takeId, sourceFingerprint, algorithmVersion, regions[], analyzedAt, updatedAt }`. Fingerprint is `fileRef|byteLength|durationSeconds|algorithmVersion`. Dropped when a take is discarded or on wipe. See `briefing/11_SUGGESTED_REGIONS.md`.
 
-`AppSettings` includes `recentTags`, `preferredOutput`, and `sessionNamePresets` (up to 12 custom Field Session titles remembered on this device for the Capture name sheet). Missing fields are filled with defaults on read.
+`AppSettings` includes `recentTags`, `preferredOutput` (default upload encode: 192 kbps MP3), `recordingSettings` (capture requests; device may ignore), and `sessionNamePresets` (up to 12 custom Field Session titles remembered on this device for the Capture name sheet). Missing fields are filled with defaults on read.
 
 Migrations must be additive. Use `runMigrations()` as the bump hook.
 

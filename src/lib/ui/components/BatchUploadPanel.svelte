@@ -1,6 +1,16 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { deriveSpecimenMark, parseTagList, type Take } from '$lib/domain';
+	import {
+		DEFAULT_UPLOAD_OUTPUT,
+		outputToValue,
+		UPLOAD_OUTPUT_OPTIONS,
+		valueToOutput,
+		type UploadOutput,
+		type UploadOutputValue
+	} from '$lib/config/upload-output';
+
+	import { Icon } from '$lib/ui/icons';
 	import PrimaryButton from './PrimaryButton.svelte';
 	import GhostButton from './GhostButton.svelte';
 	import SpecimenMark from './SpecimenMark.svelte';
@@ -19,6 +29,7 @@
 		initialStem = '',
 		initialDescription = '',
 		initialTags = '',
+		initialOutput = DEFAULT_UPLOAD_OUTPUT,
 		oncancel,
 		onconfirm,
 		onremove
@@ -37,11 +48,13 @@
 		initialStem?: string;
 		initialDescription?: string;
 		initialTags?: string;
+		initialOutput?: UploadOutput;
 		oncancel: () => void;
 		onconfirm: (overlay: {
 			titleStem: string;
 			description: string;
 			tags: string[];
+			output: UploadOutput;
 		}) => void | Promise<void>;
 		onremove?: (takeId: string) => void;
 	} = $props();
@@ -49,11 +62,13 @@
 	let titleStem = $state('');
 	let description = $state('');
 	let tagsText = $state('');
+	let outputValue = $state<UploadOutputValue>('mp3-192');
 
 	onMount(() => {
 		titleStem = initialStem;
 		description = initialDescription;
 		tagsText = initialTags;
+		outputValue = outputToValue(initialOutput);
 	});
 
 	const canConfirm = $derived(
@@ -61,6 +76,9 @@
 	);
 	const hasRemove = $derived(onremove != null);
 	const hasFailures = $derived(failureMessages.length > 0);
+	const selectedOutputHint = $derived(
+		UPLOAD_OUTPUT_OPTIONS.find((option) => option.value === outputValue)?.hint ?? ''
+	);
 
 	async function handleConfirm(event: Event) {
 		event.preventDefault();
@@ -69,7 +87,8 @@
 		await onconfirm({
 			titleStem: titleStem.trim(),
 			description: description.trim(),
-			tags: parseTagList(tagsText)
+			tags: parseTagList(tagsText),
+			output: valueToOutput(outputValue)
 		});
 	}
 
@@ -138,13 +157,13 @@
 					{#if hasRemove}
 						<GhostButton
 							icon
-							compact
+							class="take-remove-button"
 							danger
 							onclick={() => handleRemove(take.id)}
 							aria-label="Remove from upload"
 							title="Remove"
 						>
-							×
+							<Icon name="minus" size={20} />
 						</GhostButton>
 					{/if}
 				</div>
@@ -183,6 +202,16 @@
 					placeholder="comma-separated"
 					disabled={busy}
 				/>
+			</label>
+
+			<label class="field">
+				<span class="field-label">Upload quality</span>
+				<select class="control select-control" bind:value={outputValue} disabled={busy}>
+					{#each UPLOAD_OUTPUT_OPTIONS as option (option.value)}
+						<option value={option.value}>{option.label}</option>
+					{/each}
+				</select>
+				<p class="field-hint">{selectedOutputHint}</p>
 			</label>
 		</div>
 
@@ -369,6 +398,10 @@
 		white-space: nowrap;
 	}
 
+	:global(.take-remove-button) {
+		align-self: center;
+	}
+
 	.fields {
 		display: grid;
 		gap: var(--space-3);
@@ -386,6 +419,13 @@
 		letter-spacing: 0.06em;
 		text-transform: uppercase;
 		color: var(--ink-muted);
+	}
+
+	.field-hint {
+		margin: 0;
+		font-size: var(--text-annotation);
+		color: var(--ink-muted);
+		line-height: 1.35;
 	}
 
 	.control {
@@ -433,6 +473,15 @@
 			inset 0 var(--space-1) var(--space-1) color-mix(in srgb, var(--ink) 10%, transparent),
 			inset 0 calc(var(--space-1) * -1) var(--space-1)
 				color-mix(in srgb, var(--paper) 50%, transparent);
+	}
+
+	.select-control {
+		appearance: none;
+		padding-right: calc(var(--space-3) + var(--touch-min));
+		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' fill='none' viewBox='0 0 24 24'%3E%3Cpath stroke='%23000' stroke-width='2' d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+		background-position: right var(--space-2) center;
+		background-repeat: no-repeat;
+		background-size: 1rem 1rem;
 	}
 
 	.textarea {

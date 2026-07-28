@@ -2478,13 +2478,18 @@
 		const key = detailSourceKey ?? null;
 		const ranges = sortedRetainedRanges();
 
-		if (!norm?.enabled || !loader || !key || ranges.length === 0 || !(durationSeconds > 0)) {
+		if (!norm?.enabled || !loader || !key || !(durationSeconds > 0)) {
 			normalizePreviewGain = 1;
 			return;
 		}
 
+		const rangesForNorm =
+			ranges.length > 0
+				? ranges
+				: [{ start: 0, end: durationSeconds, fadeInSeconds: 0, fadeOutSeconds: 0 }];
+
 		let cancelled = false;
-		const recipe = previewEditRecipeFromRanges(ranges, norm);
+		const recipe = previewEditRecipeFromRanges(rangesForNorm, norm);
 
 		void loader()
 			.then((pcm) => {

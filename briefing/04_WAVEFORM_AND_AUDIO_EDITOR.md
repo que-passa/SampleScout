@@ -333,7 +333,7 @@ Process:
 4. Apply as a non-destructive gain operation.
 5. Prevent gain that would exceed the target.
 
-A usable **selection** auto-enables peak normalize for waveform + playback preview (and for Collect). The Normalize control reads as **on** (`active` / `aria-pressed`) when peak normalize is enabled — including auto-on for a selection (locked on while selecting; not greyed as disabled). Without a selection, Normalize toggles the committed recipe on/off. Manual Normalize remains available when editing a committed recipe without a selection.
+Opening an identity take (full source, no committed edits) **defaults** peak-normalize preview on for waveform + playback — same −1 dBFS target as Collect. The user can turn it off with **Normalize** (preview-only until they commit other edits). A usable **selection** also auto-enables peak normalize for waveform + playback preview (and for Collect). The Normalize control reads as **on** (`active` / `aria-pressed`) when peak normalize is enabled — including the default preview and auto-on for a selection (locked on while selecting; not greyed as disabled). Without a selection, **Normalize** toggles preview off or commits normalize on/off for non-identity recipes. Manual Normalize remains available when editing a committed recipe without a selection.
 
 Do not call peak normalization “loudness normalization.”
 
@@ -384,6 +384,8 @@ Suggested presets:
 - Compact: 96 kbps
 - Standard: 128 kbps
 - High: 192 kbps
+
+Collection upload should default the quality picker to **High (192 kbps MP3)** for faster transfers while keeping WAV options available.
 
 For music-sensitive recordings, recommend WAV or 192 kbps MP3.
 

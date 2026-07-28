@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { onNavigate } from '$app/navigation';
 	import { handlePageTransition } from '$lib/navigation/page-transitions';
+	import { handleNavigationFocus } from '$lib/ui/focus';
 	import '$lib/styles/app.css';
 	import { audiotoolAuth, hydrateAudiotoolAuth } from '$lib/state/audiotool-auth.svelte';
 	import { hydrateUploadQueue, uploadQueue } from '$lib/state/upload-queue.svelte';
@@ -13,7 +14,10 @@
 
 	const connected = $derived(audiotoolAuth.ready && audiotoolAuth.status.state === 'connected');
 
-	onNavigate(handlePageTransition);
+	onNavigate((navigation) => {
+		handlePageTransition(navigation);
+		handleNavigationFocus(navigation);
+	});
 
 	onMount(() => {
 		void hydrateAudiotoolAuth();

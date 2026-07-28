@@ -13,7 +13,16 @@
 		rememberSessionNamePreset
 	} from '$lib/domain';
 	import { detectCapabilities } from '$lib/capabilities';
-	import { countCollectionFiles, getAppSettings, putSessionNamePresets } from '$lib/persistence';
+	import {
+		countCollectionFiles,
+		getAppSettings,
+		putCapturePreferences,
+		putSessionNamePresets
+	} from '$lib/persistence';
+	import { DEFAULT_RECORDING_SETTINGS } from '$lib/config/recording-settings';
+	import { DEFAULT_UPLOAD_OUTPUT, normalizeUploadOutput } from '$lib/config/upload-output';
+	import type { RecordingSettings } from '$lib/domain/types';
+	import CaptureSettingsSheet from '$lib/ui/components/CaptureSettingsSheet.svelte';
 	import CaptureTimer from '$lib/ui/components/CaptureTimer.svelte';
 	import CollectionShortcut from '$lib/ui/components/CollectionShortcut.svelte';
 	import GhostButton from '$lib/ui/components/GhostButton.svelte';
@@ -31,6 +40,9 @@
 	const initialSessionName = initialSnap.session?.name ?? DEFAULT_SESSION_NAME;
 	let sessionName = $state(initialSessionName);
 	let nameSheetOpen = $state(false);
+	let settingsSheetOpen = $state(false);
+	let recordingSettings = $state<RecordingSettings>({ ...DEFAULT_RECORDING_SETTINGS });
+	let preferredOutput = $state(normalizeUploadOutput(DEFAULT_UPLOAD_OUTPUT));
 	let userPresets = $state<string[]>([]);
 	let syncedSessionName = $state<string | null>(initialSnap.session?.name ?? null);
 	let pendingFileCount = $state(0);
@@ -54,6 +66,17 @@
 		} catch {
 			pendingFileCount = 0;
 			totalFileCount = 0;
+		}
+	}
+
+	async function loadCapturePreferences() {
+		try {
+			const settings = await getAppSettings();
+			recordingSettings = settings.recordingSettings;
+			preferredOutput = normalizeUploadOutput(settings.preferredOutput);
+		} catch {
+			recordingSettings = { ...DEFAULT_RECORDING_SETTINGS };
+			preferredOutput = normalizeUploadOutput(DEFAULT_UPLOAD_OUTPUT);
 		}
 	}
 
@@ -81,6 +104,7 @@
 			syncSessionNameFromSnap();
 		});
 		void refreshCollectionCounts();
+		void loadCapturePreferences();
 		void loadUserPresets();
 		void detectCapabilities().then((report) => {
 			capabilities = report;
@@ -104,6 +128,9 @@
 		isRecording || (snap.elapsedSeconds > 0 && snap.phase === 'finalizing')
 	);
 	const canCancel = $derived(snap.phase === 'recording');
+	const settingsDisabled = $derived(
+		isRecording || snap.phase === 'finalizing' || snap.phase === 'requesting'
+	);
 	const isDisabled = $derived(
 		!canRecord ||
 			!snap.ready ||
@@ -119,6 +146,28 @@
 				: `${totalFileCount} Local File${totalFileCount === 1 ? '' : 's'} in Collection`
 			: 'Open Collection'
 	);
+
+	function openSettingsSheet() {
+		settingsSheetOpen = true;
+	}
+
+	function closeSettingsSheet() {
+		settingsSheetOpen = false;
+	}
+
+	async function applyCaptureSettings(next: {
+		recordingSettings: RecordingSettings;
+		preferredOutput: typeof preferredOutput;
+	}) {
+		try {
+			const saved = await putCapturePreferences(next);
+			recordingSettings = saved.recordingSettings;
+			preferredOutput = normalizeUploadOutput(saved.preferredOutput);
+		} catch {
+			// Keep draft values if persistence fails.
+		}
+		settingsSheetOpen = false;
+	}
 
 	function openNameSheet() {
 		nameSheetOpen = true;
@@ -243,12 +292,10 @@
 			<div class="lower">
 				<div class="record-row">
 					<div class="record-side">
-						<span class:slot-hidden={!canCancel}>
+						{#if canCancel}
 							<GhostButton
 								icon
 								danger
-								tabindex={canCancel ? undefined : -1}
-								aria-hidden={!canCancel}
 								disabled={!canCancel}
 								onclick={() => captureController.cancelRecording()}
 								aria-label="Discard recording"
@@ -256,7 +303,17 @@
 							>
 								<Icon name="trash" />
 							</GhostButton>
-						</span>
+						{:else}
+							<GhostButton
+								icon
+								disabled={settingsDisabled}
+								onclick={openSettingsSheet}
+								aria-label="Capture settings"
+								title="Capture settings"
+							>
+								<Icon name="settings" />
+							</GhostButton>
+						{/if}
 					</div>
 					<div class="record-center">
 						<RecordControl
@@ -344,6 +401,14 @@
 	{userPresets}
 	onclose={closeNameSheet}
 	onapply={applySessionName}
+/>
+
+<CaptureSettingsSheet
+	open={settingsSheetOpen}
+	{recordingSettings}
+	{preferredOutput}
+	onclose={closeSettingsSheet}
+	onapply={applyCaptureSettings}
 />
 
 <style>
@@ -524,24 +589,19 @@
 	}
 
 	.record-side {
-		display: grid;
+		display: flex;
 		align-items: center;
-		justify-items: start;
-		/* Match RecordControl `.well` height so side controls center on the control, not the label. */
-		min-height: calc(var(--space-7) * 2 + var(--space-3) * 2);
+		justify-content: flex-start;
+		/* Match RecordControl `.well` height — align side controls to the record face, not the label. */
+		height: calc(var(--space-7) * 2 + var(--space-3) * 2);
 		padding-left: var(--space-2);
 		padding-right: var(--space-6);
 	}
 
 	.record-side-end {
-		justify-items: end;
+		justify-content: flex-end;
 		padding-right: var(--space-2);
 		padding-left: var(--space-6);
-	}
-
-	.slot-hidden {
-		visibility: hidden;
-		pointer-events: none;
 	}
 
 	.session-title {

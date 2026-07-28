@@ -113,6 +113,8 @@
 	let suggestionIndex = $state<number | null>(null);
 	let suggestGeneration = 0;
 	let showManualAnalyze = $state(false);
+	/** Identity take with no selection: peak-normalize preview on until the user turns it off. */
+	let normalizePreviewSuppressed = $state(false);
 
 	const uploadJob = $derived(take ? uploadQueue.byTakeId[take.id] : undefined);
 
@@ -177,18 +179,37 @@
 		}
 	});
 
+	const identityNormalizePreview = $derived(
+		identity &&
+			!hasUsableSelection &&
+			!normalizePreviewSuppressed &&
+			currentRecipe?.peakNormalization?.enabled !== true
+	);
+
+	const normalizePreviewRecipe = $derived.by((): EditRecipe | null => {
+		if (!identityNormalizePreview || sourceDuration <= 0) return null;
+		return recipeFromWorkingRegion({ startSeconds: 0, endSeconds: sourceDuration });
+	});
+
 	/** Playback / preview follows the working selection when present. */
-	const activePlaybackRecipe = $derived(workingRecipe ?? currentRecipe);
+	const activePlaybackRecipe = $derived(workingRecipe ?? normalizePreviewRecipe ?? currentRecipe);
+
+	const useRawFilePlayback = $derived(
+		identity && !hasUsableSelection && normalizePreviewRecipe == null
+	);
 
 	const showTrimGrips = $derived(!hasUsableSelection && !identity);
 
 	const wavePeakNormalization = $derived(
-		workingRecipe?.peakNormalization ?? currentRecipe?.peakNormalization
+		workingRecipe?.peakNormalization ??
+			normalizePreviewRecipe?.peakNormalization ??
+			currentRecipe?.peakNormalization
 	);
 
 	const normalizeOn = $derived(
-		(workingRecipe?.peakNormalization?.enabled ?? currentRecipe?.peakNormalization?.enabled) ===
-			true
+		(workingRecipe?.peakNormalization?.enabled ??
+			normalizePreviewRecipe?.peakNormalization?.enabled ??
+			currentRecipe?.peakNormalization?.enabled) === true
 	);
 
 	/** Collect from a usable selection (scouted or manual). */
@@ -506,10 +527,19 @@
 		// Selection auto-enables normalize for Collect preview — locked on while selecting.
 		if (hasUsableSelection) return;
 		if (normalizeOn) {
-			await applyRecipeMutation((recipe) => disablePeakNormalization(recipe), 'Normalize off');
+			if (currentRecipe?.peakNormalization?.enabled) {
+				await applyRecipeMutation((recipe) => disablePeakNormalization(recipe), 'Normalize off');
+			}
+			normalizePreviewSuppressed = true;
+			disposePlayback();
 			return;
 		}
-		await applyRecipeMutation((recipe) => enablePeakNormalization(recipe), 'Normalize applied');
+		normalizePreviewSuppressed = false;
+		if (!identity) {
+			await applyRecipeMutation((recipe) => enablePeakNormalization(recipe), 'Normalize applied');
+			return;
+		}
+		disposePlayback();
 	}
 
 	async function onResetEdits() {
@@ -530,6 +560,7 @@
 	}
 
 	async function loadTake(id: string) {
+		normalizePreviewSuppressed = false;
 		if (detailPcmTakeId && detailPcmTakeId !== id) {
 			clearDetailPcmCache();
 			clearSuggestions();
@@ -598,7 +629,7 @@
 	function syncPlayheadFromHandle(handle: PlaybackHandle) {
 		if (!activePlaybackRecipe) return;
 		currentTime = handle.getCurrentTime();
-		const useSourceClock = identity && !hasUsableSelection;
+		const useSourceClock = useRawFilePlayback;
 		displayPlayhead = useSourceClock
 			? currentTime
 			: editedTimeToSourceTime(activePlaybackRecipe, currentTime);
@@ -748,7 +779,7 @@
 	);
 
 	const transportDuration = $derived(
-		activePlaybackRecipe && (hasUsableSelection || !identity)
+		activePlaybackRecipe && (hasUsableSelection || !identity || normalizePreviewRecipe != null)
 			? recipeDurationSeconds(activePlaybackRecipe)
 			: sourceDuration
 	);
@@ -762,7 +793,7 @@
 		disposePlayback();
 
 		let handle: PlaybackHandle;
-		const useFile = identity && !hasUsableSelection;
+		const useFile = useRawFilePlayback;
 		if (useFile) {
 			handle = await createPlaybackFromFileRef(take.source.fileRef, take.source.mimeType);
 		} else {
@@ -848,7 +879,7 @@
 			try {
 				const handle = await ensurePlayback();
 				if (!handle || !activePlaybackRecipe) return;
-				const useSourceClock = identity && !hasUsableSelection;
+				const useSourceClock = useRawFilePlayback;
 				const seekTime = useSourceClock
 					? seconds
 					: sourceTimeToEditedTime(activePlaybackRecipe, seconds);

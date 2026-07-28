@@ -34,6 +34,16 @@ export type UploadJobState =
 	| 'failed'
 	| 'canceled';
 
+export type RecordingChannelMode = 'device' | 'mono' | 'stereo';
+export type RecordingSampleRate = 'device' | 44100 | 48000;
+export type RecordingEncoderBitrate = 'device' | 96 | 128 | 192;
+
+export interface RecordingSettings {
+	channelMode: RecordingChannelMode;
+	sampleRate: RecordingSampleRate;
+	encoderBitrateKbps: RecordingEncoderBitrate;
+}
+
 export type OutputSettings =
 	| {
 			format: 'wav';
@@ -192,6 +202,8 @@ export interface AppSettings {
 	id: 'settings';
 	recentTags: string[];
 	preferredOutput: OutputSettings;
+	/** Capture MediaRecorder requests; device may ignore. */
+	recordingSettings: RecordingSettings;
 	/** Custom Field Session titles for Capture name sheet (newest first, max 12). */
 	sessionNamePresets: string[];
 	updatedAt: string;

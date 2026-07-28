@@ -279,6 +279,8 @@ Presets:
 - 128 kbps
 - 192 kbps
 
+Collection upload should expose the export-quality choice in the confirm sheet and default it to **192 kbps MP3** for a faster, smaller upload while leaving WAV available.
+
 Run encoding in a worker and expose progress.
 
 ## Audiotool
