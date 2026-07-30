@@ -3,10 +3,7 @@
 	import { detectCapabilities, formatBytes } from '$lib/capabilities';
 	import type { CapabilityReport } from '$lib/capabilities';
 	import { getPublicAppConfig } from '$lib/config/app';
-	import {
-		captureSentryTestError,
-		isClientSentryActive
-	} from '$lib/monitoring/sentry-client';
+	import { captureSentryTestError, isClientSentryActive } from '$lib/monitoring/sentry-client';
 	import AppShell from '$lib/ui/layouts/AppShell.svelte';
 	import GhostButton from '$lib/ui/components/GhostButton.svelte';
 
@@ -90,8 +87,8 @@
 		{:else if sentryConfigured}
 			<p class="body">
 				<code>PUBLIC_SENTRY_DSN</code> is set, but client reporting is off in local
-				<code>npm run dev</code> (avoids HMR noise). Production / preview builds still report.
-				Set <code>PUBLIC_SENTRY_ENABLE_IN_DEV=true</code> to opt in for localhost testing.
+				<code>npm run dev</code> (avoids HMR noise). Production / preview builds still report. Set
+				<code>PUBLIC_SENTRY_ENABLE_IN_DEV=true</code> to opt in for localhost testing.
 			</p>
 		{:else}
 			<p class="body">
