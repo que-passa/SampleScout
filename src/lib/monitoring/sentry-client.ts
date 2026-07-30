@@ -9,6 +9,8 @@ export function initClientSentry(): void {
 
 	const { sentry } = getPublicAppConfig();
 	if (!sentry.configured) return;
+	// Keep localhost HMR / edit-time noise out of the project by default.
+	if (dev && !sentry.enableInDev) return;
 
 	Sentry.init({
 		dsn: sentry.dsn,
@@ -19,6 +21,10 @@ export function initClientSentry(): void {
 	});
 
 	initialized = true;
+}
+
+export function isClientSentryActive(): boolean {
+	return initialized;
 }
 
 export function captureSentryTestError(): void {

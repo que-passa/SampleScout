@@ -4,9 +4,6 @@ import { createAppError } from '$lib/domain/ids';
 import type { FileRef } from '$lib/domain/types';
 import { readBinary } from '$lib/persistence/opfs';
 
-/** localStorage: hide iOS silent-switch playback hint on take view. */
-export const PLAYBACK_IOS_HINT_DISMISSED_KEY = 'samplescout.playback.iosHintDismissed';
-
 export interface PlaybackHandle {
 	play(): Promise<void>;
 	pause(): void;

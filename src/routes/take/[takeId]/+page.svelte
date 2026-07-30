@@ -47,10 +47,8 @@
 	import {
 		createPlaybackFromFileRef,
 		createPlaybackFromRenderedPlanar,
-		PLAYBACK_IOS_HINT_DISMISSED_KEY,
 		type PlaybackHandle
 	} from '$lib/audio/playback';
-	import { isIosLike, readLocalFlag, writeLocalFlag } from '$lib/pwa/install-detect';
 	import {
 		actionToast,
 		discardLocalFile,
@@ -87,7 +85,6 @@
 	let error = $state<string | null>(null);
 	let playback = $state<PlaybackHandle | null>(null);
 	let playbackRecipeKey = $state<string | null>(null);
-	let showIosPlaybackHint = $state(false);
 	let playing = $state(false);
 	let currentTime = $state(0);
 	let displayPlayhead = $state(0);
@@ -437,25 +434,6 @@
 		playing = false;
 	}
 
-	function refreshIosPlaybackHint() {
-		if (typeof navigator === 'undefined') {
-			showIosPlaybackHint = false;
-			return;
-		}
-		const ios =
-			isIosLike({
-				userAgent: navigator.userAgent,
-				platform: navigator.platform,
-				maxTouchPoints: navigator.maxTouchPoints
-			}) && !readLocalFlag(localStorage, PLAYBACK_IOS_HINT_DISMISSED_KEY);
-		showIosPlaybackHint = ios;
-	}
-
-	function dismissIosPlaybackHint() {
-		writeLocalFlag(localStorage, PLAYBACK_IOS_HINT_DISMISSED_KEY, true);
-		showIosPlaybackHint = false;
-	}
-
 	function syncHistoryFromTake(loaded: Take) {
 		if (!editHistory) {
 			editHistory = new EditRecipeHistory(loaded.editRecipe);
@@ -791,8 +769,6 @@
 	}
 
 	onMount(() => {
-		refreshIosPlaybackHint();
-
 		const id = takeId;
 		if (!id) {
 			error = 'No take ID provided';
@@ -1281,21 +1257,6 @@
 						aria-label="Waveform navigation"
 					></div>
 					<div class="transport-bar">
-						{#if showIosPlaybackHint}
-							<p class="playback-hint" role="note">
-								<span class="playback-hint-copy">
-									No sound? Check the silent switch or volume.
-								</span>
-								<GhostButton
-									icon
-									compact
-									aria-label="Dismiss playback hint"
-									onclick={dismissIosPlaybackHint}
-								>
-									<Icon name="close" size={16} />
-								</GhostButton>
-							</p>
-						{/if}
 						<div class="transport-row">
 							<div class="transport-side" aria-hidden="true"></div>
 							<div class="transport-center">
@@ -1720,25 +1681,6 @@
 		padding: var(--space-2) var(--page-gutter);
 		padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom, 0px));
 		background: var(--paper);
-	}
-
-	.playback-hint {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: var(--space-2);
-		margin: 0;
-		padding: var(--space-2) var(--space-3);
-		border: 1px solid var(--line);
-		border-radius: var(--radius-control);
-		background: var(--surface);
-		color: var(--ink-muted);
-		font-size: var(--text-meta);
-		line-height: 1.35;
-	}
-
-	.playback-hint-copy {
-		min-width: 0;
 	}
 
 	.transport-row {

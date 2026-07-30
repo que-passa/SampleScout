@@ -104,6 +104,7 @@ const ogSvg = buildOg(logoInner);
 
 await mkdir(path.join(staticDir, 'icons'), { recursive: true });
 
+await writeFile(path.join(staticDir, 'favicon.svg'), iconAnySvg);
 await writeFile(path.join(staticDir, 'icons/icon-192.svg'), iconAnySvg);
 await writeFile(path.join(staticDir, 'icons/icon-512.svg'), iconAnySvg);
 await writeFile(path.join(staticDir, 'icons/icon-maskable-512.svg'), iconMaskableSvg);

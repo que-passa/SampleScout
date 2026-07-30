@@ -14,6 +14,8 @@ export interface PublicAppConfig {
 		dsn: string;
 		release: string;
 		configured: boolean;
+		/** When true, client Sentry also runs under `npm run dev` (default: off). */
+		enableInDev: boolean;
 	};
 }
 
@@ -30,6 +32,8 @@ export function getPublicAppConfig(): PublicAppConfig {
 	const redirectUrl = env.PUBLIC_AUDIOTOOL_REDIRECT_URL ?? '';
 	const scopes = parseScopes(env.PUBLIC_AUDIOTOOL_SCOPES);
 	const dsn = env.PUBLIC_SENTRY_DSN ?? '';
+	const enableInDevRaw = env.PUBLIC_SENTRY_ENABLE_IN_DEV ?? '';
+	const enableInDev = enableInDevRaw === '1' || enableInDevRaw.toLowerCase() === 'true';
 
 	return {
 		appName: APP_NAME,
@@ -43,7 +47,8 @@ export function getPublicAppConfig(): PublicAppConfig {
 		sentry: {
 			dsn,
 			release: APP_VERSION,
-			configured: Boolean(dsn)
+			configured: Boolean(dsn),
+			enableInDev
 		}
 	};
 }
