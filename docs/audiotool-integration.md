@@ -62,7 +62,7 @@ Record actual API errors and any scope gaps in this doc.
 6. Wait for `ready` — only then mark take `uploaded`
 7. Keep local audio until ready succeeds
 
-In-flight jobs abandoned by a page close are marked failed on hydrate with Retry. Queued (not started) jobs may resume in-session after reload.
+In-flight jobs abandoned by a page close are marked failed on hydrate with Retry. Takes that still show an active upload phase while the latest job is missing or terminal are repaired the same way (so Collection Retry stays available). Queued (not started) jobs may resume in-session after reload. Retry starts at the earliest required step: re-encode only when no fresh `renderedAsset` exists; otherwise upload bytes / wait for `ready` again.
 
 Do not claim uploads continue after the page is closed.
 

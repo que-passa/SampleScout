@@ -3,6 +3,7 @@
 	import { deleteAllLocalData } from '$lib/persistence';
 	import { installGuideKind, installPrompt, openInstallFlow } from '$lib/pwa';
 	import { actionToast, audiotoolAuth, captureController, connect, disconnect } from '$lib/state';
+	import { openFeedbackOverlay } from '$lib/state/feedback-overlay.svelte';
 	import ConfirmDialog from '$lib/ui/components/ConfirmDialog.svelte';
 	import GhostButton from '$lib/ui/components/GhostButton.svelte';
 	import PrimaryButton from '$lib/ui/components/PrimaryButton.svelte';
@@ -130,6 +131,18 @@
 		</div>
 	</section>
 {/if}
+
+<section class="block">
+	<div class="panel">
+		<h2>Feedback</h2>
+		<p class="body">
+			Got a thought? If we reply, it’ll go to your Audiotool email.
+		</p>
+	</div>
+	<div class="actions">
+		<GhostButton onclick={openFeedbackOverlay}>Send feedback</GhostButton>
+	</div>
+</section>
 
 <section class="block">
 	<div class="panel">

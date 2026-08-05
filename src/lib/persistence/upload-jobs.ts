@@ -1,5 +1,5 @@
 import { createAppError, createId, nowIso } from '$lib/domain/ids';
-import type { TakeId, UploadJob, UploadJobId, UploadJobState } from '$lib/domain/types';
+import type { AppError, TakeId, UploadJob, UploadJobId, UploadJobState } from '$lib/domain/types';
 import { isActiveUploadJobState, isInFlightUploadJobState } from '$lib/domain/upload';
 import { cloneForIdb } from './clone-for-idb';
 import { getDatabase } from './db';
@@ -50,6 +50,26 @@ export async function createUploadJob(takeId: TakeId): Promise<UploadJob> {
 		updatedAt: timestamp,
 		state: 'queued',
 		attempt: 1
+	};
+	await putUploadJob(job);
+	return job;
+}
+
+/** Persist a failed job without a queued intermediate (orphan take repair on hydrate). */
+export async function createFailedUploadJob(takeId: TakeId, error: AppError): Promise<UploadJob> {
+	const timestamp = nowIso();
+	const id = createId();
+	const job: UploadJob = {
+		id,
+		takeId,
+		createdAt: timestamp,
+		updatedAt: timestamp,
+		state: 'failed',
+		attempt: 1,
+		error: {
+			...error,
+			context: { ...error.context, takeId, jobId: id }
+		}
 	};
 	await putUploadJob(job);
 	return job;

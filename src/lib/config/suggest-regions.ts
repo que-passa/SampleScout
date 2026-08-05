@@ -40,5 +40,13 @@ export const SUGGEST_REGIONS_NOISE_PERCENTILE = 0.2;
 /** High percentile used when deriving adaptive threshold margin. */
 export const SUGGEST_REGIONS_PEAK_PERCENTILE = 0.95;
 
-/** Worker / sync analysis timeout. */
+/** Worker / sync analysis hard timeout (stuck-work kill-switch). */
 export const SUGGEST_REGIONS_TIMEOUT_MS = 12_000;
+
+/**
+ * Typical Worker analysis budget for auto-run on take open.
+ * Exceeding this once disables auto Suggest for the rest of the browser session;
+ * Manual Analyze remains available when the duration gate passes.
+ * Independent of {@link SUGGEST_REGIONS_TIMEOUT_MS}.
+ */
+export const SUGGEST_REGIONS_AUTO_BUDGET_MS = 300;

@@ -24,7 +24,9 @@ import {
 import {
 	checkStorageForImport,
 	checkStorageForRecording,
-	estimateMaxRecordingBytes
+	checkStorageForSave,
+	estimateMaxRecordingBytes,
+	storageOkForRequiredBytes
 } from './storage-gate';
 import {
 	commitSavedTake,
@@ -57,6 +59,7 @@ import {
 	takeHoldsFileRef
 } from './cleanup';
 import {
+	createFailedUploadJob,
 	createUploadJob,
 	deleteUploadJobsForTake,
 	getUploadJob,
@@ -113,7 +116,9 @@ export {
 	applyActiveSessionName,
 	checkStorageForImport,
 	checkStorageForRecording,
+	checkStorageForSave,
 	estimateMaxRecordingBytes,
+	storageOkForRequiredBytes,
 	commitSavedTake,
 	discardTake,
 	extractTakeFromSelection,
@@ -140,6 +145,7 @@ export {
 	processDueCleanups,
 	putCleanupJob,
 	takeHoldsFileRef,
+	createFailedUploadJob,
 	createUploadJob,
 	deleteUploadJobsForTake,
 	getUploadJob,

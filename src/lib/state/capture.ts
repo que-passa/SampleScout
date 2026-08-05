@@ -15,7 +15,10 @@ import { RECORDING_MAX_SECONDS, type RecordingWarningLevel } from '$lib/config/r
 import { writeBinary } from '$lib/persistence/opfs';
 import { sourcePath } from '$lib/persistence/paths';
 import { ensureActiveSession, putSession, applyActiveSessionName } from '$lib/persistence/sessions';
-import { checkStorageForRecording } from '$lib/persistence/storage-gate';
+import {
+	checkStorageForRecording,
+	checkStorageForSave
+} from '$lib/persistence/storage-gate';
 import { getAppSettings } from '$lib/persistence/settings';
 import { normalizeUploadOutput } from '$lib/config/upload-output';
 import {
@@ -158,11 +161,13 @@ class CaptureController {
 		this.#set({ error: null, statusMessage: 'Checking storage…' });
 		const gate = await checkStorageForRecording();
 		if (!gate.ok) {
+			// Stay ready so the user can retry after freeing space (do not lock Record).
 			this.#set({
-				phase: 'blocked',
+				phase: 'ready',
 				error: gate.error ?? null,
 				statusMessage: ''
 			});
+			actionToast.show(gate.error?.message ?? 'Not enough free space to Capture.');
 			return;
 		}
 
@@ -253,6 +258,28 @@ class CaptureController {
 		}
 
 		try {
+			const saveGate = await checkStorageForSave(result.blob.size);
+			if (!saveGate.ok) {
+				const error =
+					saveGate.error ??
+					createAppError(
+						'STORAGE_INSUFFICIENT',
+						'Not enough free space to save this recording as a Local File.',
+						{ recoverable: true }
+					);
+				this.#set({
+					phase: 'ready',
+					elapsedSeconds: 0,
+					remainingSeconds: RECORDING_MAX_SECONDS,
+					warning: 'none',
+					livePeaks: [],
+					error,
+					statusMessage: ''
+				});
+				actionToast.show(error.message);
+				return;
+			}
+
 			const saved = await this.#persistTake(result.blob, result);
 			const savedLocally = isTakeSavedLocally(saved.take);
 			this.#set({

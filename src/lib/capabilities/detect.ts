@@ -1,5 +1,9 @@
 import { createAppError } from '$lib/domain/ids';
 import type { AppError } from '$lib/domain/types';
+import {
+	estimateMaxRecordingBytes,
+	storageOkForRequiredBytes
+} from '$lib/persistence/storage-gate';
 
 export interface MimeSupport {
 	mimeType: string;
@@ -26,6 +30,13 @@ export interface CapabilityReport {
 	workers: boolean;
 	canvas: boolean;
 	storageEstimate: StorageEstimateReport;
+	/** Bytes reserved for a full-length Capture + safety margin. */
+	storageRequiredForMaxRecording: number;
+	/**
+	 * Whether estimated free space covers a max-length Capture.
+	 * `null` when the browser cannot report quota (Capture still allowed; save may fail honestly).
+	 */
+	storageOkForMaxRecording: boolean | null;
 	persistentStorage: {
 		supported: boolean;
 		persisted?: boolean;
@@ -33,6 +44,8 @@ export interface CapabilityReport {
 	errors: AppError[];
 	canRecord: boolean;
 	canPersistFiles: boolean;
+	/** Record + persist + (when known) enough free space for a max Capture. */
+	canCaptureSafely: boolean;
 }
 
 const MIME_CANDIDATES = [
@@ -168,6 +181,14 @@ export async function detectCapabilities(): Promise<CapabilityReport> {
 		mediaRecorderMimes.some((entry) => entry.supported);
 
 	const canPersistFiles = opfs && indexedDb;
+	const storageRequiredForMaxRecording = estimateMaxRecordingBytes();
+	const storageOkForMaxRecording = storageOkForRequiredBytes(
+		storageEstimate.availableBytes,
+		storageRequiredForMaxRecording,
+		storageEstimate.supported
+	);
+	const canCaptureSafely =
+		canRecord && canPersistFiles && storageOkForMaxRecording !== false;
 
 	return {
 		checkedAt: new Date().toISOString(),
@@ -182,11 +203,55 @@ export async function detectCapabilities(): Promise<CapabilityReport> {
 		workers,
 		canvas,
 		storageEstimate,
+		storageRequiredForMaxRecording,
+		storageOkForMaxRecording,
 		persistentStorage,
 		errors,
 		canRecord,
-		canPersistFiles
+		canPersistFiles,
+		canCaptureSafely
 	};
+}
+
+/** Human reasons Capture / Local File save is limited (empty when fully safe). */
+export function explainCaptureLimitations(report: CapabilityReport): string[] {
+	const reasons: string[] = [];
+	if (!report.secureContext) {
+		reasons.push('Needs a secure context (HTTPS or 127.0.0.1).');
+	}
+	if (!report.getUserMedia) {
+		reasons.push('Microphone access (getUserMedia) is unavailable.');
+	}
+	if (!report.mediaRecorder || !report.mediaRecorderMimes.some((entry) => entry.supported)) {
+		reasons.push('MediaRecorder is unavailable or has no supported audio MIME type.');
+	}
+	if (!report.opfs) {
+		reasons.push('Local file storage (OPFS write) is unavailable.');
+	}
+	if (!report.indexedDb) {
+		reasons.push('IndexedDB is unavailable.');
+	}
+	if (report.storageOkForMaxRecording === false) {
+		reasons.push(
+			'Not enough free space for a full-length Capture. Free space or Import a smaller file.'
+		);
+	}
+	return reasons;
+}
+
+export function explainRecordingLimitations(report: CapabilityReport): string[] {
+	return explainCaptureLimitations(report).filter(
+		(reason) =>
+			reason.includes('secure context') ||
+			reason.includes('Microphone') ||
+			reason.includes('MediaRecorder')
+	);
+}
+
+export function explainPersistLimitations(report: CapabilityReport): string[] {
+	return explainCaptureLimitations(report).filter(
+		(reason) => reason.includes('OPFS') || reason.includes('IndexedDB')
+	);
 }
 
 export function formatBytes(bytes: number | undefined): string {

@@ -354,6 +354,13 @@ Avoid browser-name checks unless a documented SDK incompatibility requires them.
 - Configure a restrictive Content Security Policy where GitHub Pages deployment permits via meta tags
 - Review third-party WASM and codec dependencies
 
+## 14b. Client monitoring and user feedback
+
+- **Errors:** client exception capture via Sentry (`@sentry/sveltekit`) when `PUBLIC_SENTRY_DSN` is configured; respect the existing local-dev gate
+- **Intentional feedback:** user-pulled only. Custom SampleScout sheet posts through the **Sentry User Feedback API** (same DSN family) — no stock Sentry feedback widget, no mailto, no GitHub Issues handoff, no custom feedback backend
+- Attach silent context only: Audiotool profile email when connected, route pattern + release as tags/context — never Local Files, OPFS audio, or OAuth material
+- If Sentry is inactive or the post fails, the feedback UI stays available and the failure is an action toast
+
 ## 15. Testing strategy
 
 ### Unit

@@ -26,23 +26,23 @@ describe('deriveCatalogReference', () => {
 	it('formats a stable reference from the session ID and sequence', () => {
 		const input = { sessionId: UUID, sequence: 3 };
 
-		expect(deriveCatalogReference(input)).toBe('FS-550E84-003');
+		expect(deriveCatalogReference(input)).toBe('550E84-003');
 		expect(deriveCatalogReference(input)).toBe(deriveCatalogReference(input));
 	});
 
 	it('pads short sequences without truncating longer ones', () => {
-		expect(deriveCatalogReference({ sessionId: UUID, sequence: 1 })).toBe('FS-550E84-001');
-		expect(deriveCatalogReference({ sessionId: UUID, sequence: 42 })).toBe('FS-550E84-042');
-		expect(deriveCatalogReference({ sessionId: UUID, sequence: 1234 })).toBe('FS-550E84-1234');
+		expect(deriveCatalogReference({ sessionId: UUID, sequence: 1 })).toBe('550E84-001');
+		expect(deriveCatalogReference({ sessionId: UUID, sequence: 42 })).toBe('550E84-042');
+		expect(deriveCatalogReference({ sessionId: UUID, sequence: 1234 })).toBe('550E84-1234');
 	});
 
 	it('normalizes arbitrary IDs and hashes when usable characters are insufficient', () => {
 		expect(deriveCatalogReference({ sessionId: ' session_alpha ', sequence: 7 })).toBe(
-			'FS-SESSIO-007'
+			'SESSIO-007'
 		);
 
 		const fallbackReference = deriveCatalogReference({ sessionId: 'ø-!', sequence: 7 });
-		expect(fallbackReference).toMatch(/^FS-[A-Z0-9]{6}-007$/);
+		expect(fallbackReference).toMatch(/^[A-Z0-9]{6}-007$/);
 		expect(fallbackReference).toBe(deriveCatalogReference({ sessionId: 'ø-!', sequence: 7 }));
 	});
 });
@@ -76,7 +76,7 @@ describe('deriveSpecimenMark', () => {
 		for (const changedMark of changedMarks) {
 			expect(changedMark).not.toEqual(originalMark);
 		}
-		expect(deriveCatalogReference(catalogInput)).toBe('FS-550E84-003');
+		expect(deriveCatalogReference(catalogInput)).toBe('550E84-003');
 	});
 
 	it('has fixed dimensions, a neon color index, and a usable mix of cells', () => {

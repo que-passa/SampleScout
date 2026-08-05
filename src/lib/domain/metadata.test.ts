@@ -3,12 +3,14 @@ import {
 	applyGeneratedTags,
 	applyTakeMetadataPatch,
 	canApplyGeneratedTags,
+	collectionLineageGlyph,
 	generatedTagsForMetadata,
 	assignNumberedDisplayNames,
 	createSession,
 	formatNumberedDisplayName,
 	formatShortDate,
 	formatShortDateTime,
+	formatTakeDurationSeconds,
 	formatTagList,
 	generateTakeMetadata,
 	isPendingFileTake,
@@ -297,6 +299,27 @@ describe('isPendingFileTake', () => {
 
 		take.lifecycleState = 'finalizing';
 		expect(isPendingFileTake(take)).toBe(false);
+	});
+});
+
+describe('formatTakeDurationSeconds', () => {
+	it('formats one decimal with s suffix', () => {
+		expect(formatTakeDurationSeconds(18.24)).toBe('18.2s');
+		expect(formatTakeDurationSeconds(0)).toBe('0.0s');
+		expect(formatTakeDurationSeconds(Number.NaN)).toBe('0.0s');
+	});
+});
+
+describe('collectionLineageGlyph', () => {
+	it('marks originals with children as SRC and leaves collected / lone unmarked', () => {
+		const parent = { id: 'parent' };
+		const child = { id: 'child', derivedFromTakeId: 'parent' };
+		const lone = { id: 'lone' };
+		const all = [parent, child, lone];
+
+		expect(collectionLineageGlyph(parent, all)).toBe('SRC');
+		expect(collectionLineageGlyph(child, all)).toBeNull();
+		expect(collectionLineageGlyph(lone, all)).toBeNull();
 	});
 });
 

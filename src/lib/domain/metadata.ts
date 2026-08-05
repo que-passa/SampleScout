@@ -246,6 +246,28 @@ export function formatShortDateTime(isoDate: string): string {
 	return `${day}/${month}/${hours}:${minutes}`;
 }
 
+/** Collection row length from recipe duration, e.g. `18.2s`. */
+export function formatTakeDurationSeconds(seconds: number): string {
+	if (!Number.isFinite(seconds) || seconds <= 0) return '0.0s';
+	return `${seconds.toFixed(1)}s`;
+}
+
+/** Flat Collection lineage cue: original with collected children. */
+export type CollectionLineageGlyph = 'SRC';
+
+export function collectionLineageGlyph(
+	take: Pick<Take, 'id' | 'derivedFromTakeId'>,
+	allTakes: readonly Pick<Take, 'id' | 'derivedFromTakeId'>[]
+): CollectionLineageGlyph | null {
+	if (take.derivedFromTakeId) return null;
+	if (allTakes.some((candidate) => candidate.derivedFromTakeId === take.id)) return 'SRC';
+	return null;
+}
+
+export function collectionLineageGlyphLabel(_glyph: CollectionLineageGlyph): string {
+	return 'Original source';
+}
+
 /** Strip em/en dashes and collapse whitespace for display-name stems. */
 export function sanitizeDisplayNameStem(raw: string): string {
 	return raw

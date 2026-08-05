@@ -12,7 +12,12 @@
 		normalizeSessionName,
 		rememberSessionNamePreset
 	} from '$lib/domain';
-	import { detectCapabilities } from '$lib/capabilities';
+	import {
+		detectCapabilities,
+		explainPersistLimitations,
+		explainRecordingLimitations,
+		formatBytes
+	} from '$lib/capabilities';
 	import {
 		countCollectionFiles,
 		getAppSettings,
@@ -116,12 +121,40 @@
 	});
 
 	const canRecord = $derived(capabilities?.canRecord ?? false);
-	/** Idle header decoration: STANDBY when armed; NO MIC once capabilities say record is unavailable. */
-	const standbyLabel = $derived(capabilities && !canRecord ? 'NO MIC' : 'STANDBY');
+	const canPersistFiles = $derived(capabilities?.canPersistFiles ?? false);
+	const storageBlocksCapture = $derived(capabilities?.storageOkForMaxRecording === false);
+	const recordingLimitations = $derived(
+		capabilities ? explainRecordingLimitations(capabilities) : []
+	);
+	const persistLimitations = $derived(
+		capabilities ? explainPersistLimitations(capabilities) : []
+	);
+	const storageError = $derived(
+		snap.error?.code === 'STORAGE_INSUFFICIENT' || snap.error?.code === 'STORAGE_CHECK_FAILED'
+	);
+	/**
+	 * Disable Record only when mic/recorder or Local File persistence cannot succeed.
+	 * Low storage is warned + gated live at start so freeing space remains retryable.
+	 */
+	const canArmRecord = $derived(canRecord && canPersistFiles);
+	/** Idle header decoration: STANDBY when armed; NO MIC / NO SAVE / LOW SPACE otherwise. */
+	const standbyLabel = $derived(
+		capabilities && !canRecord
+			? 'NO MIC'
+			: capabilities && !canPersistFiles
+				? 'NO SAVE'
+				: storageBlocksCapture
+					? 'LOW SPACE'
+					: 'STANDBY'
+	);
 	const standbyPlotAria = $derived(
 		capabilities && !canRecord
 			? 'Capture plot — microphone not available'
-			: 'Capture plot on standby'
+			: capabilities && !canPersistFiles
+				? 'Capture plot — Local File storage unavailable'
+				: storageBlocksCapture
+					? 'Capture plot — not enough free space'
+					: 'Capture plot on standby'
 	);
 	const isRecording = $derived(snap.phase === 'recording');
 	const showTimer = $derived(
@@ -132,13 +165,21 @@
 		isRecording || snap.phase === 'finalizing' || snap.phase === 'requesting'
 	);
 	const isDisabled = $derived(
-		!canRecord ||
+		!canArmRecord ||
 			!snap.ready ||
 			snap.phase === 'finalizing' ||
-			snap.phase === 'requesting' ||
-			snap.phase === 'blocked'
+			snap.phase === 'requesting'
 	);
 	const showCollectionLink = $derived(!isRecording);
+	const showImportFallback = $derived(
+		canPersistFiles && (!canRecord || storageBlocksCapture || storageError)
+	);
+	const showCapabilityAlerts = $derived(
+		Boolean(
+			snap.error ||
+				(capabilities && (!canRecord || !canPersistFiles || storageBlocksCapture))
+		)
+	);
 	const collectionAriaLabel = $derived(
 		totalFileCount > 0
 			? pendingFileCount > 0
@@ -146,6 +187,13 @@
 				: `${totalFileCount} Local File${totalFileCount === 1 ? '' : 's'} in Collection`
 			: 'Open Collection'
 	);
+
+	function storageDetail(error: NonNullable<typeof snap.error>): string | null {
+		const available = error.context?.availableBytes;
+		const required = error.context?.requiredBytes;
+		if (typeof available !== 'number' || typeof required !== 'number') return null;
+		return `About ${formatBytes(available)} free; need roughly ${formatBytes(required)}.`;
+	}
 
 	function openSettingsSheet() {
 		settingsSheetOpen = true;
@@ -364,22 +412,16 @@
 			</div>
 
 			<!-- Overlay so capability/error banners never shift the record + title band. -->
-			{#if snap.error || (capabilities && (!canRecord || !capabilities.canPersistFiles))}
+			{#if showCapabilityAlerts}
 				<div class="capture-alerts">
 					{#if snap.error}
 						<div class="error-banner">
 							<strong>Error:</strong>
 							{snap.error.message}
-						</div>
-					{/if}
-
-					{#if capabilities && !canRecord}
-						<div class="warning-banner">
-							<p>
-								Recording requires a secure context, microphone permission, and MediaRecorder
-								support.
-							</p>
-							{#if capabilities.canPersistFiles}
+							{#if storageDetail(snap.error)}
+								<span class="error-detail">{storageDetail(snap.error)}</span>
+							{/if}
+							{#if showImportFallback}
 								<GhostButton onclick={openImportPicker} disabled={importing}>
 									Import audio instead
 								</GhostButton>
@@ -387,9 +429,54 @@
 						</div>
 					{/if}
 
-					{#if capabilities && !capabilities.canPersistFiles}
+					{#if capabilities && !canRecord}
 						<div class="warning-banner">
-							Local storage is not available. Takes cannot be saved as Local Files on this device.
+							<p>
+								Recording needs a secure context, microphone permission, and MediaRecorder
+								support.
+							</p>
+							{#if recordingLimitations.length}
+								<ul class="limit-list">
+									{#each recordingLimitations as reason (reason)}
+										<li>{reason}</li>
+									{/each}
+								</ul>
+							{/if}
+							{#if canPersistFiles}
+								<GhostButton onclick={openImportPicker} disabled={importing}>
+									Import audio instead
+								</GhostButton>
+							{/if}
+						</div>
+					{:else if capabilities && !canPersistFiles}
+						<div class="warning-banner">
+							<p>
+								Local storage is not available. Takes cannot be saved as Local Files on this
+								device.
+							</p>
+							{#if persistLimitations.length}
+								<ul class="limit-list">
+									{#each persistLimitations as reason (reason)}
+										<li>{reason}</li>
+									{/each}
+								</ul>
+							{/if}
+						</div>
+					{:else if capabilities && storageBlocksCapture && !storageError}
+						<div class="warning-banner">
+							<p>
+								Not enough free space for a full-length Capture. Free space on this device,
+								discard files in Collection, or Import a smaller file.
+							</p>
+							<p class="limit-meta">
+								About {formatBytes(capabilities.storageEstimate.availableBytes)} free; need
+								roughly {formatBytes(capabilities.storageRequiredForMaxRecording)}.
+							</p>
+							{#if canPersistFiles}
+								<GhostButton onclick={openImportPicker} disabled={importing}>
+									Import audio instead
+								</GhostButton>
+							{/if}
 						</div>
 					{/if}
 				</div>
@@ -552,6 +639,8 @@
 		padding-inline: var(--space-4);
 		padding-bottom: var(--space-4);
 		box-sizing: border-box;
+		/* Keep record/stop reachable when the wave stage collapses (short landscape). */
+		flex-shrink: 0;
 	}
 
 	.capture-alerts {
@@ -600,6 +689,7 @@
 		height: calc(var(--space-7) * 2 + var(--space-3) * 2);
 		padding-left: var(--space-2);
 		padding-right: var(--space-6);
+		min-width: 0;
 	}
 
 	.record-side-end {
@@ -726,6 +816,22 @@
 		margin: 0;
 	}
 
+	.error-detail,
+	.limit-meta {
+		display: block;
+		margin-top: var(--space-2);
+		color: var(--ink-muted);
+		font-size: var(--text-meta);
+	}
+
+	.limit-list {
+		margin: var(--space-2) 0 0;
+		padding-left: var(--space-4);
+		text-align: left;
+		color: var(--ink-muted);
+		font-size: var(--text-meta);
+	}
+
 	.capture-alerts :global(.ss-ghost-button) {
 		margin-top: var(--space-3);
 	}
@@ -740,6 +846,31 @@
 		clip: rect(0, 0, 0, 0);
 		white-space: nowrap;
 		border: 0;
+	}
+
+	@media (max-width: 360px) {
+		.lower {
+			padding-inline: var(--space-3);
+			gap: var(--space-3);
+		}
+
+		/* Free horizontal room so Settings / Collection stay at --touch-min beside Record. */
+		.record-side {
+			padding-right: var(--space-2);
+		}
+
+		.record-side-end {
+			padding-left: var(--space-2);
+		}
+
+		.wave-corners {
+			inset-inline: var(--space-4);
+		}
+
+		.session-display {
+			padding-inline: var(--space-4);
+			font-size: var(--text-body);
+		}
 	}
 
 	@media (min-width: 900px) {

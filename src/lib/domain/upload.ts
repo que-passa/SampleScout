@@ -98,6 +98,23 @@ export function isActiveTakeUploadState(state: TakeUploadState): boolean {
 	return ACTIVE_TAKE_UPLOAD_STATES.includes(state);
 }
 
+/**
+ * Take still claims an active upload, but the latest job is missing or terminal.
+ * Happens when hydrate fails a job and take sync never commits (reload mid-write).
+ */
+export function takeNeedsAbandonedHydrateRepair(
+	takeUploadState: TakeUploadState,
+	latestJobState: UploadJobState | undefined
+): boolean {
+	if (!isActiveTakeUploadState(takeUploadState)) return false;
+	if (latestJobState !== undefined && isActiveUploadJobState(latestJobState)) return false;
+	return true;
+}
+
+/** Copy for jobs/takes abandoned when the page closed mid-flight. */
+export const UPLOAD_ABANDONED_MESSAGE =
+	'Upload stopped when this page closed. Local file is intact — Retry to upload again.';
+
 /** Map job state → take.uploadState (completed → uploaded). */
 export function takeUploadStateFromJob(state: UploadJobState): TakeUploadState {
 	switch (state) {
@@ -119,7 +136,7 @@ export function takeUploadStateFromJob(state: UploadJobState): TakeUploadState {
 export function formatUploadStateLabel(state: TakeUploadState | UploadJobState): string {
 	switch (state) {
 		case 'not-queued':
-			return 'Local file';
+			return 'Local';
 		case 'queued':
 			return 'Queued';
 		case 'rendering':

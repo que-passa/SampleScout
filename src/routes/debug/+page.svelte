@@ -1,6 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { detectCapabilities, formatBytes } from '$lib/capabilities';
+	import {
+		detectCapabilities,
+		explainCaptureLimitations,
+		formatBytes
+	} from '$lib/capabilities';
 	import type { CapabilityReport } from '$lib/capabilities';
 	import { getPublicAppConfig } from '$lib/config/app';
 	import { captureSentryTestError, isClientSentryActive } from '$lib/monitoring/sentry-client';
@@ -19,21 +23,33 @@
 		});
 	});
 
+	function storageOkLabel(value: boolean | null): string {
+		if (value === null) return 'unknown';
+		return value ? 'yes' : 'no';
+	}
+
 	const capabilityRows = $derived(
 		capabilities
 			? [
-					['Secure context', capabilities.secureContext],
-					['getUserMedia', capabilities.getUserMedia],
-					['MediaRecorder', capabilities.mediaRecorder],
-					['Web Audio', capabilities.webAudio],
-					['OPFS', capabilities.opfs],
-					['IndexedDB', capabilities.indexedDb],
-					['Workers', capabilities.workers],
-					['Canvas', capabilities.canvas],
-					['Can record', capabilities.canRecord],
-					['Can save Local Files', capabilities.canPersistFiles]
+					['Secure context', capabilities.secureContext ? 'yes' : 'no'],
+					['getUserMedia', capabilities.getUserMedia ? 'yes' : 'no'],
+					['MediaRecorder', capabilities.mediaRecorder ? 'yes' : 'no'],
+					['Web Audio', capabilities.webAudio ? 'yes' : 'no'],
+					['OPFS (writable)', capabilities.opfs ? 'yes' : 'no'],
+					['IndexedDB', capabilities.indexedDb ? 'yes' : 'no'],
+					['Workers', capabilities.workers ? 'yes' : 'no'],
+					['Canvas', capabilities.canvas ? 'yes' : 'no'],
+					['Can record', capabilities.canRecord ? 'yes' : 'no'],
+					['Can save Local Files', capabilities.canPersistFiles ? 'yes' : 'no'],
+					['Storage estimate', capabilities.storageEstimate.supported ? 'yes' : 'no'],
+					['Storage OK for max Capture', storageOkLabel(capabilities.storageOkForMaxRecording)],
+					['Can Capture safely', capabilities.canCaptureSafely ? 'yes' : 'no']
 				]
 			: []
+	);
+
+	const limitations = $derived(
+		capabilities ? explainCaptureLimitations(capabilities) : []
 	);
 </script>
 
@@ -50,18 +66,33 @@
 			<p class="body">Probing browser capabilities…</p>
 		{:else}
 			<p class="body">
-				Storage available: {formatBytes(capabilities.storageEstimate.availableBytes)}
+				Storage available: {formatBytes(capabilities.storageEstimate.availableBytes)} · need ~
+				{formatBytes(capabilities.storageRequiredForMaxRecording)} for a max-length Capture
 			</p>
+			{#if !capabilities.storageEstimate.supported}
+				<p class="body">
+					Quota estimate unsupported — Capture may still run; save fails honestly if the write
+					cannot complete.
+				</p>
+			{/if}
 			<table>
 				<tbody>
 					{#each capabilityRows as [label, value] (label)}
 						<tr>
 							<th>{label}</th>
-							<td>{value ? 'yes' : 'no'}</td>
+							<td>{value}</td>
 						</tr>
 					{/each}
 				</tbody>
 			</table>
+			{#if limitations.length}
+				<p class="label">Limitations</p>
+				<ul>
+					{#each limitations as reason (reason)}
+						<li>{reason}</li>
+					{/each}
+				</ul>
+			{/if}
 			{#if capabilities.mediaRecorderMimes.length}
 				<p class="label">MediaRecorder MIME</p>
 				<ul>

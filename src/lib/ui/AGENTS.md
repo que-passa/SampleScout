@@ -7,7 +7,8 @@ Read [`DESIGN.md`](../../../DESIGN.md) before adding or restyling UI.
 | Component                        | Use for                                                                                                                                                  |
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `AppShell` / `AccountOverlay`    | Brand bar (Capture) + Account sheet/modal; no tab bar                                                                                                    |
-| `SheetOverlay` / `ConfirmDialog` | Shared sheet-modal chrome; destructive confirm dialog; `elevated` stacks above another sheet                                                             |
+| `FeedbackButton` / `FeedbackSheet` | Always-available Send feedback (top bar / Take header / Account); elevated sheet → Sentry User Feedback API                                            |
+| `SheetOverlay` / `ConfirmDialog` | Shared sheet-modal chrome; destructive confirm dialog; `elevated` stacks above another sheet; Tab trap + focus restore + Escape via `$lib/ui/focus`       |
 | `InstallAppSheet`                | iOS / iPadOS Add to Home Screen steps (Share → Add); Chromium uses native BIP from Account                                                               |
 | `BatchUploadPanel`               | Collection upload confirm→progress (sheet body)                                                                                                          |
 | `PrimaryButton`                  | Brand-well primary CTAs (Collect, Collection Upload)                                                                                                     |
@@ -38,7 +39,7 @@ Put audio/persistence logic in `$lib/audio`, `$lib/persistence`, `$lib/state` �
 - Pinned bottom bars: reuse global `.bar-cluster-tight` (4px, icon/compact toolbars), `.bar-cluster` (8px, distinct actions on one side), `.bar-actions` (8px, bar-level flex row) from `app.css`
 - Panels → `--radius-panel`; buttons/inputs → `--radius-control`; status → `--radius-round`; record face → `--radius-record`
 - Brand primary CTAs use `PrimaryButton` (recessed well + `--brand` face; Collect, Collection Upload)
-- Ghost actions use `GhostButton` (single chrome source; BackButton look = Ghost style). Sit Ghost on `--paper` so `--surface` hover/press faces read (sheet headers use `--paper` for this). `BackButton` wraps `GhostButton` as an icon link — do not duplicate well/face CSS. Only Primary, Record, and Playback get 3D well/face
+- Ghost actions use `GhostButton` (single chrome source; BackButton look = Ghost style). Sit Ghost on `--paper` so `--surface` hover/press faces read (sheet headers use `--paper` for this). Hover/sticky = face only; press = flat grown fill with concentric outer radius. `BackButton` wraps `GhostButton` as an icon link — do not duplicate well/face CSS. Only Primary, Record, and Playback get 3D well/face
 - No new color palettes, shadows, or card frameworks
 - Match bright mono instrument look; `--signal` sparingly
 - UI icons: import `{ Icon }` from `$lib/ui/icons` — do not inline one-off SVG paths in routes

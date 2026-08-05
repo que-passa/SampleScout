@@ -56,6 +56,11 @@ export { importAudioFile, importAudioFiles };
 export type { ImportAudioFilesResult } from './import-take';
 export { closeAccountOverlay, isAccountOverlayOpen, openAccountOverlay };
 export {
+	closeFeedbackOverlay,
+	feedbackOverlay,
+	openFeedbackOverlay
+} from './feedback-overlay.svelte';
+export {
 	cancelTakeUpload,
 	enqueueBatchTakeUploads,
 	enqueueTakeUpload,

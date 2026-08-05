@@ -13,6 +13,8 @@ export interface AudiotoolAuthStatus {
 	userName?: string;
 	displayName?: string;
 	avatarUrl?: string;
+	/** Present only when the Audiotool profile exposes it — never collected in UI. */
+	email?: string;
 	error?: AppError;
 }
 
@@ -32,7 +34,7 @@ export interface AudiotoolUploadRequest {
 
 let authResult: BrowserAuthResult | undefined;
 let initPromise: Promise<BrowserAuthResult | undefined> | undefined;
-let cachedProfile: Pick<AudiotoolAuthStatus, 'avatarUrl' | 'displayName'> | undefined;
+let cachedProfile: Pick<AudiotoolAuthStatus, 'avatarUrl' | 'displayName' | 'email'> | undefined;
 /** Serialize Audiotool uploads so server-side slots always settle before the next createSample. */
 let uploadChain: Promise<unknown> = Promise.resolve();
 
@@ -52,20 +54,26 @@ function userResourceName(userName: string): string {
  */
 export async function fetchConnectedUserProfile(
 	client: AuthenticatedClient
-): Promise<Pick<AudiotoolAuthStatus, 'avatarUrl' | 'displayName'>> {
+): Promise<Pick<AudiotoolAuthStatus, 'avatarUrl' | 'displayName' | 'email'>> {
 	const response = await client.users.getUser({ name: userResourceName(client.userName) });
 	if (response instanceof Error || !response.user) {
 		return {};
 	}
 
-	const avatarUrl = response.user.avatarUrl?.trim() || undefined;
-	const displayName = response.user.displayName?.trim() || undefined;
-	return { avatarUrl, displayName };
+	const user = response.user as {
+		avatarUrl?: string;
+		displayName?: string;
+		email?: string;
+	};
+	const avatarUrl = user.avatarUrl?.trim() || undefined;
+	const displayName = user.displayName?.trim() || undefined;
+	const email = user.email?.trim() || undefined;
+	return { avatarUrl, displayName, email };
 }
 
 function toStatus(
 	result: BrowserAuthResult | undefined,
-	profile?: Pick<AudiotoolAuthStatus, 'avatarUrl' | 'displayName'>
+	profile?: Pick<AudiotoolAuthStatus, 'avatarUrl' | 'displayName' | 'email'>
 ): AudiotoolAuthStatus {
 	const config = getPublicAppConfig();
 
@@ -92,6 +100,7 @@ function toStatus(
 			userName: result.userName,
 			displayName: profile?.displayName,
 			avatarUrl: profile?.avatarUrl,
+			email: profile?.email,
 			message: ''
 		};
 	}

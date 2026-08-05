@@ -20,11 +20,16 @@ export async function listCleanupJobs(): Promise<CleanupJob[]> {
 	return getDatabase().cleanupJobs.toArray();
 }
 
+/**
+ * Schedule OPFS paths for deletion. No-ops (returns null) when every candidate
+ * is empty or still held — avoids empty cleanup jobs after shared-source discard.
+ */
 export async function enqueueCleanup(
 	fileRefs: FileRef[],
 	deleteAfterIso: string
-): Promise<CleanupJob> {
+): Promise<CleanupJob | null> {
 	const refs = [...new Set(fileRefs.filter(Boolean))];
+	if (refs.length === 0) return null;
 	const job: CleanupJob = {
 		id: createId(),
 		fileRefs: refs,
@@ -108,6 +113,12 @@ export async function processDueCleanups(now = Date.now()): Promise<{
 	for (const job of jobs) {
 		const dueAt = Date.parse(job.deleteAfter);
 		if (Number.isNaN(dueAt) || dueAt > now) continue;
+
+		if (job.fileRefs.length === 0) {
+			await deleteCleanupJob(job.id);
+			processed += 1;
+			continue;
+		}
 
 		try {
 			for (const ref of job.fileRefs) {

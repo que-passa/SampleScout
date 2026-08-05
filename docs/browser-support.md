@@ -28,11 +28,13 @@ Safari support is a release decision, not an assumption. Audiotool Nexus current
 
 ## Capability report
 
-At startup / Account, `detectCapabilities()` probes the APIs above and surfaces:
+At startup / Debug (and Capture banners), `detectCapabilities()` probes the APIs above and surfaces:
 
 - Whether recording is possible
-- Whether files can be persisted
+- Whether files can be persisted (real OPFS write probe, not only `getDirectory()`)
+- Whether estimated free space covers a max-length Capture (`storageOkForMaxRecording`; `null` if quota unknown)
+- Combined `canCaptureSafely` (record + persist + known-sufficient storage)
 - Supported MediaRecorder MIME types
-- Approximate storage quota remaining
+- Approximate storage quota remaining vs bytes reserved for a max Capture
 
-The UI must explain missing capabilities instead of failing silently.
+Capture blocks Record when mic/recorder or Local File persistence cannot succeed. Low storage warns on Capture and is re-checked live before start and before save; Import remains available when persistence works. The UI must explain missing capabilities instead of failing silently, and must never claim a Local File / “Saved locally” before OPFS + IndexedDB succeed.

@@ -58,7 +58,8 @@
 		/* Single grid cell so any concurrent intro/outro toasts occupy the same spot. */
 		display: grid;
 		place-items: center;
-		padding-inline: var(--space-5);
+		padding-left: max(var(--space-5), env(safe-area-inset-left, 0px));
+		padding-right: max(var(--space-5), env(safe-area-inset-right, 0px));
 		pointer-events: none;
 		overflow: visible;
 	}

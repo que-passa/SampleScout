@@ -8,6 +8,7 @@ import {
 	isActiveUploadJobState,
 	isInFlightUploadJobState,
 	jobPhaseForOutput,
+	takeNeedsAbandonedHydrateRepair,
 	takeUploadStateFromJob,
 	uploadStateTone,
 	validateTakeForUpload,
@@ -111,6 +112,17 @@ describe('upload helpers', () => {
 		expect(isActiveUploadJobState('completed')).toBe(false);
 		expect(isInFlightUploadJobState('queued')).toBe(false);
 		expect(isInFlightUploadJobState('uploading')).toBe(true);
+	});
+
+	it('flags takes that still look in-flight when the job is terminal or missing', () => {
+		expect(takeNeedsAbandonedHydrateRepair('uploading', undefined)).toBe(true);
+		expect(takeNeedsAbandonedHydrateRepair('encoding', 'failed')).toBe(true);
+		expect(takeNeedsAbandonedHydrateRepair('processing', 'canceled')).toBe(true);
+		expect(takeNeedsAbandonedHydrateRepair('queued', 'completed')).toBe(true);
+		expect(takeNeedsAbandonedHydrateRepair('uploading', 'uploading')).toBe(false);
+		expect(takeNeedsAbandonedHydrateRepair('queued', 'queued')).toBe(false);
+		expect(takeNeedsAbandonedHydrateRepair('failed', 'failed')).toBe(false);
+		expect(takeNeedsAbandonedHydrateRepair('uploaded', undefined)).toBe(false);
 	});
 
 	it('picks encoding phase for MP3', () => {

@@ -38,7 +38,7 @@
 		}
 		switch (phase) {
 			case 'local':
-				return 'Local file';
+				return 'Local';
 			case 'queued':
 				return 'Queued';
 			case 'uploaded':
@@ -63,7 +63,9 @@
 
 		const cs = getComputedStyle(chip);
 		if (phase === 'busy') {
-			const busySize = parseFloat(cs.getPropertyValue('--chip-busy-size'));
+			// Resolved used height (CSS `height: var(--chip-busy-size)`), not the
+			// unresolved `calc(...)` custom-property string — parseFloat of that is NaN.
+			const busySize = parseFloat(cs.height);
 			if (busySize > 0) widthPx = Math.ceil(busySize);
 		} else {
 			const chrome =
@@ -96,7 +98,7 @@
 	>
 		<span class="content" bind:this={contentEl}>
 			{#if phase === 'local'}
-				<span class="label">Local file</span>
+				<span class="label">Local</span>
 			{:else if phase === 'queued'}
 				<span class="label">Queued</span>
 			{:else if phase === 'busy'}

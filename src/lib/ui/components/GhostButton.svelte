@@ -9,7 +9,7 @@
 		disabled?: boolean;
 		onclick?: (event: MouseEvent) => void;
 		class?: string;
-		/** Sticky on — flat well highlight (e.g. Field Notes open, Loop latched). */
+		/** Sticky on — flat face highlight (e.g. Field Notes open, Loop latched). */
 		active?: boolean;
 		/** Icon-only: square face (touch-min − space-2). */
 		icon?: boolean;
@@ -90,7 +90,8 @@
 		min-height: var(--touch-min);
 		padding: 0;
 		border: none;
-		border-radius: var(--radius-control);
+		/* Concentric with face + well padding so press fill reads as a grown face. */
+		border-radius: calc(var(--radius-panel) + var(--space-1));
 		background: transparent;
 		color: var(--ink);
 		font-family: var(--font-mono);
@@ -135,6 +136,7 @@
 	.compact {
 		min-width: 30px;
 		min-height: 30px;
+		border-radius: var(--radius-control);
 		font-size: var(--text-label);
 		letter-spacing: 0.04em;
 	}
@@ -183,6 +185,10 @@
 	}
 
 	/* Capture record-row chrome — mirror CollectionShortcut well/face geometry. */
+	.chrome {
+		border-radius: calc(var(--radius-control) + var(--space-1));
+	}
+
 	.chrome .well {
 		min-height: calc(var(--touch-min) + var(--space-2));
 		border-radius: calc(var(--radius-control) + var(--space-1));
@@ -243,10 +249,6 @@
 			color: var(--signal);
 		}
 
-		.ss-ghost-button:hover:not(:disabled) .well {
-			background: var(--surface-subtle);
-		}
-
 		.ss-ghost-button:hover:not(:disabled) .face {
 			background: var(--surface);
 		}
@@ -256,14 +258,11 @@
 		color: var(--ink);
 	}
 
-	.ss-ghost-button.active:not(:disabled) .well {
-		background: var(--surface-subtle);
-	}
-
 	.ss-ghost-button.active:not(:disabled) .face {
 		background: var(--surface);
 	}
 
+	/* Press: flat surface fill grown to the well — outer radius already concentric. */
 	.ss-ghost-button:active:not(:disabled) {
 		background: var(--surface);
 	}

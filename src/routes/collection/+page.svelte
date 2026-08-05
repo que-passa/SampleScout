@@ -22,11 +22,14 @@
 		assignNumberedDisplayNames,
 		deriveCatalogReference,
 		deriveSpecimenMark,
+		collectionLineageGlyph,
 		formatShortDate,
 		formatShortDateTime,
+		formatTakeDurationSeconds,
 		isActiveTakeUploadState,
 		isUploadPendingTake,
 		isTakeSavedLocally,
+		recipeDurationSeconds,
 		stemFromSessionName,
 		validateTakeForUpload,
 		type TakeMetadataPatch
@@ -764,6 +767,10 @@
 									name={take.metadata.displayName}
 									savedLocally={isTakeSavedLocally(take)}
 									catalogReference={deriveCatalogReference(take)}
+									durationLabel={formatTakeDurationSeconds(
+										recipeDurationSeconds(take.editRecipe)
+									)}
+									lineageGlyph={collectionLineageGlyph(take, takes)}
 									recordedAtLabel={formatShortDateTime(take.createdAt)}
 									specimenMark={deriveSpecimenMark(take)}
 									uploadState={take.uploadState === 'not-queued' ? undefined : take.uploadState}
@@ -790,7 +797,7 @@
 				</div>
 
 				<p class="lead">
-					<StatusLabel tone="signal" density="compact">LOCAL FILE</StatusLabel>
+					<StatusLabel tone="signal" density="compact">LOCAL</StatusLabel>
 					<span class="lead-text">Not uploaded. Only on this device.</span>
 				</p>
 			{/if}
@@ -1015,8 +1022,8 @@
 	}
 
 	.actions-bar {
+		/* Bottom inset comes from body safe-area padding — do not double it here. */
 		padding: var(--space-2) var(--page-gutter);
-		padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom, 0px));
 	}
 
 	.action-group {
@@ -1038,6 +1045,22 @@
 		gap: var(--space-3);
 		padding: var(--space-1) var(--page-gutter);
 		border-bottom: 1px solid var(--line);
+	}
+
+	@media (max-width: 360px) {
+		.collection-scroll {
+			padding-inline: var(--space-2);
+		}
+
+		.select-bar,
+		.actions-bar {
+			padding-inline: var(--space-2);
+			gap: var(--space-2);
+		}
+
+		.session-header {
+			gap: var(--space-2);
+		}
 	}
 
 	.select-actions {

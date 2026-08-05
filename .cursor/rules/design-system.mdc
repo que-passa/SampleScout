@@ -16,7 +16,7 @@ Before UI edits, read [`DESIGN.md`](DESIGN.md). Tokens live in `src/lib/styles/t
 - Type via `--font-mono` and `--text-*`; labels uppercase + `--text-label`
 - `--signal` only for record / clip / destructive / critical failure / idle trim boundary markers / Local File status chips / Collection upload-chip **failed** fill (fade grips use `--ink` wedges; active trim drag uses `--brand`)
 - `--brand` / `--brand-soft` for primary CTA faces (`PrimaryButton`), action-toast border/fill, active waveform selection, active trim drag, **and** Collection `UploadStatusChip` queued/uploaded faces (neon blue-green; not record/destructive)
-- Collection take rows use `UploadStatusChip` (morphing Local / Queued / Busy / Uploaded / Failed) — not a remounted `StatusLabel` swap
+- Collection take rows use `UploadStatusChip` (morphing Local / Queued / Busy / Uploaded / Failed; label is **Local**, not “Local file”) — not a remounted `StatusLabel` swap
 - Take play/pause uses `PlaybackControl` (smaller Record-style well; `--ink` face, not `--signal`)
 - Discarded (outside-trim) waveform regions use `--disabled` wash + peaks; retained peaks stay `--ink`; peak-normalize preview gain uses one display scale across retained and discarded
 - Reuse `$lib/ui` components; keep state as text + color (busy chip may be spinner-only with `aria-label`; phase copy lives in the upload sheet)

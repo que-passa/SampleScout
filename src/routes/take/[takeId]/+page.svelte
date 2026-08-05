@@ -38,7 +38,8 @@
 	import { ensurePeaksForTake, type LoadedPeaks } from '$lib/audio/peaks';
 	import {
 		ensureSuggestedRegionsForTake,
-		isEligibleForSuggestedRegions
+		isEligibleForSuggestedRegions,
+		isSuggestAutoDisabledForSession
 	} from '$lib/audio/suggest/ensure';
 	import type { SuggestedRegion } from '$lib/audio/suggest/types';
 	import { readBinary } from '$lib/persistence/opfs';
@@ -65,6 +66,7 @@
 	import BackButton from '$lib/ui/components/BackButton.svelte';
 	import ConfirmDialog from '$lib/ui/components/ConfirmDialog.svelte';
 	import EmptyState from '$lib/ui/components/EmptyState.svelte';
+	import FeedbackButton from '$lib/ui/components/FeedbackButton.svelte';
 	import GhostButton from '$lib/ui/components/GhostButton.svelte';
 	import SheetOverlay from '$lib/ui/components/SheetOverlay.svelte';
 	import FieldNotesEditor from '$lib/ui/components/FieldNotesEditor.svelte';
@@ -120,10 +122,13 @@
 	type SuggestionStatus = 'idle' | 'running' | 'ready' | 'empty' | 'error';
 	let suggestionStatus = $state<SuggestionStatus>('idle');
 	let suggestions = $state.raw<SuggestedRegion[]>([]);
-	/** null until the user engages prev/next or the count control. */
+	/** null until the user engages Next/Previous or the count control. */
 	let suggestionIndex = $state<number | null>(null);
 	let suggestGeneration = 0;
+	let suggestAbort: AbortController | null = null;
 	let showManualAnalyze = $state(false);
+	/** One polite SR announcement when N ≥ 1 becomes available — not per analysis frame. */
+	let suggestionLiveMessage = $state('');
 	/** Identity take with no selection: peak-normalize preview on until the user turns it off. */
 	let normalizePreviewSuppressed = $state(false);
 	let normalizeGainDb = $state<number | null>(null);
@@ -276,7 +281,7 @@
 	const suggestionEligible = $derived(isEligibleForSuggestedRegions(sourceDuration));
 	const suggestionCount = $derived(suggestions.length);
 	const showSuggestionChrome = $derived(suggestionStatus === 'ready' && suggestionCount > 0);
-	/** Prev/Next nav only after the user engages the scouted control (selects first). */
+	/** Next/Previous only after the user engages the scouted control (selects first). */
 	const showSuggestionNav = $derived(showSuggestionChrome && suggestionIndex != null);
 	const suggestionLabel = $derived.by(() => {
 		if (suggestionIndex == null) {
@@ -286,15 +291,32 @@
 		const total = String(suggestionCount).padStart(2, '0');
 		return `${current}/${total}`;
 	});
+	/** Visible chrome says “scouted”; SR labels use fuller “suggested regions”. */
+	const suggestionAriaLabel = $derived.by(() => {
+		if (suggestionIndex == null) {
+			return suggestionCount === 1
+				? '1 suggested region'
+				: `${suggestionCount} suggested regions`;
+		}
+		return `Suggested region ${suggestionLabel}`;
+	});
 	/** Map markers only while navigating scouted regions. */
 	const scoutedRegionsForWave = $derived(suggestionIndex != null ? suggestions : null);
 
+	function announceSuggestionsAvailable(count: number) {
+		suggestionLiveMessage =
+			count === 1 ? '1 suggested region available' : `${count} suggested regions available`;
+	}
+
 	function clearSuggestions() {
 		suggestGeneration += 1;
+		suggestAbort?.abort();
+		suggestAbort = null;
 		suggestionStatus = 'idle';
 		suggestions = [];
 		suggestionIndex = null;
 		showManualAnalyze = false;
+		suggestionLiveMessage = '';
 	}
 
 	function clearSelectionFades() {
@@ -328,9 +350,9 @@
 		onSeek(region.startSeconds);
 	}
 
-	/** First click engages: select scouted 0 and reveal Prev/Next. Click again exits scouted mode. */
+	/** First click engages: select scouted 0 and reveal Previous/Next. Click again exits scouted mode. */
 	function onSuggestionScoutedActivate() {
-		if (!showSuggestionChrome || suggestionCount === 0) return;
+		if (!showSuggestionChrome || suggestionCount === 0 || uploadLocked) return;
 		if (suggestionIndex != null) {
 			suggestionIndex = null;
 			return;
@@ -356,18 +378,35 @@
 		}
 
 		const generation = ++suggestGeneration;
+		suggestAbort?.abort();
+		const abort = new AbortController();
+		suggestAbort = abort;
 		suggestionStatus = 'running';
 		showManualAnalyze = false;
+		suggestionLiveMessage = '';
 
 		try {
-			const pcm = await ensureDetailPcm();
-			if (generation !== suggestGeneration || take?.id !== current.id) return;
+			const needsPcm = options?.force === true || !isSuggestAutoDisabledForSession();
+			const pcm = needsPcm ? await ensureDetailPcm() : null;
+			if (generation !== suggestGeneration || take?.id !== current.id || abort.signal.aborted) {
+				return;
+			}
 
 			const result = await ensureSuggestedRegionsForTake(current, {
 				force: options?.force,
-				pcm
+				pcm,
+				signal: abort.signal
 			});
 			if (generation !== suggestGeneration || take?.id !== current.id) return;
+
+			if (result.autoSkipped) {
+				suggestions = [];
+				suggestionIndex = null;
+				suggestionStatus = 'idle';
+				showManualAnalyze = suggestionEligible;
+				suggestionLiveMessage = '';
+				return;
+			}
 
 			suggestions = result.regions;
 			if (
@@ -380,16 +419,29 @@
 			if (result.regions.length === 0) {
 				suggestionStatus = 'empty';
 				showManualAnalyze = false;
+				suggestionLiveMessage = '';
 			} else {
 				suggestionStatus = 'ready';
+				announceSuggestionsAvailable(result.regions.length);
 			}
 		} catch (cause) {
-			console.error('[SampleScout] suggested regions failed', cause);
 			if (generation !== suggestGeneration || take?.id !== current.id) return;
+			const aborted =
+				abort.signal.aborted ||
+				(cause instanceof DOMException && cause.name === 'AbortError') ||
+				(cause instanceof Error && cause.name === 'AbortError');
+			if (aborted) {
+				suggestionStatus = 'idle';
+				return;
+			}
+			console.error('[SampleScout] suggested regions failed', cause);
 			suggestions = [];
 			suggestionIndex = null;
 			suggestionStatus = 'error';
 			showManualAnalyze = suggestionEligible;
+			suggestionLiveMessage = '';
+		} finally {
+			if (suggestAbort === abort) suggestAbort = null;
 		}
 	}
 
@@ -1144,6 +1196,7 @@
 					{/if}
 				</div>
 				<div class="header-end">
+					<FeedbackButton />
 					<GhostButton
 						icon
 						disabled={uploadLocked || identity}
@@ -1279,16 +1332,13 @@
 						</div>
 						<div class="action-row bar-actions">
 							<div class="action-side">
+								<div class="sr-only" aria-live="polite">{suggestionLiveMessage}</div>
 								{#if showSuggestionChrome}
-									<div class="suggest-nav bar-cluster" role="group" aria-label="Scouted regions">
+									<div class="suggest-nav bar-cluster" role="group" aria-label="Suggested regions">
 										<GhostButton
 											compact
-											active={suggestionIndex != null}
 											disabled={uploadLocked}
-											aria-pressed={suggestionIndex != null}
-											aria-label={suggestionIndex == null
-												? suggestionLabel
-												: `Scouted region ${suggestionLabel}`}
+											aria-label={suggestionAriaLabel}
 											title={suggestionLabel}
 											onclick={onSuggestionScoutedActivate}
 										>
@@ -1302,7 +1352,7 @@
 												icon
 												compact
 												disabled={uploadLocked}
-												aria-label="Previous scouted region"
+												aria-label="Previous suggested region"
 												title="Previous"
 												onclick={onSuggestionPrev}
 											>
@@ -1312,7 +1362,7 @@
 												icon
 												compact
 												disabled={uploadLocked}
-												aria-label="Next scouted region"
+												aria-label="Next suggested region"
 												title="Next"
 												onclick={onSuggestionNext}
 											>
@@ -1444,7 +1494,7 @@
 										tone={isTakeSavedLocally(take) ? 'signal' : 'muted'}
 										density="compact"
 									>
-										{isTakeSavedLocally(take) ? 'Local file' : 'Not saved'}
+										{isTakeSavedLocally(take) ? 'Local' : 'Not saved'}
 									</StatusLabel>
 								{/if}
 							</StaticFact>
@@ -1511,6 +1561,7 @@
 		gap: var(--space-2);
 		min-width: var(--touch-min);
 		min-height: var(--touch-min);
+		flex-shrink: 0;
 	}
 
 	.title-slot {
@@ -1528,6 +1579,7 @@
 		gap: var(--space-2);
 		min-width: var(--touch-min);
 		min-height: var(--touch-min);
+		flex-shrink: 0;
 	}
 
 	.take-title,
@@ -1678,8 +1730,8 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-3);
+		/* Bottom inset comes from body safe-area padding — do not double it here. */
 		padding: var(--space-2) var(--page-gutter);
-		padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom, 0px));
 		background: var(--paper);
 	}
 
@@ -1717,8 +1769,12 @@
 		display: inline-flex;
 		align-items: center;
 		gap: var(--space-2);
+		max-width: 100%;
 		font-variant-numeric: tabular-nums;
 		text-transform: lowercase;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	.action-row {
@@ -1730,9 +1786,36 @@
 		display: flex;
 		align-items: center;
 		justify-content: flex-start;
+		min-width: 0;
 	}
 
 	.action-side-end {
 		justify-content: flex-end;
+		flex-shrink: 0;
+	}
+
+	@media (max-width: 360px) {
+		.editor-header {
+			column-gap: var(--space-1);
+			padding-inline: var(--space-1);
+		}
+
+		.header-start,
+		.header-end {
+			gap: var(--space-1);
+		}
+
+		.transport-bar {
+			gap: var(--space-2);
+			padding-inline: var(--space-2);
+		}
+
+		.action-row {
+			gap: var(--space-1);
+		}
+
+		.suggest-nav {
+			gap: var(--space-1);
+		}
 	}
 </style>

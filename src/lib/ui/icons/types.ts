@@ -6,6 +6,7 @@ export const ICON_NAMES = [
 	'minus',
 	'reset',
 	'field-notes',
+	'feedback',
 	'import',
 	'cleanup',
 	'next',

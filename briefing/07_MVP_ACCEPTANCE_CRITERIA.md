@@ -72,7 +72,7 @@ Safari failure is a release decision because no backend fallback will exist.
 - Recording state is unambiguous.
 - Stopping finalizes and locally saves the take.
 - UI does not show “Saved locally” before persistence succeeds.
-- `Local File` is shown only after the OPFS source and IndexedDB metadata commits succeed, with device-local meaning clear.
+- `Local File` is shown only after the OPFS source and IndexedDB metadata commits succeed, with device-local meaning clear. Visible chip / status label copy is **Local**.
 - User can record another take immediately.
 - Three or more takes remain independently playable.
 - App restart restores takes and session order.
@@ -217,7 +217,6 @@ Safari failure is a release decision because no backend fallback will exist.
 - Keyboard navigation works.
 - Focus is visible.
 - Multi-select and batch editing work.
-- UI remains usable at 200% zoom.
 
 ### Visual
 
@@ -230,6 +229,7 @@ Safari failure is a release decision because no backend fallback will exist.
 - Collection is reached from Capture (shortcut / stack), labeled Collection while the route is `/collection`; no three-tab primary nav.
 - Collection uses stable indexing/catalog rhythm and may use deterministic, data-derived specimen marks.
 - Account opens as a mobile bottom sheet / desktop modal; `/account` remains the OAuth redirect host.
+- Authenticated shell always exposes **Send feedback** (top-bar icon left of Account; Take editor header; Account row). Custom elevated sheet + free text posts via Sentry User Feedback API with silent Audiotool email + route/release context; no categories, no mailto, no Local File attachment. Post failure uses an action toast while the entry UI stays available.
 - Specimen marks are visibly distinct from real waveforms and do not imply fingerprinting, quality, rarity, cloud storage, XP, or streaks.
 - No collectible-card treatment or celebratory collection motion.
 

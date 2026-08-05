@@ -3,18 +3,23 @@ import { uploadSample } from '$lib/audiotool';
 import { createAppError, nowIso } from '$lib/domain/ids';
 import type { AppError, OutputSettings, Take, TakeId, UploadJob } from '$lib/domain/types';
 import {
+	UPLOAD_ABANDONED_MESSAGE,
+	isActiveTakeUploadState,
 	isActiveUploadJobState,
 	jobPhaseForOutput,
+	takeNeedsAbandonedHydrateRepair,
 	takeUploadStateFromJob,
 	validateTakeForUpload
 } from '$lib/domain/upload';
 import {
+	createFailedUploadJob,
 	createUploadJob,
 	getTake,
 	getUploadJob,
 	getUploadJobForTake,
 	listInFlightUploadJobs,
 	listQueuedUploadJobs,
+	listSavedTakesNewestFirst,
 	patchUploadJob,
 	updateTake
 } from '$lib/persistence';
@@ -101,26 +106,48 @@ function uploadOutputForTake(take: Take): Extract<OutputSettings, { format: 'wav
 	return { format: 'wav', bitDepth: 16 };
 }
 
+function abandonedUploadError(takeId: TakeId, jobId?: string): AppError {
+	return createAppError('UPLOAD_ABANDONED', UPLOAD_ABANDONED_MESSAGE, {
+		recoverable: true,
+		context: jobId ? { takeId, jobId } : { takeId }
+	});
+}
+
 /**
  * Mark abandoned in-flight jobs as failed after a page reload.
  * Uploads do not continue after the tab is closed.
+ * Also repairs takes that still look in-flight when the latest job is terminal/missing
+ * (so Collection Retry stays available — never stuck uploading forever).
  */
 export async function hydrateUploadQueue(): Promise<void> {
 	const inFlight = await listInFlightUploadJobs();
-	const abandonedMessage =
-		'Upload stopped when this page closed. Local file is intact — Retry to upload again.';
 
 	for (const job of inFlight) {
 		const failed = await patchUploadJob(job.id, {
 			state: 'failed',
 			progress: undefined,
-			error: createAppError('UPLOAD_ABANDONED', abandonedMessage, {
-				recoverable: true,
-				context: { takeId: job.takeId, jobId: job.id }
-			})
+			error: abandonedUploadError(job.takeId, job.id)
 		});
 		rememberJob(failed);
 		await syncTakeUploadState(job.takeId, failed);
+	}
+
+	const savedTakes = await listSavedTakesNewestFirst();
+	for (const take of savedTakes) {
+		if (!isActiveTakeUploadState(take.uploadState)) continue;
+
+		const latest = await getUploadJobForTake(take.id);
+		if (!takeNeedsAbandonedHydrateRepair(take.uploadState, latest?.state)) continue;
+
+		if (latest) {
+			rememberJob(latest);
+			await syncTakeUploadState(take.id, latest);
+			continue;
+		}
+
+		const failed = await createFailedUploadJob(take.id, abandonedUploadError(take.id));
+		rememberJob(failed);
+		await syncTakeUploadState(take.id, failed);
 	}
 
 	const queued = await listQueuedUploadJobs();

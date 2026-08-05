@@ -9,6 +9,8 @@
 	import AccountOverlay from '$lib/ui/components/AccountOverlay.svelte';
 	import AccountPanel from '$lib/ui/components/AccountPanel.svelte';
 	import BackButton from '$lib/ui/components/BackButton.svelte';
+	import FeedbackButton from '$lib/ui/components/FeedbackButton.svelte';
+	import FeedbackSheet from '$lib/ui/components/FeedbackSheet.svelte';
 	import InstallAppSheet from '$lib/ui/components/InstallAppSheet.svelte';
 	import { installPrompt } from '$lib/pwa';
 
@@ -46,6 +48,7 @@
 				{/if}
 			</div>
 			<div class="top-bar-end">
+				<FeedbackButton />
 				<AccountButton expanded={accountOpen} />
 			</div>
 		</header>
@@ -74,6 +77,7 @@
 	{/if}
 
 	<InstallAppSheet open={installPrompt.sheetOpen} />
+	<FeedbackSheet />
 </div>
 
 <style>
@@ -121,6 +125,8 @@
 		display: flex;
 		align-items: center;
 		justify-content: flex-end;
+		gap: var(--space-1);
+		flex-shrink: 0;
 	}
 
 	.brand {
@@ -128,12 +134,20 @@
 		align-items: center;
 		gap: var(--space-2);
 		min-width: 0;
+		max-width: 100%;
 		font-size: var(--text-body);
 		font-weight: 600;
 		line-height: 1;
 		letter-spacing: 0.02em;
 		text-decoration: none;
 		color: var(--ink);
+	}
+
+	.brand span {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	.brand-mark {

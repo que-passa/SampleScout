@@ -85,7 +85,7 @@ Use `--signal` only for:
 
 Use `--brand` / `--brand-soft` for primary CTA faces (`PrimaryButton`: Collect / Upload), compact action-toast chrome (success / confirm feedback), active waveform selection fill/edges/grips, **and** Collection take-row upload chip queued (armed) / uploaded (subtle) faces. While dragging a trim edge, that grip and its boundary stroke also use `--brand` (idle trim stays `--signal`). Do not use `--signal` for those toasts, primary CTAs, or selection. Discarded (outside-trim) waveform regions use `--disabled` wash and peaks; retained audio stays normal `--ink` on paper.
 
-**Collection upload status chip (`UploadStatusChip` on take rows only):** morph one pill across Local file → Queued (armed) → Busy (spinner, no label; sheet carries Encoding/Uploading/Processing) → Uploaded (subtle brand-soft + check, persists) / Failed (signal fill). Smooth width + color transitions; not a remounted label swap.
+**Collection upload status chip (`UploadStatusChip` on take rows only):** morph one pill across Local → Queued (armed) → Busy (spinner, no label; sheet carries Encoding/Uploading/Processing) → Uploaded (subtle brand-soft + check, persists) / Failed (signal fill). Smooth width + color transitions; not a remounted label swap.
 
 Do not use signal or brand color for ordinary navigation or decoration (Account / Collection / Loop wells stay surface-faced; brand appears only as the latched LED or primary CTA face).
 
@@ -220,10 +220,11 @@ Use large pill shapes only for toggles, tags, or status where the shape has sema
 ### Ghost
 
 - Idle: transparent fill, no border, ink text/icon (nav chrome may use muted ink)
-- Hover / sticky on / press: flat `--surface-subtle` well + `--surface` face (no inset shadows)
+- Hover / sticky on: flat `--surface` face only (no outer well ring)
+- Press: root/well/face all `--surface`, outer radius concentric with face + well padding (no inset shadows)
 - `:active` (while pressed): `--brand` for text/icon fill; destructive ghosts keep `--signal`
 - Optional `compact` (~30px) for waveform toolbar; optional brand **live** LED for connected Account / latched Loop
-- Use `GhostButton` / `BackButton` for Back, Account, Collection shortcut, Loop, Collection **Select** / **Import** / select-mode actions, take-editor **Reset** / **Field Notes**, sheet close, cancel, and destructive confirm labels
+- Use `GhostButton` / `BackButton` for Back, Account, **Send feedback**, Collection shortcut, Loop, Collection **Select** / **Import** / select-mode actions, take-editor **Reset** / **Field Notes**, sheet close, cancel, and destructive confirm labels
 - Collection **Upload** and take **Collect** use **Primary**, not Ghost; take **Play** / **Pause** use **Playback**, not Ghost
 
 ### Destructive
@@ -294,10 +295,11 @@ The visible destination is **Collection** (route `/collection`), grouped by **Fi
 Take rows should resemble data records:
 
 ```text
-[PLAY] Session — 004 / Door latch    00:18    one-shot    UNREVIEWED    ⋯
+[mark] Door latch 01 SRC    SS-…  27/07/17:41  18.2s    Local    🗑
+[mark] Door latch 02        SS-…  27/07/17:42   2.4s    Local    🗑
 ```
 
-Sequence lives in the display name — no leading sequence column. The whole row is clickable to open the take; rename lives in the overflow menu; Discard is a visible per-row action with confirmation on Collection.
+Sequence lives in the display name — no leading sequence column. Duration is retained recipe length in seconds (one decimal), after the capture stamp. Flat **SRC** glyph sits immediately after the title on originals that have collected children; Collect children and lone takes omit it (no nesting). The whole row is clickable to open the take; rename lives in the overflow menu; Discard is a visible per-row action with confirmation on Collection.
 
 Use:
 
@@ -365,7 +367,6 @@ Respect `prefers-reduced-motion`.
 - State text in addition to color
 - 44 px mobile touch targets
 - Do not disable browser zoom
-- Support 200% zoom
 - Precise waveform selection must also be adjustable using numeric inputs or keyboard nudges
 - Do not use thin gray text for essential information
 

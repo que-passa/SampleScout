@@ -7,6 +7,7 @@ import cleanup from '$lib/assets/ui-icons/cleanup.svg?raw';
 import close from '$lib/assets/ui-icons/close.svg?raw';
 import collection from '$lib/assets/ui-icons/collection.svg?raw';
 import fieldNotes from '$lib/assets/ui-icons/field-notes.svg?raw';
+import feedback from '$lib/assets/ui-icons/feedback.svg?raw';
 import importIcon from '$lib/assets/ui-icons/import.svg?raw';
 import loop from '$lib/assets/ui-icons/loop.svg?raw';
 import minus from '$lib/assets/ui-icons/minus.svg?raw';
@@ -29,6 +30,7 @@ export const ICON_MARKUP: Record<IconName, string> = {
 	close,
 	collection,
 	'field-notes': fieldNotes,
+	feedback,
 	import: importIcon,
 	loop,
 	minus,

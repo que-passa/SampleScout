@@ -43,7 +43,7 @@ Capture fills the available viewport (shell top bar fixed; no bottom tab bar). I
 
 Do **not** crowd the capture screen with connection chips, storage estimates, developer config, or a recent-takes list. Takes live under **Collection**.
 
-Capture shows a compact **Collection shortcut** to the right of the record control: a simplified waveform icon, a zero-padded **total** Local File count (including `00` when empty), and a **signal** **pending** bubble (record red fill, bright numerals) stacked above the total when any upload-pending files exist (same pending set as Collection Upload). Tapping it opens Collection at `/collection`. Hide the shortcut while recording. The shell top-bar Account control (avatar when available) opens the Account sheet/modal on Capture, Collection, and Debug. Take has no Account control in the editor header.
+Capture shows a compact **Collection shortcut** to the right of the record control: a simplified waveform icon, a zero-padded **total** Local File count (including `00` when empty), and a **signal** **pending** bubble (record red fill, bright numerals) stacked above the total when any upload-pending files exist (same pending set as Collection Upload). Tapping it opens Collection at `/collection`. Hide the shortcut while recording. The shell top-bar end cluster on Capture, Collection, and Debug: quiet **Send feedback** ghost icon (left), then Account (avatar when available). Take has no Account control; it carries its own feedback affordance in the editor header (see §9 / §10c).
 
 Auth note: the current product gate requires Audiotool connect before the shell; local-only capture without login remains a possible future relaxation.
 
@@ -70,7 +70,7 @@ Immediately:
 2. Save the source file to local storage.
 3. Create or update the take record.
 4. Compute an initial waveform overview asynchronously.
-5. Show `Local File` only after the OPFS + IndexedDB save gate; supporting copy should make clear it is not uploaded and only on this device (e.g. `Not uploaded. Only on this device.`).
+5. Show `Local` only after the OPFS + IndexedDB save gate; supporting copy should make clear it is not uploaded and only on this device (e.g. `Not uploaded. Only on this device.`).
 6. Keep “Record another” prominent (the primary record control returns to idle).
 7. Update the Collection shortcut counts (total + pending bubble) so the new take is reachable under **Collection**.
 8. Confirm outcomes with a compact action toast (successful capture with optional **Open**, cancel/discard, not-saved, import). Do **not** leave sticky outcome lines under the Field Session title.
@@ -123,15 +123,15 @@ Each compact row contains:
 
 - Sequence (in the display name)
 - Editable name
-- Duration
-- Kind
-- Local/upload state
+- Duration as retained recipe length in seconds with one decimal (e.g. `18.2s`), shown after the capture date/time
+- Flat lineage glyph **SRC** on originals that have collected children (immediately after the display name). Collected children and lone takes show no glyph. Do not nest or indent rows.
+- Local / upload state (status chip label **Local**, not “Local file”)
 - Overflow menu (rename); Discard is a visible per-row action with confirmation
 - Optional play action where useful
 
 Status language:
 
-- Local File (saved on this device only)
+- Local (saved on this device only; chip / status label)
 - Unreviewed
 - Edited
 - Ready
@@ -141,7 +141,7 @@ Status language:
 - Uploaded
 - Failed
 
-Do not label a take `Local File` or “saved” when only held in JavaScript memory.
+Do not label a take `Local` or “saved” when only held in JavaScript memory.
 
 ## 5. Retake (not supported)
 
@@ -225,7 +225,7 @@ Use a dedicated full-screen route or overlay — not a bottom sheet. Editing nee
 
 Structure:
 
-- Header chrome (replaces the global brand bar on this route): Back to Collection (top left, ≥44px), **centered truncated take name** (tap to rename), **Reset edits** icon top right (when recipe is non-identity). No Account control on Take — open Account from Capture / Collection / Debug.
+- Header chrome (replaces the global brand bar on this route): Back to Collection (top left, ≥44px), **centered truncated take name** (tap to rename), top-right cluster: quiet **Send feedback** ghost icon (always), then **Reset edits** when the recipe is non-identity. No Account control on Take — open Account from Capture / Collection / Debug.
 - Waveform stage: precise waveform sits on page `--paper` (not a boxed pane/card) and uses the available vertical space between header and bottom bar; no redundant “Waveform” label or status header (positional time lives on the waveform ruler; duration / channel / selection facts live in Field Notes — no separate playhead clock in transport)
 - Overview navigator strip and compact zoom controls (±) pin in the bottom bar above transport
 - Pinned bottom bar: wave chrome (zoom + overview) → transport row (`PlaybackControl` center, Loop right) → action row (**Scouted** left when available — icon + `N scouted`, then `01/N` + **Next** after engage; **Field Notes** icon immediately left of **Collect** brand primary on the right). No Upload on take — shipping is Collection-only.
@@ -233,7 +233,7 @@ Structure:
 - **Collect** is the primary commit when a usable selection exists: create a new Local File from selection bounds + fades + normalize + gain + processing, restore parent recipe to identity, stay on the parent for another Collect
 - Do **not** duplicate Capture/Collection links in the footer; stack back chrome covers navigation
 
-MVP `/take/[takeId]` follows this: editor header with top-left back → `/collection` labeled Collection, centered filename, and top-right Reset; waveform-first stage filling available height; pinned bottom bar (zoom/nav + transport); **Field Notes** opens from the transport icon button. No primary bottom tabs; hide the SampleScout brand/top bar while on the take route (no Account in the editor header).
+MVP `/take/[takeId]` follows this: editor header with top-left back → `/collection` labeled Collection, centered filename, and top-right **Send feedback** (+ Reset when needed); waveform-first stage filling available height; pinned bottom bar (zoom/nav + transport); **Field Notes** opens from the transport icon button. No primary bottom tabs; hide the SampleScout brand/top bar while on the take route (no Account in the editor header).
 
 **Viewport-locked instrument chrome:** header and transport stay **pinned**. Only the middle workspace body scrolls. Do not scroll the header or transport away with the take content. Respect `env(safe-area-inset-bottom)` on the transport bar.
 
@@ -310,6 +310,7 @@ User-facing content only:
 - Signed-in identity (display name / username)
 - Connect / Disconnect
 - **Install / Add to Home Screen** when the app is not already running standalone: Chromium uses the deferred `beforeinstallprompt` native dialog; iOS / iPadOS shows a short Share → Add to Home Screen sheet (no fake one-tap install). Hidden after install, dismissal (`Not now`), or `localStorage` dismiss flag.
+- **Send feedback** — opens the shared feedback sheet (§10c); same flow as the chrome icon
 - Honest local-data copy (no cloud backup, no cross-device sync)
 - Delete all local data
 
@@ -319,11 +320,33 @@ Open from the shell top bar on Capture / Collection / Debug (Audiotool avatar wh
 
 Developer diagnostics (full capability report, MIME support) live on a separate **Debug** screen (`/debug`), linked quietly from Account — not on the Account surface itself. OAuth client ID, redirect URI, scopes, and app-registration copy are not shown in the UI; they stay in `.env` / docs only.
 
+## 10c. User feedback
+
+Intentional voice-of-user only — not crash reporting (Sentry already owns exceptions) and not product analytics.
+
+**Always available in the authenticated shell** (not on the auth splash):
+
+- Capture / Collection / Debug: ghost **Send feedback** icon in the top-bar end cluster, left of Account
+- Take: same icon in the editor header end cluster (left of Reset when Reset is shown)
+- Account: **Send feedback** row that opens the same sheet
+
+**UI:** SampleScout `SheetOverlay` (elevated so it can stack above Account / other sheets) — free-text field + Send. No categories, no email field, no mailto / GitHub handoff, no Sentry stock feedback widget. Match bright-mono sheet patterns.
+
+**Delivery:** post via **Sentry User Feedback API** (same DSN family as error capture; no custom backend). On success, dismiss + compact action toast. If Sentry is unset / inactive (e.g. local `npm run dev` gate) or the post fails, keep the form UI as-is and show an honest failure toast — do not hide the icon or swap to mail/Issues.
+
+**Silent context (never user-typed):**
+
+- Contact email from the connected Audiotool profile when available (no email UI)
+- Structured Sentry tags/context: current route pattern (not raw take IDs if avoidable), app release/version — do not fake-append this into the user’s message body
+- Never attach Local Files, OPFS audio, OAuth tokens, or refresh material
+
+**Honesty copy:** optional feedback; replies (if any) use the connected Audiotool email — no live chat, no response SLA, no cloud backup implication. User-pulled only — do not auto-open on errors. Allowed while recording (user must tap the icon).
+
 ## 11. Collection view (`/collection`)
 
 Show Field Sessions by default as **visual groups**: each session is a header band plus nested Local File / take rows. Recent takes are reviewed here, not on Capture.
 
-Shell top bar (shared with Capture/Debug): back → Capture, page title **Collection**, Account control top right. When the Collection has Local Files, pin actions in a bottom bar (does not scroll away with the list). When empty, omit the bottom bar — Import and Capture live only in the empty state.
+Shell top bar (shared with Capture/Debug): back → Capture, page title **Collection**, top-right **Send feedback** then Account. When the Collection has Local Files, pin actions in a bottom bar (does not scroll away with the list). When empty, omit the bottom bar — Import and Capture live only in the empty state.
 
 **Default bottom bar:** **Select** (text), then **Import** and **Cleanup** as icon-only ghosts (`aria-label`) on the left; **Upload** (brand primary text) alone on the right — icon density so the bar fits narrow phones. **Cleanup** removes every Local File with `uploadState === 'uploaded'` from this device after confirm (Audiotool copies stay). If none are uploaded, show a neutral toast `Nothing to clean up` instead of opening confirm. Upload opens a confirm bottom sheet for every **upload-pending** Local File — saved, not yet uploaded, and with **no collected children**. Do not instantly queue. Do not duplicate back, title, or Account in the scrollable body. Collection action feedback (import, discard, cleanup, Field Notes, empty Upload, queue failures) uses compact action toasts only — no sticky status/error lines in the list.
 
@@ -370,7 +393,7 @@ Within a session, show takes with:
 
 - Waveform
 - Name (sequence is part of the display name — no leading sequence column)
-- Catalog reference with short capture date/time beside it (e.g. `FS-…-003 27/07/17:41`)
+- Catalog reference with short capture date/time beside it (e.g. `550E84-003 27/07/17:41`)
 - Duration
 - Type
 - Status
@@ -458,4 +481,3 @@ Verify behavior in:
 - Tablet landscape
 - 1280 px desktop
 - 1440 px desktop
-- 200% browser zoom

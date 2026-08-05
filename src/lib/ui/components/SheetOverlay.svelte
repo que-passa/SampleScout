@@ -3,7 +3,7 @@
 	import { MediaQuery } from 'svelte/reactivity';
 	import { fade, fly } from 'svelte/transition';
 	import GhostButton from '$lib/ui/components/GhostButton.svelte';
-	import { attachDialogPanel } from '$lib/ui/focus';
+	import { dialogFocus } from '$lib/ui/focus';
 	import { Icon } from '$lib/ui/icons';
 
 	let {
@@ -32,13 +32,7 @@
 
 	const duration = $derived(reduceMotion.current ? 0 : 180);
 	const panelFly = $derived(desktop.current ? { y: 12, duration } : { y: 48, duration });
-
-	function onKeydown(event: KeyboardEvent) {
-		if (event.key === 'Escape' && dismissible) {
-			event.preventDefault();
-			onclose();
-		}
-	}
+	const panelFocus = dialogFocus(() => (dismissible ? onclose : null));
 
 	function onBackdropClick(event: MouseEvent) {
 		if (dismissible && event.target === event.currentTarget) {
@@ -46,8 +40,6 @@
 		}
 	}
 </script>
-
-<svelte:window onkeydown={onKeydown} />
 
 <div
 	class={['backdrop', elevated && 'elevated']}
@@ -61,7 +53,7 @@
 		aria-modal="true"
 		aria-labelledby={titleId}
 		tabindex="-1"
-		{@attach attachDialogPanel}
+		{@attach panelFocus}
 		transition:fly={panelFly}
 	>
 		<header class="header">

@@ -45,6 +45,7 @@ A user can:
 12. Review prefilled metadata (Field Notes).
 13. From Collection, confirm and upload WAV or MP3 to Audiotool (confirm sheet → progress).
 14. Close and reopen the app and recover saved local takes.
+15. Send intentional feedback from any authenticated chrome surface (custom sheet → Sentry User Feedback API).
 
 ## Product boundaries
 
@@ -58,6 +59,9 @@ Do not build:
 - Background server upload
 - Server transcoding
 - A custom account system
+- Product analytics / funnels / NPS spam
+- Mailto or GitHub Issues as a feedback delivery path
+- Feedback categories or an email input field
 
 Do not claim uploads continue after the browser is closed.
 
@@ -417,7 +421,8 @@ Create reusable components for:
 12. Build upload queue.
 13. Complete responsive desktop UI.
 14. Add PWA guided install (Account + soft tip; Chromium BIP / iOS Share steps) and optional SW update toast later.
-15. Run device validation.
+15. Add always-available **Send feedback** (shell + Take chrome + Account) via custom elevated sheet and Sentry User Feedback API (silent email + route/release context; toast on post failure; no mailto).
+16. Run device validation.
 
 At each phase, implement errors and restart recovery before proceeding.
 

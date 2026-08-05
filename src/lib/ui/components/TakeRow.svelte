@@ -1,6 +1,11 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { type SpecimenMark as SpecimenMarkValue, type TakeUploadState } from '$lib/domain';
+	import {
+		type CollectionLineageGlyph,
+		type SpecimenMark as SpecimenMarkValue,
+		type TakeUploadState,
+		collectionLineageGlyphLabel
+	} from '$lib/domain';
 	import SpecimenMark from './SpecimenMark.svelte';
 	import UploadStatusChip from './UploadStatusChip.svelte';
 	import GhostButton from './GhostButton.svelte';
@@ -11,6 +16,8 @@
 		savedLocally,
 		catalogReference,
 		recordedAtLabel = '',
+		durationLabel = '',
+		lineageGlyph = null,
 		specimenMark,
 		uploadState,
 		errorMessage = '',
@@ -30,6 +37,10 @@
 		catalogReference: string;
 		/** Short date/time next to the catalog reference (e.g. `27/07/17:41`). */
 		recordedAtLabel?: string;
+		/** Recipe length, e.g. `18.2s`. */
+		durationLabel?: string;
+		/** Flat lineage cue: SRC when this take is the original with collected children. */
+		lineageGlyph?: CollectionLineageGlyph | null;
 		specimenMark: SpecimenMarkValue;
 		uploadState?: TakeUploadState | string;
 		/** Persisted upload failure text (wraps fully for mobile screenshots). */
@@ -47,6 +58,9 @@
 	} = $props();
 
 	const showError = $derived(Boolean(errorMessage?.trim()));
+	const lineageTitle = $derived(
+		lineageGlyph ? collectionLineageGlyphLabel(lineageGlyph) : undefined
+	);
 
 	const takeHref = $derived(takeId ? (`/take/${takeId}` as `/take/${string}`) : undefined);
 	const openable = $derived(Boolean(takeHref));
@@ -96,11 +110,17 @@
 	<div class="main">
 		<div class="title-row">
 			<span class="name">{name}</span>
+			{#if lineageGlyph}
+				<span class="lineage-glyph" title={lineageTitle} aria-label={lineageTitle}>{lineageGlyph}</span>
+			{/if}
 		</div>
 		<div class="meta-row">
 			<span class="catalog-reference">{catalogReference}</span>
 			{#if recordedAtLabel}
 				<span class="recorded-at">{recordedAtLabel}</span>
+			{/if}
+			{#if durationLabel}
+				<span class="duration">{durationLabel}</span>
 			{/if}
 		</div>
 		{#if showError}
@@ -311,12 +331,12 @@
 	.title-row {
 		display: flex;
 		align-items: center;
-		gap: var(--space-2);
+		gap: var(--space-1);
 		min-width: 0;
 	}
 
 	.name {
-		flex: 1;
+		flex: 0 1 auto;
 		min-width: 0;
 		font-size: var(--text-body);
 		font-weight: 600;
@@ -324,6 +344,19 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 		text-align: left;
+	}
+
+	.lineage-glyph {
+		flex-shrink: 0;
+		padding: 0 var(--space-1);
+		border: 1px solid var(--line-strong);
+		border-radius: var(--radius-control);
+		color: var(--ink-muted);
+		font-size: var(--text-micro);
+		font-weight: 700;
+		letter-spacing: 0.06em;
+		line-height: 1.4;
+		text-transform: uppercase;
 	}
 
 	.status-slot {
@@ -345,6 +378,7 @@
 		font-weight: 600;
 		letter-spacing: 0.04em;
 		line-height: 1;
+		font-variant-numeric: tabular-nums;
 	}
 
 	.catalog-reference {
@@ -354,6 +388,7 @@
 		white-space: nowrap;
 	}
 
+	.duration,
 	.recorded-at {
 		flex-shrink: 0;
 		white-space: nowrap;

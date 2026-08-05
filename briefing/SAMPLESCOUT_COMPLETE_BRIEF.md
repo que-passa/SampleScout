@@ -718,7 +718,6 @@ Verify behavior in:
 - Tablet landscape
 - 1280 px desktop
 - 1440 px desktop
-- 200% browser zoom
 
 ---
 
@@ -1057,7 +1056,6 @@ Respect `prefers-reduced-motion`.
 - State text in addition to color
 - 44 px mobile touch targets
 - Do not disable browser zoom
-- Support 200% zoom
 - Precise waveform selection must also be adjustable using numeric inputs or keyboard nudges
 - Do not use thin gray text for essential information
 
@@ -2438,7 +2436,6 @@ Safari failure is a release decision because no backend fallback will exist.
 - Keyboard navigation works.
 - Focus is visible.
 - Multi-select and batch editing work.
-- UI remains usable at 200% zoom.
 
 ### Visual
 

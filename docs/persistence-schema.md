@@ -56,7 +56,7 @@ Metadata for the asset is stored on `Take.peaks` in IndexedDB.
 
 ## Saved-locally rule
 
-A take may show **Local File** (supporting copy: “Not uploaded. Only on this device.”) only when:
+A take may show **Local** (supporting copy: “Not uploaded. Only on this device.”) only when:
 
 1. Source binary is flushed to OPFS
 2. Take metadata record is written to IndexedDB

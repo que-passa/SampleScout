@@ -31,6 +31,8 @@ export {
 	isPendingFileTake,
 	isUploadPendingTake,
 	takeHasCollectedChildren,
+	collectionLineageGlyph,
+	collectionLineageGlyphLabel,
 	sanitizeDisplayNameStem,
 	stemFromSessionName,
 	formatNumberedDisplayName,
@@ -40,6 +42,7 @@ export {
 	formatRecordingDate,
 	formatShortDate,
 	formatShortDateTime,
+	formatTakeDurationSeconds,
 	applyTakeMetadataPatch,
 	applyGeneratedTags,
 	canApplyGeneratedTags,
@@ -65,7 +68,7 @@ export {
 	visibleTags
 } from './tags';
 export type { TagPreset } from './tags';
-export type { TakeMetadataPatch } from './metadata';
+export type { CollectionLineageGlyph, TakeMetadataPatch } from './metadata';
 export {
 	buildExtractTake,
 	cloneEditRecipeForCollect,
@@ -75,12 +78,14 @@ export {
 } from './extract';
 export {
 	AUDIOTOOL_SOURCE_TAG,
+	UPLOAD_ABANDONED_MESSAGE,
 	audiotoolUploadTags,
 	formatUploadStateLabel,
 	isActiveTakeUploadState,
 	isActiveUploadJobState,
 	isInFlightUploadJobState,
 	jobPhaseForOutput,
+	takeNeedsAbandonedHydrateRepair,
 	takeUploadStateFromJob,
 	uploadStateTone,
 	validateTakeForUpload,

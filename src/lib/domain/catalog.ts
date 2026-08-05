@@ -1,7 +1,6 @@
 import type { AudioSource, Take } from './types';
 import { DEFAULT_SESSION_NAME } from './session-name';
 
-const CATALOG_PREFIX = 'FS';
 const CATALOG_ID_LENGTH = 6;
 
 export const SPECIMEN_MARK_SIZE = 12;
@@ -37,7 +36,7 @@ export function deriveCatalogReference({ sessionId, sequence }: CatalogReference
 	const sessionToken = normalizeCatalogId(sessionId);
 	const sequenceToken = String(Math.max(0, Math.trunc(sequence))).padStart(3, '0');
 
-	return `${CATALOG_PREFIX}-${sessionToken}-${sequenceToken}`;
+	return `${sessionToken}-${sequenceToken}`;
 }
 
 /** Default Field Session title. Date arg kept for call-site compatibility; unused. */

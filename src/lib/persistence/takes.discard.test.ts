@@ -67,7 +67,7 @@ vi.mock('$lib/persistence/opfs', () => ({
 }));
 
 import { discardTake, listTakesForSession } from './takes';
-import { processDueCleanups } from './cleanup';
+import { enqueueCleanup, processDueCleanups } from './cleanup';
 import { deletePath } from './opfs';
 
 function seedSavedTake() {
@@ -102,10 +102,42 @@ function seedSavedTake() {
 	return { session, take };
 }
 
+/** Parent + N collected children sharing the same OPFS source. */
+function seedParentWithChildren(childCount: number) {
+	const { session, take: parent } = seedSavedTake();
+	const sharedRef = parent.source.fileRef;
+	const children: Take[] = [];
+
+	for (let i = 0; i < childCount; i += 1) {
+		const draft = createTake({
+			session,
+			sequence: 2 + i,
+			source: { ...parent.source }
+		});
+		const child: Take = {
+			...draft,
+			lifecycleState: 'saved',
+			derivedFromTakeId: parent.id,
+			source: { ...parent.source, fileRef: sharedRef }
+		};
+		children.push(child);
+		takes.set(child.id, child);
+	}
+
+	session.takeOrder = [parent.id, ...children.map((c) => c.id)];
+	sessions.set(session.id, session);
+	return { session, parent, children, sharedRef };
+}
+
+function jobsHolding(ref: string): CleanupJob[] {
+	return [...cleanupJobs.values()].filter((job) => job.fileRefs.includes(ref));
+}
+
 describe('discard + cleanup', () => {
 	afterEach(() => {
 		vi.useRealTimers();
 		vi.mocked(deletePath).mockClear();
+		vi.mocked(deletePath).mockImplementation(async () => undefined);
 	});
 
 	it('removes discarded takes from the session immediately', async () => {
@@ -126,26 +158,11 @@ describe('discard + cleanup', () => {
 	});
 
 	it('keeps a shared Extract source while another take still references it', async () => {
-		const { session, take: parent } = seedSavedTake();
-		const sharedRef = parent.source.fileRef;
-
-		const extractDraft = createTake({
-			session,
-			sequence: 2,
-			source: { ...parent.source }
-		});
-		const extract: Take = {
-			...extractDraft,
-			lifecycleState: 'saved',
-			derivedFromTakeId: parent.id,
-			source: { ...parent.source, fileRef: sharedRef }
-		};
-		session.takeOrder = [parent.id, extract.id];
-		sessions.set(session.id, session);
-		takes.set(extract.id, extract);
+		const { parent, children, sharedRef } = seedParentWithChildren(1);
+		const extract = children[0]!;
 
 		const discarded = await discardTake(extract.id);
-		expect([...cleanupJobs.values()].some((job) => job.fileRefs.includes(sharedRef))).toBe(false);
+		expect(jobsHolding(sharedRef)).toHaveLength(0);
 		expect(discarded.lifecycleState).toBe('deleted');
 
 		await processDueCleanups(Date.now());
@@ -154,5 +171,99 @@ describe('discard + cleanup', () => {
 		await discardTake(parent.id);
 		await processDueCleanups(Date.now());
 		expect(deletePath).toHaveBeenCalledWith(sharedRef);
+	});
+
+	it('keeps shared source when parent is discarded first while children remain', async () => {
+		const { session, parent, children, sharedRef } = seedParentWithChildren(2);
+
+		await discardTake(parent.id);
+		expect(jobsHolding(sharedRef)).toHaveLength(0);
+		await processDueCleanups(Date.now());
+		expect(deletePath).not.toHaveBeenCalledWith(sharedRef);
+		expect(await listTakesForSession(session.id)).toHaveLength(2);
+
+		await discardTake(children[0]!.id);
+		expect(jobsHolding(sharedRef)).toHaveLength(0);
+		await processDueCleanups(Date.now());
+		expect(deletePath).not.toHaveBeenCalledWith(sharedRef);
+
+		await discardTake(children[1]!.id);
+		expect(jobsHolding(sharedRef).length).toBeGreaterThan(0);
+		await processDueCleanups(Date.now());
+		expect(deletePath).toHaveBeenCalledWith(sharedRef);
+	});
+
+	it('keeps shared source across two children until the last one is discarded', async () => {
+		const { children, sharedRef } = seedParentWithChildren(2);
+		// Parent still present; discard both children one by one — source stays for parent.
+		await discardTake(children[0]!.id);
+		await discardTake(children[1]!.id);
+		expect(jobsHolding(sharedRef)).toHaveLength(0);
+		await processDueCleanups(Date.now());
+		expect(deletePath).not.toHaveBeenCalledWith(sharedRef);
+	});
+
+	it('deletes shared source after batch discard of parent and all children', async () => {
+		const { parent, children, sharedRef } = seedParentWithChildren(2);
+
+		await discardTake(parent.id);
+		await discardTake(children[0]!.id);
+		await discardTake(children[1]!.id);
+
+		expect(jobsHolding(sharedRef).length).toBeGreaterThan(0);
+		await processDueCleanups(Date.now());
+		expect(deletePath).toHaveBeenCalledWith(sharedRef);
+	});
+
+	it('deletes shared source when batch order is children-then-parent', async () => {
+		const { parent, children, sharedRef } = seedParentWithChildren(2);
+
+		await discardTake(children[0]!.id);
+		await discardTake(children[1]!.id);
+		await discardTake(parent.id);
+
+		expect(jobsHolding(sharedRef).length).toBeGreaterThan(0);
+		await processDueCleanups(Date.now());
+		expect(deletePath).toHaveBeenCalledWith(sharedRef);
+	});
+
+	it('does not enqueue an empty cleanup job when every ref is still held', async () => {
+		const { parent, children, sharedRef } = seedParentWithChildren(1);
+
+		await discardTake(children[0]!.id);
+		expect(cleanupJobs.size).toBe(0);
+		expect(jobsHolding(sharedRef)).toHaveLength(0);
+
+		// Parent-only unique assets would still enqueue; parent shares only source here.
+		await discardTake(parent.id);
+		expect(jobsHolding(sharedRef).length).toBeGreaterThan(0);
+	});
+
+	it('keeps failed cleanup jobs retryable and succeeds on a later pass', async () => {
+		const { take } = seedSavedTake();
+		await discardTake(take.id);
+
+		vi.mocked(deletePath).mockRejectedValueOnce(new Error('OPFS busy'));
+		const first = await processDueCleanups(Date.now());
+		expect(first.failed).toBe(1);
+		expect(first.processed).toBe(0);
+		expect(cleanupJobs.size).toBe(1);
+		const stuck = [...cleanupJobs.values()][0]!;
+		expect(stuck.attempts).toBe(1);
+		expect(stuck.lastError?.code).toBe('CLEANUP_FAILED');
+		expect(stuck.lastError?.recoverable).toBe(true);
+
+		vi.mocked(deletePath).mockImplementation(async () => undefined);
+		const second = await processDueCleanups(Date.now());
+		expect(second.processed).toBe(1);
+		expect(second.failed).toBe(0);
+		expect(cleanupJobs.size).toBe(0);
+		expect(deletePath).toHaveBeenCalledWith(take.source.fileRef);
+	});
+
+	it('enqueueCleanup returns null for empty refs', async () => {
+		const job = await enqueueCleanup([], new Date().toISOString());
+		expect(job).toBeNull();
+		expect(cleanupJobs.size).toBe(0);
 	});
 });
