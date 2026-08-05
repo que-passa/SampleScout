@@ -294,9 +294,7 @@
 	/** Visible chrome says “scouted”; SR labels use fuller “suggested regions”. */
 	const suggestionAriaLabel = $derived.by(() => {
 		if (suggestionIndex == null) {
-			return suggestionCount === 1
-				? '1 suggested region'
-				: `${suggestionCount} suggested regions`;
+			return suggestionCount === 1 ? '1 suggested region' : `${suggestionCount} suggested regions`;
 		}
 		return `Suggested region ${suggestionLabel}`;
 	});

@@ -126,9 +126,7 @@
 	const recordingLimitations = $derived(
 		capabilities ? explainRecordingLimitations(capabilities) : []
 	);
-	const persistLimitations = $derived(
-		capabilities ? explainPersistLimitations(capabilities) : []
-	);
+	const persistLimitations = $derived(capabilities ? explainPersistLimitations(capabilities) : []);
 	const storageError = $derived(
 		snap.error?.code === 'STORAGE_INSUFFICIENT' || snap.error?.code === 'STORAGE_CHECK_FAILED'
 	);
@@ -165,10 +163,7 @@
 		isRecording || snap.phase === 'finalizing' || snap.phase === 'requesting'
 	);
 	const isDisabled = $derived(
-		!canArmRecord ||
-			!snap.ready ||
-			snap.phase === 'finalizing' ||
-			snap.phase === 'requesting'
+		!canArmRecord || !snap.ready || snap.phase === 'finalizing' || snap.phase === 'requesting'
 	);
 	const showCollectionLink = $derived(!isRecording);
 	const showImportFallback = $derived(
@@ -176,8 +171,7 @@
 	);
 	const showCapabilityAlerts = $derived(
 		Boolean(
-			snap.error ||
-				(capabilities && (!canRecord || !canPersistFiles || storageBlocksCapture))
+			snap.error || (capabilities && (!canRecord || !canPersistFiles || storageBlocksCapture))
 		)
 	);
 	const collectionAriaLabel = $derived(
@@ -432,8 +426,7 @@
 					{#if capabilities && !canRecord}
 						<div class="warning-banner">
 							<p>
-								Recording needs a secure context, microphone permission, and MediaRecorder
-								support.
+								Recording needs a secure context, microphone permission, and MediaRecorder support.
 							</p>
 							{#if recordingLimitations.length}
 								<ul class="limit-list">
@@ -451,8 +444,7 @@
 					{:else if capabilities && !canPersistFiles}
 						<div class="warning-banner">
 							<p>
-								Local storage is not available. Takes cannot be saved as Local Files on this
-								device.
+								Local storage is not available. Takes cannot be saved as Local Files on this device.
 							</p>
 							{#if persistLimitations.length}
 								<ul class="limit-list">
@@ -465,12 +457,13 @@
 					{:else if capabilities && storageBlocksCapture && !storageError}
 						<div class="warning-banner">
 							<p>
-								Not enough free space for a full-length Capture. Free space on this device,
-								discard files in Collection, or Import a smaller file.
+								Not enough free space for a full-length Capture. Free space on this device, discard
+								files in Collection, or Import a smaller file.
 							</p>
 							<p class="limit-meta">
-								About {formatBytes(capabilities.storageEstimate.availableBytes)} free; need
-								roughly {formatBytes(capabilities.storageRequiredForMaxRecording)}.
+								About {formatBytes(capabilities.storageEstimate.availableBytes)} free; need roughly {formatBytes(
+									capabilities.storageRequiredForMaxRecording
+								)}.
 							</p>
 							{#if canPersistFiles}
 								<GhostButton onclick={openImportPicker} disabled={importing}>

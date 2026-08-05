@@ -187,8 +187,7 @@ export async function detectCapabilities(): Promise<CapabilityReport> {
 		storageRequiredForMaxRecording,
 		storageEstimate.supported
 	);
-	const canCaptureSafely =
-		canRecord && canPersistFiles && storageOkForMaxRecording !== false;
+	const canCaptureSafely = canRecord && canPersistFiles && storageOkForMaxRecording !== false;
 
 	return {
 		checkedAt: new Date().toISOString(),

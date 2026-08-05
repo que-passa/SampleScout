@@ -1,10 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import {
-		detectCapabilities,
-		explainCaptureLimitations,
-		formatBytes
-	} from '$lib/capabilities';
+	import { detectCapabilities, explainCaptureLimitations, formatBytes } from '$lib/capabilities';
 	import type { CapabilityReport } from '$lib/capabilities';
 	import { getPublicAppConfig } from '$lib/config/app';
 	import { captureSentryTestError, isClientSentryActive } from '$lib/monitoring/sentry-client';
@@ -48,9 +44,7 @@
 			: []
 	);
 
-	const limitations = $derived(
-		capabilities ? explainCaptureLimitations(capabilities) : []
-	);
+	const limitations = $derived(capabilities ? explainCaptureLimitations(capabilities) : []);
 </script>
 
 <svelte:head>

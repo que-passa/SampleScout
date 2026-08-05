@@ -767,9 +767,7 @@
 									name={take.metadata.displayName}
 									savedLocally={isTakeSavedLocally(take)}
 									catalogReference={deriveCatalogReference(take)}
-									durationLabel={formatTakeDurationSeconds(
-										recipeDurationSeconds(take.editRecipe)
-									)}
+									durationLabel={formatTakeDurationSeconds(recipeDurationSeconds(take.editRecipe))}
 									lineageGlyph={collectionLineageGlyph(take, takes)}
 									recordedAtLabel={formatShortDateTime(take.createdAt)}
 									specimenMark={deriveSpecimenMark(take)}

@@ -111,7 +111,9 @@
 		<div class="title-row">
 			<span class="name">{name}</span>
 			{#if lineageGlyph}
-				<span class="lineage-glyph" title={lineageTitle} aria-label={lineageTitle}>{lineageGlyph}</span>
+				<span class="lineage-glyph" title={lineageTitle} aria-label={lineageTitle}
+					>{lineageGlyph}</span
+				>
 			{/if}
 		</div>
 		<div class="meta-row">

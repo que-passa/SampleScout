@@ -1,6 +1,4 @@
-import {
-	SUGGEST_REGIONS_TIMEOUT_MS
-} from '$lib/config/suggest-regions';
+import { SUGGEST_REGIONS_TIMEOUT_MS } from '$lib/config/suggest-regions';
 import { createId } from '$lib/domain/ids';
 import { suggestRegionsFromPlanar } from './index';
 import type { SuggestRegionsWorkerRequest, SuggestRegionsWorkerResponse } from './protocol';

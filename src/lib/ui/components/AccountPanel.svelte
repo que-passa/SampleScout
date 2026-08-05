@@ -135,9 +135,7 @@
 <section class="block">
 	<div class="panel">
 		<h2>Feedback</h2>
-		<p class="body">
-			Got a thought? If we reply, it’ll go to your Audiotool email.
-		</p>
+		<p class="body">Got a thought? If we reply, it’ll go to your Audiotool email.</p>
 	</div>
 	<div class="actions">
 		<GhostButton onclick={openFeedbackOverlay}>Send feedback</GhostButton>

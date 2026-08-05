@@ -1,15 +1,9 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import {
-		FeedbackSubmitError,
-		submitUserFeedback
-	} from '$lib/monitoring/submit-feedback';
+	import { FeedbackSubmitError, submitUserFeedback } from '$lib/monitoring/submit-feedback';
 	import { actionToast } from '$lib/state/action-toast';
 	import { audiotoolAuth } from '$lib/state/audiotool-auth.svelte';
-	import {
-		closeFeedbackOverlay,
-		feedbackOverlay
-	} from '$lib/state/feedback-overlay.svelte';
+	import { closeFeedbackOverlay, feedbackOverlay } from '$lib/state/feedback-overlay.svelte';
 	import GhostButton from '$lib/ui/components/GhostButton.svelte';
 	import PrimaryButton from '$lib/ui/components/PrimaryButton.svelte';
 	import SheetOverlay from '$lib/ui/components/SheetOverlay.svelte';
@@ -46,9 +40,7 @@
 			closeFeedbackOverlay();
 		} catch (error) {
 			const text =
-				error instanceof FeedbackSubmitError
-					? error.message
-					: 'Could not send feedback.';
+				error instanceof FeedbackSubmitError ? error.message : 'Could not send feedback.';
 			actionToast.show(text);
 		} finally {
 			busy = false;
@@ -72,9 +64,7 @@
 			</PrimaryButton>
 		{/snippet}
 		<div class="sheet">
-			<p class="lead">
-				Got a thought? If we reply, it’ll go to your Audiotool email.
-			</p>
+			<p class="lead">Got a thought? If we reply, it’ll go to your Audiotool email.</p>
 			<textarea
 				{@attach prepareTextarea}
 				class="control textarea"
@@ -84,8 +74,7 @@
 				onkeydown={onKeydown}
 				placeholder="What's on your mind?"
 				aria-label="Feedback message"
-				enterkeyhint="send"
-			></textarea>
+				enterkeyhint="send"></textarea>
 		</div>
 	</SheetOverlay>
 {/if}

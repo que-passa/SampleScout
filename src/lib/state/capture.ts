@@ -15,10 +15,7 @@ import { RECORDING_MAX_SECONDS, type RecordingWarningLevel } from '$lib/config/r
 import { writeBinary } from '$lib/persistence/opfs';
 import { sourcePath } from '$lib/persistence/paths';
 import { ensureActiveSession, putSession, applyActiveSessionName } from '$lib/persistence/sessions';
-import {
-	checkStorageForRecording,
-	checkStorageForSave
-} from '$lib/persistence/storage-gate';
+import { checkStorageForRecording, checkStorageForSave } from '$lib/persistence/storage-gate';
 import { getAppSettings } from '$lib/persistence/settings';
 import { normalizeUploadOutput } from '$lib/config/upload-output';
 import {
