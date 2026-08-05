@@ -264,8 +264,11 @@ export function collectionLineageGlyph(
 	return null;
 }
 
-export function collectionLineageGlyphLabel(_glyph: CollectionLineageGlyph): string {
-	return 'Original source';
+export function collectionLineageGlyphLabel(glyph: CollectionLineageGlyph): string {
+	switch (glyph) {
+		case 'SRC':
+			return 'Original source';
+	}
 }
 
 /** Strip em/en dashes and collapse whitespace for display-name stems. */
